@@ -1,0 +1,649 @@
+<template>
+    <div class="user-management">
+      <!-- Header -->
+      <div class="flex justify-content-between align-items-center mb-4">
+        <h1 class="text-2xl font-bold m-0">User Management</h1>
+        <Button 
+          label="Add User" 
+          icon="pi pi-plus" 
+          @click="showAddDialog = true"
+          class="p-button-primary"
+        />
+      </div>
+  
+      <!-- Filters and Search -->
+      <Card class="mb-4">
+        <template #content>
+          <div class="grid">
+            <div class="col-12 md:col-4">
+              <span class="p-input-icon-left w-full">
+                <i class="pi pi-search" />
+                <InputText 
+                  v-model="searchTerm" 
+                  placeholder="Search users..." 
+                  class="w-full"
+                  @input="onSearch"
+                />
+              </span>
+            </div>
+            <div class="col-12 md:col-3">
+              <Dropdown
+                v-model="selectedRole"
+                :options="roleOptions"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Filter by Role"
+                class="w-full"
+                @change="onRoleFilter"
+              />
+            </div>
+            <div class="col-12 md:col-3">
+              <Dropdown
+                v-model="selectedStatus"
+                :options="statusOptions"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Filter by Status"
+                class="w-full"
+                @change="onStatusFilter"
+              />
+            </div>
+            <div class="col-12 md:col-2">
+              <Button 
+                label="Clear" 
+                icon="pi pi-filter-slash" 
+                @click="clearFilters"
+                class="p-button-outlined w-full"
+              />
+            </div>
+          </div>
+        </template>
+      </Card>
+  
+      <!-- Users DataTable -->
+      <Card>
+        <template #content>
+          <DataTable 
+            :value="filteredUsers" 
+            :paginator="true" 
+            :rows="10"
+            :rowsPerPageOptions="[5, 10, 20, 50]"
+            :loading="loading"
+            stripedRows
+            showGridlines
+            sortMode="multiple"
+            removableSort
+            class="p-datatable-sm"
+          >
+            <Column field="id" header="ID" sortable style="width: 80px">
+              <template #body="{ data }">
+                <Badge :value="data.id" class="p-badge-secondary" />
+              </template>
+            </Column>
+  
+            <Column field="username" header="Username" sortable>
+              <template #body="{ data }">
+                <div class="flex align-items-center">
+                  <Avatar 
+                    :label="data.username.charAt(0).toUpperCase()" 
+                    class="mr-2" 
+                    size="small"
+                    :style="{ backgroundColor: getAvatarColor(data.username) }"
+                  />
+                  <span class="font-medium">{{ data.username }}</span>
+                </div>
+              </template>
+            </Column>
+  
+            <Column field="fullName" header="Full Name" sortable />
+  
+            <Column field="email" header="Email" sortable>
+              <template #body="{ data }">
+                <a :href="`mailto:${data.email}`" class="text-primary no-underline">
+                  {{ data.email }}
+                </a>
+              </template>
+            </Column>
+  
+            <Column field="role" header="Role" sortable>
+              <template #body="{ data }">
+                <Tag 
+                  :value="data.role" 
+                  :severity="getRoleSeverity(data.role)"
+                  class="text-sm"
+                />
+              </template>
+            </Column>
+  
+            <Column field="isActive" header="Status" sortable>
+              <template #body="{ data }">
+                <Tag 
+                  :value="data.isActive ? 'Active' : 'Inactive'" 
+                  :severity="data.isActive ? 'success' : 'danger'"
+                  :icon="data.isActive ? 'pi pi-check' : 'pi pi-times'"
+                />
+              </template>
+            </Column>
+  
+            <Column field="createdAt" header="Created" sortable>
+              <template #body="{ data }">
+                <span :title="formatDate(data.createdAt)">
+                  {{ formatRelativeDate(data.createdAt) }}
+                </span>
+              </template>
+            </Column>
+  
+            <Column field="lastLoginAt" header="Last Login" sortable>
+              <template #body="{ data }">
+                <span :title="formatDate(data.lastLoginAt)">
+                  {{ formatRelativeDate(data.lastLoginAt) }}
+                </span>
+              </template>
+            </Column>
+  
+            <Column header="Actions" style="width: 120px">
+              <template #body="{ data }">
+                <div class="flex gap-2">
+                  <Button 
+                    icon="pi pi-pencil" 
+                    size="small"
+                    @click="editUser(data)"
+                    v-tooltip.top="'Edit User'"
+                  />
+                  <Button 
+                    icon="pi pi-eye" 
+                    size="small"
+                    severity="info"
+                    @click="viewUser(data)"
+                    v-tooltip.top="'View Details'"
+                  />
+                  <Button 
+                    :icon="data.isActive ? 'pi pi-ban' : 'pi pi-check'" 
+                    size="small"
+                    :severity="data.isActive ? 'warning' : 'success'"
+                    @click="toggleUserStatus(data)"
+                    :v-tooltip.top="data.isActive ? 'Deactivate User' : 'Activate User'"
+                  />
+                </div>
+              </template>
+            </Column>
+          </DataTable>
+        </template>
+      </Card>
+  
+      <!-- Add/Edit User Dialog -->
+      <Dialog 
+        v-model:visible="showAddDialog" 
+        :header="editingUser ? 'Edit User' : 'Add New User'"
+        :modal="true" 
+        class="p-fluid" 
+        style="width: 500px"
+      >
+        <div class="grid">
+          <div class="col-12">
+            <label for="username" class="block text-900 font-medium mb-2">Username</label>
+            <InputText 
+              id="username"
+              v-model="userForm.username" 
+              :class="{ 'p-invalid': submitted && !userForm.username }" 
+            />
+            <small v-show="submitted && !userForm.username" class="p-error">Username is required.</small>
+          </div>
+  
+          <div class="col-12">
+            <label for="fullName" class="block text-900 font-medium mb-2">Full Name</label>
+            <InputText 
+              id="fullName"
+              v-model="userForm.fullName" 
+              :class="{ 'p-invalid': submitted && !userForm.fullName }" 
+            />
+            <small v-show="submitted && !userForm.fullName" class="p-error">Full Name is required.</small>
+          </div>
+  
+          <div class="col-12">
+            <label for="email" class="block text-900 font-medium mb-2">Email</label>
+            <InputText 
+              id="email"
+              v-model="userForm.email" 
+              type="email"
+              :class="{ 'p-invalid': submitted && (!userForm.email || !isValidEmail(userForm.email)) }" 
+            />
+            <small v-show="submitted && !userForm.email" class="p-error">Email is required.</small>
+            <small v-show="submitted && userForm.email && !isValidEmail(userForm.email)" class="p-error">Please enter a valid email.</small>
+          </div>
+  
+          <div class="col-12">
+            <label for="role" class="block text-900 font-medium mb-2">Role</label>
+            <Dropdown 
+              id="role"
+              v-model="userForm.role" 
+              :options="roleOptions" 
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Select a Role"
+              :class="{ 'p-invalid': submitted && !userForm.role }" 
+            />
+            <small v-show="submitted && !userForm.role" class="p-error">Role is required.</small>
+          </div>
+  
+          <div class="col-12">
+            <div class="field-checkbox">
+              <Checkbox 
+                id="isActive" 
+                v-model="userForm.isActive" 
+                :binary="true" 
+              />
+              <label for="isActive">Active User</label>
+            </div>
+          </div>
+        </div>
+  
+        <template #footer>
+          <Button 
+            label="Cancel" 
+            icon="pi pi-times" 
+            @click="hideDialog" 
+            class="p-button-text" 
+          />
+          <Button 
+            :label="editingUser ? 'Update' : 'Save'" 
+            icon="pi pi-check" 
+            @click="saveUser" 
+            autofocus 
+          />
+        </template>
+      </Dialog>
+  
+      <!-- User Details Dialog -->
+      <Dialog 
+        v-model:visible="showDetailsDialog" 
+        header="User Details"
+        :modal="true" 
+        style="width: 600px"
+      >
+        <div v-if="selectedUser" class="grid">
+          <div class="col-12 text-center mb-4">
+            <Avatar 
+              :label="selectedUser.username.charAt(0).toUpperCase()" 
+              size="xlarge"
+              :style="{ backgroundColor: getAvatarColor(selectedUser.username) }"
+            />
+            <h3 class="mt-3 mb-1">{{ selectedUser.fullName }}</h3>
+            <p class="text-600 m-0">@{{ selectedUser.username }}</p>
+          </div>
+  
+          <div class="col-6">
+            <strong>ID:</strong>
+            <p>{{ selectedUser.id }}</p>
+          </div>
+  
+          <div class="col-6">
+            <strong>Email:</strong>
+            <p>{{ selectedUser.email }}</p>
+          </div>
+  
+          <div class="col-6">
+            <strong>Role:</strong>
+            <p>
+              <Tag 
+                :value="selectedUser.role" 
+                :severity="getRoleSeverity(selectedUser.role)"
+              />
+            </p>
+          </div>
+  
+          <div class="col-6">
+            <strong>Status:</strong>
+            <p>
+              <Tag 
+                :value="selectedUser.isActive ? 'Active' : 'Inactive'" 
+                :severity="selectedUser.isActive ? 'success' : 'danger'"
+                :icon="selectedUser.isActive ? 'pi pi-check' : 'pi pi-times'"
+              />
+            </p>
+          </div>
+  
+          <div class="col-6">
+            <strong>Created:</strong>
+            <p>{{ formatDate(selectedUser.createdAt) }}</p>
+          </div>
+  
+          <div class="col-6">
+            <strong>Last Login:</strong>
+            <p>{{ formatDate(selectedUser.lastLoginAt) }}</p>
+          </div>
+        </div>
+  
+        <template #footer>
+          <Button 
+            label="Close" 
+            icon="pi pi-times" 
+            @click="showDetailsDialog = false" 
+            class="p-button-text" 
+          />
+          <Button 
+            label="Edit User" 
+            icon="pi pi-pencil" 
+            @click="editUserFromDetails" 
+          />
+        </template>
+      </Dialog>
+    </div>
+  </template>
+  
+  <script>
+  import { computed, onMounted, ref } from 'vue'
+  
+  export default {
+    name: 'User',
+    setup() {
+      // Reactive data
+      const users = ref([])
+      const filteredUsers = ref([])
+      const loading = ref(false)
+      const searchTerm = ref('')
+      const selectedRole = ref(null)
+      const selectedStatus = ref(null)
+      
+      // Dialog states
+      const showAddDialog = ref(false)
+      const showDetailsDialog = ref(false)
+      const submitted = ref(false)
+      const editingUser = ref(false)
+      const selectedUser = ref(null)
+      
+      // Form data
+      const userForm = ref({
+        username: '',
+        fullName: '',
+        email: '',
+        role: '',
+        isActive: true
+      })
+  
+      // Options
+      const roleOptions = ref([
+        { label: 'Admin', value: 'admin' },
+        { label: 'User', value: 'user' },
+        { label: 'Manager', value: 'manager' },
+        { label: 'Guest', value: 'guest' }
+      ])
+  
+      const statusOptions = ref([
+        { label: 'Active', value: true },
+        { label: 'Inactive', value: false }
+      ])
+  
+      // Computed
+      const computedFilteredUsers = computed(() => {
+        let result = [...users.value]
+        
+        // Search filter
+        if (searchTerm.value) {
+          const search = searchTerm.value.toLowerCase()
+          result = result.filter(user => 
+            user.username.toLowerCase().includes(search) ||
+            user.fullName.toLowerCase().includes(search) ||
+            user.email.toLowerCase().includes(search)
+          )
+        }
+        
+        // Role filter
+        if (selectedRole.value !== null) {
+          result = result.filter(user => user.role === selectedRole.value)
+        }
+        
+        // Status filter
+        if (selectedStatus.value !== null) {
+          result = result.filter(user => user.isActive === selectedStatus.value)
+        }
+        
+        return result
+      })
+  
+      // Methods
+      const fetchUsers = async () => {
+        loading.value = true
+        try {
+          // Replace with your actual API call
+          // const response = await fetch('/api/users')
+          // users.value = await response.json()
+          
+          // Mock data for demonstration
+          users.value = [
+            {
+              id: 1,
+              username: "john_doe",
+              fullName: "John Doe",
+              email: "john.doe@example.com",
+              role: "admin",
+              isActive: true,
+              createdAt: "2024-01-15T10:30:00Z",
+              lastLoginAt: "2025-06-03T08:45:00Z"
+            },
+            {
+              id: 2,
+              username: "jane_smith",
+              fullName: "Jane Smith",
+              email: "jane.smith@example.com",
+              role: "user",
+              isActive: true,
+              createdAt: "2024-03-22T14:20:00Z",
+              lastLoginAt: "2025-06-02T16:30:00Z"
+            },
+            {
+              id: 3,
+              username: "mike_wilson",
+              fullName: "Mike Wilson",
+              email: "mike.wilson@example.com",
+              role: "manager",
+              isActive: false,
+              createdAt: "2024-05-10T09:15:00Z",
+              lastLoginAt: "2025-05-28T11:20:00Z"
+            }
+          ]
+          filteredUsers.value = [...users.value]
+        } catch (error) {
+          console.error('Error fetching users:', error)
+        } finally {
+          loading.value = false
+        }
+      }
+  
+      const onSearch = () => {
+        filteredUsers.value = computedFilteredUsers.value
+      }
+  
+      const onRoleFilter = () => {
+        filteredUsers.value = computedFilteredUsers.value
+      }
+  
+      const onStatusFilter = () => {
+        filteredUsers.value = computedFilteredUsers.value
+      }
+  
+      const clearFilters = () => {
+        searchTerm.value = ''
+        selectedRole.value = null
+        selectedStatus.value = null
+        filteredUsers.value = [...users.value]
+      }
+  
+      const editUser = (user) => {
+        userForm.value = { ...user }
+        editingUser.value = true
+        showAddDialog.value = true
+      }
+  
+      const viewUser = (user) => {
+        selectedUser.value = user
+        showDetailsDialog.value = true
+      }
+  
+      const editUserFromDetails = () => {
+        showDetailsDialog.value = false
+        editUser(selectedUser.value)
+      }
+  
+      const toggleUserStatus = async (user) => {
+        try {
+          // API call to update user status
+          user.isActive = !user.isActive
+          // await updateUser(user.id, { isActive: user.isActive })
+        } catch (error) {
+          console.error('Error updating user status:', error)
+          // Revert on error
+          user.isActive = !user.isActive
+        }
+      }
+  
+      const saveUser = async () => {
+        submitted.value = true
+        
+        if (!userForm.value.username || !userForm.value.fullName || 
+            !userForm.value.email || !userForm.value.role || 
+            !isValidEmail(userForm.value.email)) {
+          return
+        }
+  
+        try {
+          if (editingUser.value) {
+            // Update existing user
+            const index = users.value.findIndex(u => u.id === userForm.value.id)
+            if (index !== -1) {
+              users.value[index] = { ...userForm.value }
+            }
+          } else {
+            // Add new user
+            const newUser = {
+              ...userForm.value,
+              id: Math.max(...users.value.map(u => u.id)) + 1,
+              createdAt: new Date().toISOString(),
+              lastLoginAt: new Date().toISOString()
+            }
+            users.value.push(newUser)
+          }
+          
+          filteredUsers.value = computedFilteredUsers.value
+          hideDialog()
+        } catch (error) {
+          console.error('Error saving user:', error)
+        }
+      }
+  
+      const hideDialog = () => {
+        showAddDialog.value = false
+        submitted.value = false
+        editingUser.value = false
+        userForm.value = {
+          username: '',
+          fullName: '',
+          email: '',
+          role: '',
+          isActive: true
+        }
+      }
+  
+      const isValidEmail = (email) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        return emailRegex.test(email)
+      }
+  
+      const formatDate = (dateString) => {
+        return new Date(dateString).toLocaleString()
+      }
+  
+      const formatRelativeDate = (dateString) => {
+        const date = new Date(dateString)
+        const now = new Date()
+        const diffTime = Math.abs(now - date)
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+        
+        if (diffDays === 1) return 'Yesterday'
+        if (diffDays < 7) return `${diffDays} days ago`
+        if (diffDays < 30) return `${Math.ceil(diffDays / 7)} weeks ago`
+        return `${Math.ceil(diffDays / 30)} months ago`
+      }
+  
+      const getRoleSeverity = (role) => {
+        const severityMap = {
+          admin: 'danger',
+          manager: 'warning',
+          user: 'info',
+          guest: 'secondary'
+        }
+        return severityMap[role?.toLowerCase()] || 'info'
+      }
+  
+      const getAvatarColor = (username) => {
+        const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8']
+        const index = username.charCodeAt(0) % colors.length
+        return colors[index]
+      }
+  
+      // Lifecycle
+      onMounted(() => {
+        fetchUsers()
+      })
+  
+      return {
+        users,
+        filteredUsers,
+        loading,
+        searchTerm,
+        selectedRole,
+        selectedStatus,
+        showAddDialog,
+        showDetailsDialog,
+        submitted,
+        editingUser,
+        selectedUser,
+        userForm,
+        roleOptions,
+        statusOptions,
+        onSearch,
+        onRoleFilter,
+        onStatusFilter,
+        clearFilters,
+        editUser,
+        viewUser,
+        editUserFromDetails,
+        toggleUserStatus,
+        saveUser,
+        hideDialog,
+        isValidEmail,
+        formatDate,
+        formatRelativeDate,
+        getRoleSeverity,
+        getAvatarColor
+      }
+    }
+  }
+  </script>
+  
+  <style scoped>
+  .user-management {
+    padding: 1rem;
+  }
+  
+  .p-datatable .p-datatable-tbody > tr > td {
+    padding: 0.75rem;
+  }
+  
+  .p-avatar {
+    color: white;
+    font-weight: bold;
+  }
+  
+  .text-primary {
+    color: var(--primary-color) !important;
+  }
+  
+  .no-underline {
+    text-decoration: none;
+  }
+  
+  .no-underline:hover {
+    text-decoration: underline;
+  }
+  </style>
