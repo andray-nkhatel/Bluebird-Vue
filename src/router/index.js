@@ -35,6 +35,22 @@ const router = createRouter({
                     },
                     component: () => import('@/views/pages/Profile.vue')
                 },
+                {   path: '/students',
+                    name: 'students',
+                    meta:{
+                        requiresAuth: true,
+                    },
+                    component: () => import('@/views/students/Students.vue')
+                },
+                {
+                    path: '/users',
+                    name: 'users',
+                    meta: {
+                        requiresAuth: true,
+                        // roles: ['admin']
+                    },
+                    component: () => import('../views/pages/Users.vue')
+                }
              
                 
               

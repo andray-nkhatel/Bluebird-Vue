@@ -45,6 +45,29 @@ const allMenuItems = [
         ]
     },
     {
+      label: 'Users',
+      items: [
+          { 
+              label: 'All Users', 
+              icon: 'pi pi-fw pi-users', 
+              to: '/users',
+              roles: ['Admin', 'Teacher', 'Staff']
+          },
+          { 
+              label: 'Add User', 
+              icon: 'pi pi-fw pi-user-plus', 
+              to: '/users/add',
+              roles: ['Admin'] // Admin only
+          },
+          { 
+              label: 'User Roles', 
+              icon: 'pi pi-fw pi-shield', 
+              to: '/users/roles',
+              roles: ['Admin'] // Admin only
+          }
+      ]
+    },
+    {
         label: 'Students',
         items: [
             { 
@@ -56,7 +79,7 @@ const allMenuItems = [
             { 
                 label: 'Add Student', 
                 icon: 'pi pi-fw pi-user-plus', 
-                to: '/students/add',
+                to: '/students/',
                 roles: ['Admin'] // Admin only
             },
             { 

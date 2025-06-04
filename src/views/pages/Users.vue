@@ -4,6 +4,7 @@
       <div class="flex justify-content-between align-items-center mb-4">
         <h1 class="text-2xl font-bold m-0">User Management</h1>
         <Button 
+          style="display: flex; margin-left: auto;"
           label="Add User" 
           icon="pi pi-plus" 
           @click="showAddDialog = true"
@@ -15,9 +16,9 @@
       <Card class="mb-4">
         <template #content>
           <div class="grid">
-            <div class="col-12 md:col-4">
+            <div class="col-12 md:col-4 mb-2">
               <span class="p-input-icon-left w-full">
-                <i class="pi pi-search" />
+                <!-- <i class="pi pi-search" /> -->
                 <InputText 
                   v-model="searchTerm" 
                   placeholder="Search users..." 
@@ -26,7 +27,7 @@
                 />
               </span>
             </div>
-            <div class="col-12 md:col-3">
+            <div class="col-12 md:col-4 mb-2">
               <Dropdown
                 v-model="selectedRole"
                 :options="roleOptions"
@@ -37,7 +38,7 @@
                 @change="onRoleFilter"
               />
             </div>
-            <div class="col-12 md:col-3">
+            <div class="col-12 md:col-4 mb-2">
               <Dropdown
                 v-model="selectedStatus"
                 :options="statusOptions"
@@ -177,12 +178,13 @@
         :header="editingUser ? 'Edit User' : 'Add New User'"
         :modal="true" 
         class="p-fluid" 
-        style="width: 500px"
+        style="width: 400px"
       >
         <div class="grid">
           <div class="col-12">
             <label for="username" class="block text-900 font-medium mb-2">Username</label>
             <InputText 
+              class="w-full"
               id="username"
               v-model="userForm.username" 
               :class="{ 'p-invalid': submitted && !userForm.username }" 
@@ -190,9 +192,10 @@
             <small v-show="submitted && !userForm.username" class="p-error">Username is required.</small>
           </div>
   
-          <div class="col-12">
+          <div class="col-12 mt-2">
             <label for="fullName" class="block text-900 font-medium mb-2">Full Name</label>
             <InputText 
+            class="w-full"
               id="fullName"
               v-model="userForm.fullName" 
               :class="{ 'p-invalid': submitted && !userForm.fullName }" 
@@ -200,9 +203,10 @@
             <small v-show="submitted && !userForm.fullName" class="p-error">Full Name is required.</small>
           </div>
   
-          <div class="col-12">
+          <div class="col-12 mt-2">
             <label for="email" class="block text-900 font-medium mb-2">Email</label>
             <InputText 
+              class="w-full"
               id="email"
               v-model="userForm.email" 
               type="email"
@@ -211,11 +215,24 @@
             <small v-show="submitted && !userForm.email" class="p-error">Email is required.</small>
             <small v-show="submitted && userForm.email && !isValidEmail(userForm.email)" class="p-error">Please enter a valid email.</small>
           </div>
+
+          <div class="col-12 mt-2">
+            <label for="fullName" class="block text-900 font-medium mb-2">Password</label>
+            <InputText 
+            class="w-full"
+              id="password"
+              v-model="userForm.password" 
+              :class="{ 'p-invalid': submitted && !userForm.password }" 
+            />
+            <small v-show="submitted && !userForm.password" class="p-error">Password not entered.</small>
+          </div>
   
-          <div class="col-12">
+  
+          <div class="col-12 mt-2">
             <label for="role" class="block text-900 font-medium mb-2">Role</label>
             <Dropdown 
               id="role"
+              class="w-full"
               v-model="userForm.role" 
               :options="roleOptions" 
               optionLabel="label"
@@ -226,14 +243,14 @@
             <small v-show="submitted && !userForm.role" class="p-error">Role is required.</small>
           </div>
   
-          <div class="col-12">
+          <div class="col-12 mt-5">
             <div class="field-checkbox">
               <Checkbox 
                 id="isActive" 
                 v-model="userForm.isActive" 
                 :binary="true" 
               />
-              <label for="isActive">Active User</label>
+              <label class="ml-2" for="isActive">Active User</label>
             </div>
           </div>
         </div>
@@ -332,7 +349,8 @@
   </template>
   
   <script>
-  import { computed, onMounted, ref } from 'vue'
+import { userService } from '@/service/api.service'
+import { computed, onMounted, ref } from 'vue'
   
   export default {
     name: 'User',
@@ -358,15 +376,15 @@
         fullName: '',
         email: '',
         role: '',
+        password: '',
         isActive: true
       })
   
       // Options
       const roleOptions = ref([
-        { label: 'Admin', value: 'admin' },
-        { label: 'User', value: 'user' },
-        { label: 'Manager', value: 'manager' },
-        { label: 'Guest', value: 'guest' }
+        { label: 'Admin', value: 'Admin' },
+        { label: 'Teacher', value: 'Teacher' },
+        { label: 'Staff', value: 'Staff' }
       ])
   
       const statusOptions = ref([
@@ -406,42 +424,11 @@
         loading.value = true
         try {
           // Replace with your actual API call
-          // const response = await fetch('/api/users')
-          // users.value = await response.json()
+          const response = await userService.getAll();
+          users.value = response
           
           // Mock data for demonstration
-          users.value = [
-            {
-              id: 1,
-              username: "john_doe",
-              fullName: "John Doe",
-              email: "john.doe@example.com",
-              role: "admin",
-              isActive: true,
-              createdAt: "2024-01-15T10:30:00Z",
-              lastLoginAt: "2025-06-03T08:45:00Z"
-            },
-            {
-              id: 2,
-              username: "jane_smith",
-              fullName: "Jane Smith",
-              email: "jane.smith@example.com",
-              role: "user",
-              isActive: true,
-              createdAt: "2024-03-22T14:20:00Z",
-              lastLoginAt: "2025-06-02T16:30:00Z"
-            },
-            {
-              id: 3,
-              username: "mike_wilson",
-              fullName: "Mike Wilson",
-              email: "mike.wilson@example.com",
-              role: "manager",
-              isActive: false,
-              createdAt: "2024-05-10T09:15:00Z",
-              lastLoginAt: "2025-05-28T11:20:00Z"
-            }
-          ]
+         
           filteredUsers.value = [...users.value]
         } catch (error) {
           console.error('Error fetching users:', error)
@@ -540,6 +527,7 @@
           fullName: '',
           email: '',
           role: '',
+          password:'',
           isActive: true
         }
       }
