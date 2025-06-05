@@ -489,7 +489,7 @@
   </template>
   
   <script setup>
-  import { useConfirm } from 'primevue/useconfirm';
+import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
 import { computed, onMounted, ref } from 'vue';
 import { studentService } from '../../service/api.service';
