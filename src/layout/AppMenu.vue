@@ -36,35 +36,35 @@ const allMenuItems = [
                 to: '/profile',
                 roles: ['Admin', 'Teacher', 'Staff']
             },
-            { 
-                label: 'Analytics', 
-                icon: 'pi pi-fw pi-chart-line', 
-                to: '/analytics',
-                roles: ['Admin'] // Admin only
-            }
+            // { 
+            //     label: 'Analytics', 
+            //     icon: 'pi pi-fw pi-chart-line', 
+            //     to: '/analytics',
+            //     roles: ['Admin'] // Admin only
+            // }
         ]
     },
     {
       label: 'Users',
       items: [
           { 
-              label: 'All Users', 
+              label: 'Manage Users', 
               icon: 'pi pi-fw pi-users', 
               to: '/users',
-              roles: ['Admin', 'Teacher', 'Staff']
+              roles: ['Admin', 'Staff']
           },
-          { 
-              label: 'Add User', 
-              icon: 'pi pi-fw pi-user-plus', 
-              to: '/users/add',
-              roles: ['Admin'] // Admin only
-          },
-          { 
-              label: 'User Roles', 
-              icon: 'pi pi-fw pi-shield', 
-              to: '/users/roles',
-              roles: ['Admin'] // Admin only
-          }
+          // { 
+          //     label: 'Add User', 
+          //     icon: 'pi pi-fw pi-user-plus', 
+          //     to: '/users/add',
+          //     roles: ['Admin'] // Admin only
+          // },
+          // { 
+          //     label: 'User Roles', 
+          //     icon: 'pi pi-fw pi-shield', 
+          //     to: '/users/roles',
+          //     roles: ['Admin'] // Admin only
+          // }
       ]
     },
     {
@@ -74,12 +74,18 @@ const allMenuItems = [
                 label: 'All Students', 
                 icon: 'pi pi-fw pi-users', 
                 to: '/students',
-                roles: ['Admin', 'Teacher', 'Staff']
+                roles: ['Admin', 'Staff']
             },
+            // { 
+            //     label: 'My Students', 
+            //     icon: 'pi pi-fw pi-users', 
+            //     to: '/my-students',
+            //     roles: ['Teacher']
+            // },
             { 
                 label: 'Add Student', 
                 icon: 'pi pi-fw pi-user-plus', 
-                to: '/students/',
+                to: '/add-students/',
                 roles: ['Admin'] // Admin only
             },
             { 
@@ -96,7 +102,7 @@ const allMenuItems = [
             },
             { 
                 label: 'Archived Students', 
-                icon: 'pi pi-fw pi-archive', 
+                icon: 'pi pi-fw pi-save', 
                 to: '/students/archived',
                 roles: ['Admin', 'Staff'] // Admin and Staff only
             }
@@ -109,19 +115,25 @@ const allMenuItems = [
                 label: 'Grades/Classes', 
                 icon: 'pi pi-fw pi-building', 
                 to: '/grades',
-                roles: ['Admin', 'Teacher', 'Staff']
+                roles: ['Admin', 'Staff']
             },
             { 
                 label: 'Subjects', 
                 icon: 'pi pi-fw pi-book', 
                 to: '/subjects',
-                roles: ['Admin', 'Teacher', 'Staff']
+                roles: ['Admin']
             },
             { 
                 label: 'Teacher Assignments', 
                 icon: 'pi pi-fw pi-user-edit', 
-                to: '/assignments',
+                to: '/teacher-subject/assignments',
                 roles: ['Admin'] // Admin only
+            },
+            {
+              label: 'Subject Assignments',
+              icon: 'pi pi-fw pi-calendar',
+              to: '/subject-grade/assignments',
+              roles: ['Admin'] // Admin, Teacher, and Staff
             }
         ]
     },
@@ -132,20 +144,20 @@ const allMenuItems = [
                 label: 'Score Entry', 
                 icon: 'pi pi-fw pi-pencil', 
                 to: '/scores/entry',
-                roles: ['Teacher'] // Teachers only
+                roles: ['Admin','Teacher'] // Teachers only
             },
-            { 
-                label: 'Grade Books', 
-                icon: 'pi pi-fw pi-table', 
-                to: '/gradebooks',
-                roles: ['Admin', 'Teacher'] // Admin and Teachers
-            },
-            { 
-                label: 'My Assignments', 
-                icon: 'pi pi-fw pi-list-check', 
-                to: '/exams/teacher/assignments',
-                roles: ['Teacher'] // Teachers only - to see their assigned subjects
-            },
+            // { 
+            //     label: 'Grade Books', 
+            //     icon: 'pi pi-fw pi-table', 
+            //     to: '/gradebooks',
+            //     roles: ['Admin', 'Teacher'] // Admin and Teachers
+            // },
+            // { 
+            //     label: 'My Assignments', 
+            //     icon: 'pi pi-fw pi-list-check', 
+            //     to: '/exams/teacher/assignments',
+            //     roles: ['Teacher'] // Teachers only - to see their assigned subjects
+            // },
             { 
                 label: 'Exam Types', 
                 icon: 'pi pi-fw pi-list', 
@@ -167,7 +179,7 @@ const allMenuItems = [
                 label: 'View Report Cards', 
                 icon: 'pi pi-fw pi-eye', 
                 to: '/reports/cards/history',
-                roles: ['Admin', 'Teacher', 'Staff'] // All can view
+                roles: ['Admin', 'Staff'] // All can view
             },
             { 
                 label: 'Academic Reports', 
@@ -179,93 +191,93 @@ const allMenuItems = [
                 label: 'Performance Analysis', 
                 icon: 'pi pi-fw pi-chart-pie', 
                 to: '/reports/performance',
-                roles: ['Admin', 'Teacher'] // Admin and Teachers
+                roles: ['Admin'] // Admin and Teachers
             }
         ]
     },
-    {
-        label: 'Administration',
-        roles: ['Admin'], // Entire section for Admin only
-        items: [
-            { 
-                label: 'Users', 
-                icon: 'pi pi-fw pi-users', 
-                to: '/admin/users',
-                roles: ['Admin']
-            },
-            { 
-                label: 'Academic Years', 
-                icon: 'pi pi-fw pi-calendar', 
-                to: '/admin/academic-years',
-                roles: ['Admin']
-            },
-            { 
-                label: 'Year-End Operations', 
-                icon: 'pi pi-fw pi-sync', 
-                to: '/admin/year-end',
-                roles: ['Admin']
-            },
-            { 
-                label: 'System Settings', 
-                icon: 'pi pi-fw pi-cog', 
-                to: '/admin/settings',
-                roles: ['Admin']
-            },
-            { 
-                label: 'Security Settings', 
-                icon: 'pi pi-fw pi-shield', 
-                to: '/admin/security',
-                roles: ['Admin']
-            }
-        ]
-    },
-    {
-        label: 'Data Management',
-        roles: ['Admin'], // Entire section for Admin only
-        items: [
-            { 
-                label: 'Bulk Import', 
-                icon: 'pi pi-fw pi-upload', 
-                to: '/data/import',
-                roles: ['Admin']
-            },
-            { 
-                label: 'Data Export', 
-                icon: 'pi pi-fw pi-download', 
-                to: '/data/export',
-                roles: ['Admin']
-            },
-            { 
-                label: 'Backup Management', 
-                icon: 'pi pi-fw pi-save', 
-                to: '/data/backup',
-                roles: ['Admin']
-            }
-        ]
-    },
-    {
-        label: 'Help & Support',
-        items: [
-            { 
-                label: 'User Guide', 
-                icon: 'pi pi-fw pi-question-circle', 
-                to: '/help',
-                roles: ['Admin', 'Teacher', 'Staff']
-            },
-            { 
-                label: 'FAQ', 
-                icon: 'pi pi-fw pi-info-circle', 
-                to: '/help/faq',
-                roles: ['Admin', 'Teacher', 'Staff']
-            },
-            { 
-                label: 'About', 
-                icon: 'pi pi-fw pi-info', 
-                to: '/about',
-                roles: ['Admin', 'Teacher', 'Staff']
-            }
-        ]
-    }
+    // {
+    //     label: 'Administration',
+    //     roles: ['Admin'], // Entire section for Admin only
+    //     items: [
+    //         { 
+    //             label: 'Users', 
+    //             icon: 'pi pi-fw pi-users', 
+    //             to: '/admin/users',
+    //             roles: ['Admin']
+    //         },
+    //         { 
+    //             label: 'Academic Years', 
+    //             icon: 'pi pi-fw pi-calendar', 
+    //             to: '/admin/academic-years',
+    //             roles: ['Admin']
+    //         },
+    //         { 
+    //             label: 'Year-End Operations', 
+    //             icon: 'pi pi-fw pi-sync', 
+    //             to: '/admin/year-end',
+    //             roles: ['Admin']
+    //         },
+    //         { 
+    //             label: 'System Settings', 
+    //             icon: 'pi pi-fw pi-cog', 
+    //             to: '/admin/settings',
+    //             roles: ['Admin']
+    //         },
+    //         { 
+    //             label: 'Security Settings', 
+    //             icon: 'pi pi-fw pi-shield', 
+    //             to: '/admin/security',
+    //             roles: ['Admin']
+    //         }
+    //     ]
+    // },
+    // {
+    //     label: 'Data Management',
+    //     roles: ['Admin'], // Entire section for Admin only
+    //     items: [
+    //         { 
+    //             label: 'Bulk Import', 
+    //             icon: 'pi pi-fw pi-upload', 
+    //             to: '/data/import',
+    //             roles: ['Admin']
+    //         },
+    //         { 
+    //             label: 'Data Export', 
+    //             icon: 'pi pi-fw pi-download', 
+    //             to: '/data/export',
+    //             roles: ['Admin']
+    //         },
+    //         { 
+    //             label: 'Backup Management', 
+    //             icon: 'pi pi-fw pi-save', 
+    //             to: '/data/backup',
+    //             roles: ['Admin']
+    //         }
+    //     ]
+    // },
+    // {
+    //     label: 'Help & Support',
+    //     items: [
+    //         { 
+    //             label: 'User Guide', 
+    //             icon: 'pi pi-fw pi-question-circle', 
+    //             to: '/help',
+    //             roles: ['Admin', 'Teacher', 'Staff']
+    //         },
+    //         { 
+    //             label: 'FAQ', 
+    //             icon: 'pi pi-fw pi-info-circle', 
+    //             to: '/help/faq',
+    //             roles: ['Admin', 'Teacher', 'Staff']
+    //         },
+    //         { 
+    //             label: 'About', 
+    //             icon: 'pi pi-fw pi-info', 
+    //             to: '/about',
+    //             roles: ['Admin', 'Teacher', 'Staff']
+    //         }
+    //     ]
+    // }
 ];
 
 // Check if user is authenticated

@@ -40,7 +40,7 @@ const router = createRouter({
                     meta:{
                         requiresAuth: true,
                     },
-                    component: () => import('@/views/students/Students.vue')
+                    component: () => import('@/views/students/StudentVue.vue')
                 },
                 {
                     path: '/users',
@@ -50,7 +50,83 @@ const router = createRouter({
                         // roles: ['admin']
                     },
                     component: () => import('../views/pages/Users.vue')
+                },
+                {
+                    path: '/add-students',
+                    name: 'AddStudent',
+                    meta: {
+                        requiresAuth: true,
+                    },
+                    component: () => import('@/views/students/CreateStudent.vue')
+                },
+                {
+                    path: '/students/import',
+                    name: 'AddBulkStudent',
+                    meta: {
+                        requiresAuth: true,
+                    },
+                    component: () => import('@/views/students/StudentImportCsv.vue')
+                },
+                {
+                    path: '/students/promotion',
+                    name: 'PromoteStudent',
+                 
+                    meta: {
+                        requiresAuth: true,
+                    },
+                    component: () => import('@/views/students/PromoteStudents.vue')
+                },
+                {
+                    path: '/students/archived',
+                    name: 'ArchiveStudent',
+                 
+                    meta: {
+                        requiresAuth: true,
+                    },
+                    component: () => import('@/views/students/ArchiveStudent.vue')
+                },
+                {
+                    path: '/grades',
+                    name: 'GradeList',
+                 
+                    meta: {
+                        requiresAuth: true,
+                    },
+                    component: () => import('@/views/classes/GradeList.vue')
+                },
+                {
+                    path: '/subjects',
+                    name: 'SubjectList',
+                    meta: {
+                        requiresAuth: true,
+                    },
+                    component: () => import('@/views/subjects/SubjectList.vue')
+                },
+                {
+                    path: '/subject-grade/assignments',
+                    name: 'AssignSubjectToGrade',
+                    meta: {
+                        requiresAuth: true,
+                    },
+                    component: () => import('@/views/subjects/AssignSubjectToGrade.vue')
+                },
+                {
+                    path: '/teacher-subject/assignments',
+                    name: 'AssignTeacherToSubject',
+                    meta: {
+                        requiresAuth: true,
+                    },
+                    component: () => import('@/views/subjects/AssignTeacherToSubject.vue')
+                },
+                {
+                    path: '/scores/entry',
+                    name: 'ScoresEntry',
+                    meta: {
+                        requiresAuth: true,
+                    },
+                    component: () => import('@/views/exams/ScoresEntry.vue')
                 }
+             
              
                 
               

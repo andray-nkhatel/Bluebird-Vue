@@ -221,6 +221,7 @@ onMounted(() => {
 <style scoped>
 .student-list {
   padding: 1rem;
+  /* border: 1px solid rebeccapurple; */
 }
 
 .card {

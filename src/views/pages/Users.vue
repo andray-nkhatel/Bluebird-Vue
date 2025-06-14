@@ -225,7 +225,7 @@
               :class="{ 'p-invalid': submitted && !userForm.password }" 
             />
             <small v-show="submitted && !userForm.password" class="p-error">Password not entered.</small>
-          </div>
+          </div> 
   
   
           <div class="col-12 mt-2">
@@ -485,37 +485,37 @@ import { computed, onMounted, ref } from 'vue'
       }
   
       const saveUser = async () => {
-        submitted.value = true
+      submitted.value = true
         
-        if (!userForm.value.username || !userForm.value.fullName || 
-            !userForm.value.email || !userForm.value.role || 
-            !isValidEmail(userForm.value.email)) {
-          return
-        }
-  
-        try {
-          if (editingUser.value) {
-            // Update existing user
-            const index = users.value.findIndex(u => u.id === userForm.value.id)
-            if (index !== -1) {
-              users.value[index] = { ...userForm.value }
-            }
-          } else {
-            // Add new user
-            const newUser = {
-              ...userForm.value,
-              id: Math.max(...users.value.map(u => u.id)) + 1,
-              createdAt: new Date().toISOString(),
-              lastLoginAt: new Date().toISOString()
-            }
-            users.value.push(newUser)
+      if (!userForm.value.username || !userForm.value.fullName || 
+          !userForm.value.email || !userForm.value.role || 
+          !isValidEmail(userForm.value.email)) {
+        return
+      }
+
+      try {
+        let savedUser;
+
+        if (editingUser.value) {
+          // Update existing user
+          savedUser = await userService.update(userForm.value.id, userForm.value);
+          const index = users.value.findIndex(u => u.id === userForm.value.id);
+          if (index !== -1) {
+            users.value[index] = savedUser;
           }
-          
-          filteredUsers.value = computedFilteredUsers.value
-          hideDialog()
-        } catch (error) {
-          console.error('Error saving user:', error)
+        } else {
+          // Create new user
+          savedUser = await userService.create(userForm.value);
+          users.value.push(savedUser);
         }
+
+        filteredUsers.value = computedFilteredUsers.value;
+        hideDialog();
+      } catch (error) {
+       throw new Error('Failed to save user: ' + error.message);
+        // You might want to show a user-friendly error message here
+        // For example: showErrorToast('Failed to save user. Please try again.');
+      }
       }
   
       const hideDialog = () => {
