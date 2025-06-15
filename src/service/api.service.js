@@ -690,6 +690,17 @@ export const userService = {
       throw error;
     }
   },
+  async delete(id) {
+    console.log('🗑️ userService.delete called with id:', id);
+    try {
+        const response = await apiClient.delete(`/users/${id}`);
+        //console.log('✅ Delete response:', response.status);
+        return response.data;
+    } catch (error) {
+        //console.error(' userService.delete error:', error);
+        throw error;
+    }
+},
 
   async resetPassword(id, newPassword) {
     await apiClient.post(`/users/${id}/reset-password`, { newPassword });

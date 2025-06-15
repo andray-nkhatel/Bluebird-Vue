@@ -162,7 +162,7 @@
                     :icon="data.isActive ? 'pi pi-ban' : 'pi pi-check'" 
                     size="small"
                     :severity="data.isActive ? 'warning' : 'success'"
-                    @click="toggleUserStatus(data)"
+                    @click="deleteUser(data)"
                     :v-tooltip.top="data.isActive ? 'Deactivate User' : 'Activate User'"
                   />
                 </div>
@@ -349,11 +349,19 @@
         </template>
       </Dialog>
     </div>
+    <ConfirmDialog></ConfirmDialog>
+    <Toast></Toast>
   </template>
   
   <script>
-import { userService } from '@/service/api.service'
-import { computed, onMounted, ref } from 'vue'
+import { userService } from '@/service/api.service';
+import { computed, onMounted, ref } from 'vue';
+// In your UserVue.vue component
+import { useConfirm } from 'primevue/useconfirm';
+import { useToast } from 'primevue/usetoast';
+
+// Inside your setup() function
+
   
   export default {
     name: 'User',
@@ -365,6 +373,8 @@ import { computed, onMounted, ref } from 'vue'
       const searchTerm = ref('')
       const selectedRole = ref(null)
       const selectedStatus = ref(null)
+      const confirm = useConfirm();
+      const toast = useToast();
     
       
       // Dialog states
@@ -481,17 +491,63 @@ import { computed, onMounted, ref } from 'vue'
         editUser(selectedUser.value)
       }
   
-      const toggleUserStatus = async (user) => {
-        try {
-          // API call to update user status
-          user.isActive = !user.isActive
-          await updateUser(user.id, { isActive: user.isActive })
-        } catch (error) {
-          console.error('Error updating user status:', error)
-          // Revert on error
-          user.isActive = !user.isActive
+      const deleteUser = async (user) => {
+        confirm.require({
+        message: `Are you sure you want to delete user "${user.fullName}"? This action cannot be undone.`,
+        header: 'Delete User Confirmation',
+        icon: 'pi pi-exclamation-triangle',
+        rejectClass: 'p-button-secondary p-button-outlined',
+        rejectLabel: 'Cancel',
+        acceptClass: 'p-button-danger',
+        acceptLabel: 'Delete',
+        accept: async () => {
+            try {
+                // API call to delete user
+                await userService.delete(user.id);
+                
+                // Remove user from local arrays
+                const index = users.value.findIndex(u => u.id === user.id);
+                if (index !== -1) {
+                    users.value.splice(index, 1);
+                }
+                
+                // Update filtered users
+                filteredUsers.value = computedFilteredUsers.value;
+                
+                console.log('✅ User deleted successfully:', user.fullName);
+                
+                // Show success toast
+                toast.add({
+                    severity: 'success',
+                    summary: 'User Deleted',
+                    detail: `User "${user.fullName}" has been deleted successfully.`,
+                    life: 3000
+                });
+                
+            } catch (error) {
+                console.error('❌ Error deleting user:', error);
+                
+                // Show error toast
+                const errorMessage = error.response?.data?.message || 'Failed to delete user';
+                toast.add({
+                    severity: 'error',
+                    summary: 'Delete Failed',
+                    detail: errorMessage,
+                    life: 5000
+                });
+            }
+        },
+        reject: () => {
+            // Optional: Show cancelled message
+            toast.add({
+                severity: 'info',
+                summary: 'Cancelled',
+                detail: 'User deletion cancelled',
+                life: 2000
+            });
         }
-      }
+    });
+};
   
       
       const saveUser = async () => {
@@ -530,7 +586,7 @@ import { computed, onMounted, ref } from 'vue'
         let savedUser;
         
         if (editingUser.value) {
-            // Update call - no password sent
+            // Update call - no password sentgit 
             savedUser = await userService.update(userForm.value.id, userData);
             const index = users.value.findIndex(u => u.id === userForm.value.id);
             if (index !== -1) {
@@ -551,10 +607,6 @@ import { computed, onMounted, ref } from 'vue'
         submitted.value = false;
     }
 }
-
-
-
-
 
       const hideDialog = () => {
         showAddDialog.value = false
@@ -674,7 +726,7 @@ import { computed, onMounted, ref } from 'vue'
         editUser,
         viewUser,
         editUserFromDetails,
-        toggleUserStatus,
+        deleteUser,
         saveUser,
         hideDialog,
         isValidEmail,
