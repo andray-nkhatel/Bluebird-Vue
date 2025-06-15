@@ -592,10 +592,24 @@ import { useToast } from 'primevue/usetoast';
             if (index !== -1) {
                 users.value[index] = savedUser;
             }
+            toast.add({
+                    severity: 'success',
+                    summary: 'User Successfully Updated',
+                    detail: `User "${savedUser.fullName}" has been updated successfully.`,
+                    life: 3000
+                });
         } else {
             // Create call - password included
             savedUser = await userService.create(userData);
             users.value.push(savedUser);
+             // Show success toast
+             toast.add({
+                    severity: 'success',
+                    summary: 'User Successfully Created',
+                    detail: `User "${savedUser.fullName}" has been created successfully.`,
+                    life: 3000
+                });
+                
         }
         
         filteredUsers.value = computedFilteredUsers.value;
