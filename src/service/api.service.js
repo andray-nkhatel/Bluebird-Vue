@@ -649,8 +649,6 @@ export const userService = {
       
     };
     
-    console.log('🚀 Sending to backend (wrapped in createUserDto):', JSON.stringify(payload, null, 2));
-    
     try {
       const response = await apiClient.post('/users', payload);
       console.log('✅ Backend response:', response.data);
@@ -674,21 +672,14 @@ export const userService = {
     
     // For updates, you might need a different wrapper - check your backend
     const payload = {
-      updateUserDto: {  // or just send the user data directly
+      // or just send the user data directly
         Username: user.username,
         FullName: user.fullName,
         Email: user.email,
-        Role: roleMap[user.role] !== undefined ? roleMap[user.role] : user.role,
+        Role: user.role,
         IsActive: user.isActive
-      }
+      
     };
-    
-    // Include password only if it's being changed
-    if (user.password && user.password.length > 0) {
-      payload.updateUserDto.Password = user.password;
-    }
-    
-    console.log('🔄 Sending update to backend:', JSON.stringify(payload, null, 2));
     
     try {
       const response = await apiClient.put(`/users/${id}`, payload);

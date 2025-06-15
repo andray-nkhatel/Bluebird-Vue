@@ -216,7 +216,7 @@
             <small v-show="submitted && userForm.email && !isValidEmail(userForm.email)" class="p-error">Please enter a valid email.</small>
           </div>
 
-          <div class="col-12 mt-2">
+          <div v-if="!editingUser" class="col-12 mt-2">
           <label for="password" class="block text-900 font-medium mb-2">Password</label>
           <InputText 
             class="w-full"
@@ -493,99 +493,69 @@ import { computed, onMounted, ref } from 'vue'
         }
       }
   
-  // Updated saveUser function that matches your backend expectations
-  const saveUser = async () => {
-  submitted.value = true
+      
+      const saveUser = async () => {
+    submitted.value = true
     
-  // Validation code stays the same...
-  if (!userForm.value.username || !userForm.value.fullName || 
-      !userForm.value.email || !userForm.value.role || 
-      !userForm.value.password || !isValidEmail(userForm.value.email)) {
-    console.log('❌ Frontend validation failed');
-    return
-  }
-
-  if (userForm.value.password.length < 6) {
-    alert('Password must be at least 6 characters long');
-    submitted.value = false;
-    return;
-  }
-
-  const userData = {
-    username: userForm.value.username.trim(),
-    fullName: userForm.value.fullName.trim(),
-    email: userForm.value.email.trim().toLowerCase(),
-    role: userForm.value.role,
-    password: userForm.value.password,
-    isActive: userForm.value.isActive
-  };
-
-  //console.log('📤 Sending user data:', JSON.stringify(userData, null, 2));
-
-  try {
-    let savedUser;
-
-    if (editingUser.value) {
-      savedUser = await userService.update(userForm.value.id, userData);
-      const index = users.value.findIndex(u => u.id === userForm.value.id);
-      if (index !== -1) {
-        users.value[index] = savedUser;
-      }
-    } else {
-      savedUser = await userService.create(userData);
-      users.value.push(savedUser);
+    // Validation - remove password validation for updates
+    if (!userForm.value.username || !userForm.value.fullName ||
+        !userForm.value.email || !userForm.value.role ||
+        !isValidEmail(userForm.value.email)) {
+        console.log('❌ Frontend validation failed');
+        return
     }
-
-    filteredUsers.value = computedFilteredUsers.value;
-    hideDialog();
-    console.log('✅ User saved successfully:', savedUser);
     
-  } catch (error) {
-    console.error('❌ Failed to save user:', error);
+    // Only validate password for NEW users
+    if (!editingUser.value && (!userForm.value.password || userForm.value.password.length < 6)) {
+        alert('Password is required and must be at least 6 characters long');
+        submitted.value = false;
+        return;
+    }
     
-    // 🔍 NOW WE CAN ACCESS THE RAW BACKEND ERROR
-    //console.log('🚨 DETAILED ERROR ANALYSIS:');
+    // Base user data for updates (no password)
+    const userData = {
+        username: userForm.value.username.trim(),
+        fullName: userForm.value.fullName.trim(),
+        email: userForm.value.email.trim().toLowerCase(),
+        role: userForm.value.role,
+        isActive: userForm.value.isActive
+    };
     
-    // if (error.response) {
-    //   console.log('📋 Full Response Object:', error.response);
-    //   console.log('📋 Response Status:', error.response.status);
-    //   console.log('📋 Response Data:', error.response.data);
-    //   console.log('📋 Response Data JSON:', JSON.stringify(error.response.data, null, 2));
-      
-      const data = error.response.data;
-      
-      // Check for ASP.NET Core validation errors
-    //   if (data.errors) {
-    //     // console.log('🚨 ASP.NET Validation Errors:', data.errors);
-    //     // console.log('🚨 Validation Errors JSON:', JSON.stringify(data.errors, null, 2));
+    // Only include password for NEW users
+    if (!editingUser.value) {
+        userData.password = userForm.value.password;
+    }
+    
+    try {
+        let savedUser;
         
-    //     // Show detailed validation errors
-    //     const validationMessages = Object.entries(data.errors)
-    //       .map(([field, errors]) => {
-    //         const errorList = Array.isArray(errors) ? errors : [errors];
-    //         return `${field}: ${errorList.join(', ')}`;
-    //       })
-    //       .join('\n');
+        if (editingUser.value) {
+            // Update call - no password sent
+            savedUser = await userService.update(userForm.value.id, userData);
+            const index = users.value.findIndex(u => u.id === userForm.value.id);
+            if (index !== -1) {
+                users.value[index] = savedUser;
+            }
+        } else {
+            // Create call - password included
+            savedUser = await userService.create(userData);
+            users.value.push(savedUser);
+        }
         
-    //     alert(`Validation Errors:\n${validationMessages}`);
-    //   } else if (data.message) {
-    //     console.log('🚨 Backend Message:', data.message);
-    //     alert(`Backend Error: ${data.message}`);
-    //   } else if (data.title) {
-    //     console.log('🚨 Backend Title:', data.title);
-    //     alert(`Error: ${data.title}`);
-    //   } else {
-    //     console.log('🚨 Unknown error format:', data);
-    //     alert('Unknown validation error. Check console for details.');
-    //   }
-    // } else {
-    //   console.log('🚨 No response data available');
-    //   alert('Network error or no response from server');
-    // }
-    
-    submitted.value = false;
-  }
+        filteredUsers.value = computedFilteredUsers.value;
+        hideDialog();
+        console.log('✅ User saved successfully:', savedUser);
+    } catch (error) {
+        console.error('❌ Failed to save user:', error);
+        const data = error.response?.data;
+        submitted.value = false;
+    }
 }
+
+
+
+
+
       const hideDialog = () => {
         showAddDialog.value = false
         submitted.value = false
@@ -656,7 +626,7 @@ import { computed, onMounted, ref } from 'vue'
         const months = Math.floor(diffDays / 30)
         return `${months} month${months === 1 ? '' : 's'} ago`
       }
-      
+
       const years = Math.floor(diffDays / 365)
       return `${years} year${years === 1 ? '' : 's'} ago`
 }
