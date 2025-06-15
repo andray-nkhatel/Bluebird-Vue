@@ -267,9 +267,15 @@ export const gradeService = {
   }
 };
 export const subjectService = {
-  // Get all subjects
-  async getAll() {
-    const response = await apiClient.get('/subjects');
+  // Add to your subjectService
+async update(id, subject) {
+  const response = await apiClient.put(`/subjects/${id}`, subject);
+  return response.data;
+},
+
+  async getAll(includeInactive = false) {
+    const params = includeInactive ? '?includeInactive=true' : '';
+    const response = await apiClient.get(`/subjects${params}`);
     return response.data;
   },
 
@@ -284,6 +290,11 @@ export const subjectService = {
     const response = await apiClient.post('/subjects', subject);
     return response.data;
   },
+  // Add this to your subjectService
+async toggleStatus(id) {
+  const response = await apiClient.patch(`/subjects/${id}/toggle`);
+  return response.data;
+},
 
   // Assign subject to grade (Admin only)
   async assignToGrade(subjectId, gradeId, assignmentData) {

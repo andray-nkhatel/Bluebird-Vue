@@ -1,4 +1,73 @@
 <template>
+ <!--Invisible Dialog-->
+ <Dialog 
+  v-model:visible="subjectDialogVisible" 
+  modal 
+  :header="isEditMode ? 'Edit Subject' : 'Add New Subject'"  
+  :style="{ width: '35rem' }"
+  :breakpoints="{ '1199px': '75vw', '575px': '90vw' }"
+>
+  <div class="">
+    <!-- Subject form fields -->
+    <div class="mb-3">
+      <label for="name">Subject Name</label>
+      <InputText 
+        id="subjectName" 
+        class="w-full"
+        v-model="subjectForm.name" 
+        placeholder="Enter subject name"
+      />
+    </div>
+    
+    <div class="mb-2">
+      <label for="code">Subject Code</label>
+      <InputText 
+        class="w-full"
+        id="code" 
+        v-model="subjectForm.code" 
+        placeholder="Enter subject code"
+      />
+    </div>
+    
+    <div class="mb-2">
+      <label for="description">Description</label>
+      <InputText
+        id="description" 
+        class="w-full"
+        v-model="subjectForm.description" 
+        placeholder="Enter subject description"
+      />
+    </div>
+
+    <div class="mb-2" v-if="isEditMode">
+      <div class="flex align-items-center">
+        <Checkbox 
+          id="isActive" 
+          v-model="subjectForm.isActive" 
+          :binary="true" 
+        />
+        <label for="isActive" class="ml-2">Active</label>
+      </div>
+    </div>
+  </div>
+  
+    <template #footer>
+    <Button 
+      label="Cancel" 
+      icon="pi pi-times" 
+      @click="cancelDialog" 
+      text 
+    />
+    <Button 
+      :label="isEditMode ? 'Update' : 'Save'" 
+      :icon="isEditMode ? 'pi pi-pencil' : 'pi pi-check'" 
+      @click="saveSubject" 
+      :loading="saving"
+    />
+  </template>
+</Dialog>
+
+
     <div class="subject-list">
       <div class="card">
         <div class="flex justify-content-between align-items-center mb-4">
@@ -13,7 +82,7 @@
             <Button 
               label="Add Subject" 
               icon="pi pi-plus" 
-              @click="$emit('addSubject')"
+              @click="openAddDialog"
             />
             <Button 
               label="Refresh" 
@@ -81,7 +150,7 @@
                   <div class="flex gap-1">
                     <Button 
                       icon="pi pi-pencil" 
-                      @click.stop="editSubject(subject)"
+                      @click.stop="openEditDialog(subject)"
                       size="small"
                       text
                       rounded
@@ -221,7 +290,7 @@
                   />
                   <Button 
                     icon="pi pi-pencil" 
-                    @click="editSubject(data)"
+                    @click="openEditDialog(data)"
                     size="small"
                     outlined
                     v-tooltip.top="'Edit Subject'"
@@ -334,7 +403,7 @@
   <script setup>
   import { subjectService } from '@/service/api.service'; // Adjust path as needed
 import { useToast } from 'primevue/usetoast';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
   
   // Emits
   const emit = defineEmits(['addSubject', 'editSubject', 'viewSubject'])
@@ -345,6 +414,7 @@ import { computed, onMounted, ref } from 'vue';
   // Component state
   const subjects = ref([])
   const loading = ref(false)
+  const saving = ref(false)
   const includeInactive = ref(false)
   const globalFilter = ref('')
   const sortField = ref('name')
@@ -352,6 +422,117 @@ import { computed, onMounted, ref } from 'vue';
   const viewMode = ref('table') // 'table' or 'cards'
   const showDetailsDialog = ref(false)
   const selectedSubject = ref(null)
+  //const addSubjectDialogVisible = ref(false)
+  const subjectDialogVisible = ref(false)
+
+  const subjectForm = reactive({
+    name: '',
+    code: '',
+    description: ''
+  })
+  // Computed property to determine if we're in edit mode
+const isEditMode = computed(() => selectedSubject.value !== null)
+
+// Methods
+const openAddDialog = () => {
+  resetForm()
+  selectedSubject.value = null
+  subjectDialogVisible.value = true
+}
+
+const openEditDialog = (subject) => {
+  selectedSubject.value = subject
+  subjectForm.id = subject.id
+  subjectForm.name = subject.name
+  subjectForm.code = subject.code
+  subjectForm.description = subject.description
+  subjectForm.isActive = subject.isActive
+  subjectDialogVisible.value = true
+}
+
+const resetForm = () => {
+  subjectForm.id = null
+  subjectForm.name = ''
+  subjectForm.code = ''
+  subjectForm.description = ''
+  subjectForm.isActive = true
+}
+
+const cancelDialog = () => {
+  subjectDialogVisible.value = false
+  resetForm()
+  selectedSubject.value = null
+}
+
+//   const showAddSubjectDialog = () => {
+//   addSubjectDialogVisible.value = true
+  
+//   // Reset form
+//   Object.assign(newSubject, {
+//     name: '',
+//     code: '',
+//     description: ''
+//   })
+// }
+// const cancelAdd = () => {
+//   addSubjectDialogVisible.value = false
+// }
+
+
+const saveSubject = async () => {
+  try {
+    saving.value = true
+    
+    if (isEditMode.value) {
+      // Update existing subject
+      await subjectService.update(subjectForm.id, {
+        name: subjectForm.name,
+        code: subjectForm.code,
+        description: subjectForm.description,
+        isActive: subjectForm.isActive
+      })
+      
+      toast.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: 'Subject updated successfully',
+        life: 3000
+      })
+    } else {
+      // Create new subject
+      await subjectService.create({
+        name: subjectForm.name,
+        code: subjectForm.code,
+        description: subjectForm.description
+      })
+      
+      toast.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: 'Subject created successfully',
+        life: 3000
+      })
+    }
+    
+    // Refresh the subjects list
+    await loadSubjects()
+    
+    // Close dialog
+    cancelDialog()
+    
+  } catch (error) {
+    console.error('Error saving subject:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: isEditMode.value ? 'Failed to update subject' : 'Failed to create subject',
+      life: 3000
+    })
+  } finally {
+    saving.value = false
+  }
+}
+
   
   // Computed properties
   const filteredSubjects = computed(() => {
@@ -444,30 +625,32 @@ import { computed, onMounted, ref } from 'vue';
   }
   
   const toggleSubjectStatus = async (subject) => {
-    try {
-      // This would typically call an API to toggle the status
-      // await subjectService.toggleStatus(subject.id)
-      
-      // For now, just toggle locally and show notification
-      subject.isActive = !subject.isActive
-      
-      toast.add({
-        severity: 'success',
-        summary: 'Status Updated',
-        detail: `Subject "${subject.name}" has been ${subject.isActive ? 'activated' : 'deactivated'}`,
-        life: 3000
-      })
-    } catch (error) {
-      console.error('Error toggling subject status:', error)
-      toast.add({
-        severity: 'error',
-        summary: 'Error',
-        detail: 'Failed to update subject status',
-        life: 3000
-      })
+  try {
+    const updatedSubject = await subjectService.toggleStatus(subject.id)
+    
+    // Find and update the subject in your subjects array
+    const index = subjects.value.findIndex(s => s.id === subject.id)
+    if (index !== -1) {
+      subjects.value[index] = updatedSubject
     }
+    
+    toast.add({
+      severity: 'success',
+      summary: 'Status Updated',
+      detail: `Subject "${subject.name}" has been ${updatedSubject.isActive ? 'activated' : 'deactivated'}`,
+      life: 3000
+    })
+    
+  } catch (error) {
+    console.error('Error toggling subject status:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to update subject status',
+      life: 3000
+    })
   }
-  
+}
   // Load data on component mount
   onMounted(() => {
     loadSubjects()
