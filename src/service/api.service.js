@@ -218,10 +218,13 @@ export const studentService = {
     return response.data;
   }
 };
-
 export const gradeService = {
-  async getAll() {
-    const response = await apiClient.get('/grades');
+  async getAll(includeInactive = false) {
+    // You may need to add a query parameter for inactive grades
+    // or modify your C# controller to accept this parameter
+    const response = await apiClient.get('/grades', {
+      params: { includeInactive }
+    });
     return response.data;
   },
 
@@ -231,16 +234,38 @@ export const gradeService = {
   },
 
   async create(grade) {
-    const response = await apiClient.post('/grades', grade);
+    // Map your frontend grade object to match the CreateGradeDto
+    const createGradeDto = {
+      name: grade.name,
+      stream: grade.stream,
+      level: grade.level || 1,
+      section: grade.section,
+      homeroomTeacherId: grade.homeroomTeacherId || null // This is required by your API
+    };
+    
+    const response = await apiClient.post('/grades', createGradeDto);
     return response.data;
   },
 
   async update(id, grade) {
+    // You'll need to add an update endpoint in your C# controller
     const response = await apiClient.put(`/grades/${id}`, grade);
+    return response.data;
+  },
+
+  async toggleStatus(id) {
+    // You'll need to add this endpoint in your C# controller
+    const response = await apiClient.patch(`/grades/${id}/toggle-status`);
+    return response.data;
+  },
+
+  async assignHomeroomTeacher(gradeId, teacherId) {
+    const response = await apiClient.post(`/grades/${gradeId}/assign-homeroom-teacher`, {
+      teacherId: teacherId
+    });
     return response.data;
   }
 };
-
 export const subjectService = {
   // Get all subjects
   async getAll() {
