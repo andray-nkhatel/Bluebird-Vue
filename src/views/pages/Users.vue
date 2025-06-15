@@ -217,15 +217,17 @@
           </div>
 
           <div class="col-12 mt-2">
-            <label for="fullName" class="block text-900 font-medium mb-2">Password</label>
-            <InputText 
+          <label for="password" class="block text-900 font-medium mb-2">Password</label>
+          <InputText 
             class="w-full"
-              id="password"
-              v-model="userForm.password" 
-              :class="{ 'p-invalid': submitted && !userForm.password }" 
-            />
-            <small v-show="submitted && !userForm.password" class="p-error">Password not entered.</small>
-          </div> 
+            id="password"
+            v-model="userForm.password" 
+            type="password"
+            :class="{ 'p-invalid': submitted && (!userForm.password || userForm.password.length < 6) }" 
+          />
+          <small v-show="submitted && !userForm.password" class="p-error">Password is required.</small>
+          <small v-show="submitted && userForm.password && userForm.password.length < 6" class="p-error">Password must be at least 6 characters long.</small>
+        </div>
   
   
           <div class="col-12 mt-2">
@@ -322,7 +324,8 @@
   
           <div class="col-6">
             <strong>Created:</strong>
-            <p>{{ formatDate(selectedUser.createdAt) }}</p>
+            <p>{{ formatDate(selectedUser.createdAt) }}</p> 
+         
           </div>
   
           <div class="col-6">
@@ -362,6 +365,7 @@ import { computed, onMounted, ref } from 'vue'
       const searchTerm = ref('')
       const selectedRole = ref(null)
       const selectedStatus = ref(null)
+    
       
       // Dialog states
       const showAddDialog = ref(false)
@@ -369,6 +373,11 @@ import { computed, onMounted, ref } from 'vue'
       const submitted = ref(false)
       const editingUser = ref(false)
       const selectedUser = ref(null)
+
+  
+
+
+     
       
       // Form data
       const userForm = ref({
@@ -476,7 +485,7 @@ import { computed, onMounted, ref } from 'vue'
         try {
           // API call to update user status
           user.isActive = !user.isActive
-          // await updateUser(user.id, { isActive: user.isActive })
+          await updateUser(user.id, { isActive: user.isActive })
         } catch (error) {
           console.error('Error updating user status:', error)
           // Revert on error
@@ -484,40 +493,99 @@ import { computed, onMounted, ref } from 'vue'
         }
       }
   
-      const saveUser = async () => {
-      submitted.value = true
+  // Updated saveUser function that matches your backend expectations
+  const saveUser = async () => {
+  submitted.value = true
+    
+  // Validation code stays the same...
+  if (!userForm.value.username || !userForm.value.fullName || 
+      !userForm.value.email || !userForm.value.role || 
+      !userForm.value.password || !isValidEmail(userForm.value.email)) {
+    console.log('❌ Frontend validation failed');
+    return
+  }
+
+  if (userForm.value.password.length < 6) {
+    alert('Password must be at least 6 characters long');
+    submitted.value = false;
+    return;
+  }
+
+  const userData = {
+    username: userForm.value.username.trim(),
+    fullName: userForm.value.fullName.trim(),
+    email: userForm.value.email.trim().toLowerCase(),
+    role: userForm.value.role,
+    password: userForm.value.password,
+    isActive: userForm.value.isActive
+  };
+
+  //console.log('📤 Sending user data:', JSON.stringify(userData, null, 2));
+
+  try {
+    let savedUser;
+
+    if (editingUser.value) {
+      savedUser = await userService.update(userForm.value.id, userData);
+      const index = users.value.findIndex(u => u.id === userForm.value.id);
+      if (index !== -1) {
+        users.value[index] = savedUser;
+      }
+    } else {
+      savedUser = await userService.create(userData);
+      users.value.push(savedUser);
+    }
+
+    filteredUsers.value = computedFilteredUsers.value;
+    hideDialog();
+    console.log('✅ User saved successfully:', savedUser);
+    
+  } catch (error) {
+    console.error('❌ Failed to save user:', error);
+    
+    // 🔍 NOW WE CAN ACCESS THE RAW BACKEND ERROR
+    //console.log('🚨 DETAILED ERROR ANALYSIS:');
+    
+    // if (error.response) {
+    //   console.log('📋 Full Response Object:', error.response);
+    //   console.log('📋 Response Status:', error.response.status);
+    //   console.log('📋 Response Data:', error.response.data);
+    //   console.log('📋 Response Data JSON:', JSON.stringify(error.response.data, null, 2));
+      
+      const data = error.response.data;
+      
+      // Check for ASP.NET Core validation errors
+    //   if (data.errors) {
+    //     // console.log('🚨 ASP.NET Validation Errors:', data.errors);
+    //     // console.log('🚨 Validation Errors JSON:', JSON.stringify(data.errors, null, 2));
         
-      if (!userForm.value.username || !userForm.value.fullName || 
-          !userForm.value.email || !userForm.value.role || 
-          !isValidEmail(userForm.value.email)) {
-        return
-      }
-
-      try {
-        let savedUser;
-
-        if (editingUser.value) {
-          // Update existing user
-          savedUser = await userService.update(userForm.value.id, userForm.value);
-          const index = users.value.findIndex(u => u.id === userForm.value.id);
-          if (index !== -1) {
-            users.value[index] = savedUser;
-          }
-        } else {
-          // Create new user
-          savedUser = await userService.create(userForm.value);
-          users.value.push(savedUser);
-        }
-
-        filteredUsers.value = computedFilteredUsers.value;
-        hideDialog();
-      } catch (error) {
-       throw new Error('Failed to save user: ' + error.message);
-        // You might want to show a user-friendly error message here
-        // For example: showErrorToast('Failed to save user. Please try again.');
-      }
-      }
-  
+    //     // Show detailed validation errors
+    //     const validationMessages = Object.entries(data.errors)
+    //       .map(([field, errors]) => {
+    //         const errorList = Array.isArray(errors) ? errors : [errors];
+    //         return `${field}: ${errorList.join(', ')}`;
+    //       })
+    //       .join('\n');
+        
+    //     alert(`Validation Errors:\n${validationMessages}`);
+    //   } else if (data.message) {
+    //     console.log('🚨 Backend Message:', data.message);
+    //     alert(`Backend Error: ${data.message}`);
+    //   } else if (data.title) {
+    //     console.log('🚨 Backend Title:', data.title);
+    //     alert(`Error: ${data.title}`);
+    //   } else {
+    //     console.log('🚨 Unknown error format:', data);
+    //     alert('Unknown validation error. Check console for details.');
+    //   }
+    // } else {
+    //   console.log('🚨 No response data available');
+    //   alert('Network error or no response from server');
+    // }
+    
+    submitted.value = false;
+  }
+}
       const hideDialog = () => {
         showAddDialog.value = false
         submitted.value = false
@@ -538,20 +606,60 @@ import { computed, onMounted, ref } from 'vue'
       }
   
       const formatDate = (dateString) => {
-        return new Date(dateString).toLocaleString()
+      if (!dateString) return 'N/A'
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) return 'Invalid date'
+      return date.toLocaleString()
       }
-  
+
       const formatRelativeDate = (dateString) => {
-        const date = new Date(dateString)
-        const now = new Date()
-        const diffTime = Math.abs(now - date)
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-        
-        if (diffDays === 1) return 'Yesterday'
-        if (diffDays < 7) return `${diffDays} days ago`
-        if (diffDays < 30) return `${Math.ceil(diffDays / 7)} weeks ago`
-        return `${Math.ceil(diffDays / 30)} months ago`
+  if (!dateString) return 'N/A'
+  const date = new Date(dateString)
+  if (isNaN(date.getTime())) return 'Invalid date'
+
+  const now = new Date()
+  const diffTime = now - date
+  const diffSeconds = Math.floor(diffTime / 1000)
+  const diffMinutes = Math.floor(diffTime / (1000 * 60))
+  const diffHours = Math.floor(diffTime / (1000 * 60 * 60))
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+
+  // Handle future dates
+  if (diffTime < 0) {
+    const absDiffSeconds = Math.abs(diffSeconds)
+    const absDiffMinutes = Math.abs(diffMinutes)
+    const absDiffHours = Math.abs(diffHours)
+    const absDiffDays = Math.abs(diffDays)
+    
+    if (absDiffSeconds < 60) return 'in a few seconds'
+    if (absDiffMinutes < 60) return `in ${absDiffMinutes} minute${absDiffMinutes === 1 ? '' : 's'}`
+    if (absDiffHours < 24) return `in ${absDiffHours} hour${absDiffHours === 1 ? '' : 's'}`
+    if (absDiffDays === 1) return 'tomorrow'
+    if (absDiffDays < 7) return `in ${absDiffDays} days`
+    return `in ${Math.floor(absDiffDays / 7)} weeks`
+  }
+
+      // Past dates
+      if (diffSeconds < 10) return 'just now'
+      if (diffSeconds < 60) return `${diffSeconds} seconds ago`
+      if (diffMinutes === 1) return '1 minute ago'
+      if (diffMinutes < 60) return `${diffMinutes} minutes ago`
+      if (diffHours === 1) return '1 hour ago'
+      if (diffHours < 24) return `${diffHours} hours ago`
+      if (diffDays === 1) return 'yesterday'
+      if (diffDays < 7) return `${diffDays} days ago`
+      if (diffDays < 30) {
+        const weeks = Math.floor(diffDays / 7)
+        return `${weeks} week${weeks === 1 ? '' : 's'} ago`
       }
+      if (diffDays < 365) {
+        const months = Math.floor(diffDays / 30)
+        return `${months} month${months === 1 ? '' : 's'} ago`
+      }
+      
+      const years = Math.floor(diffDays / 365)
+      return `${years} year${years === 1 ? '' : 's'} ago`
+}
   
       const getRoleSeverity = (role) => {
         const severityMap = {

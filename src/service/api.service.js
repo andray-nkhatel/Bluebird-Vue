@@ -33,56 +33,93 @@ apiClient.interceptors.request.use(
 );
 
 // Add response interceptor for error handling
-apiClient.interceptors.response.use(
-  response => {
-    // Optional: Log responses in development
-    if (import.meta.env.DEV) {
-      console.log(`✅ ${response.status} ${response.config.url}`, response.data);
-    }
-    return response;
-  },
-  error => {
-    // Handle different error scenarios
-    if (error.response) {
-      const { status, data } = error.response;
+ apiClient.interceptors.response.use(
+   response => {
+     // Optional: Log responses in development
+     if (import.meta.env.DEV) {
+       console.log(`✅ ${response.status} ${response.config.url}`, response.data);
+     }
+     return response;
+   },
+   error => {
+     // Handle different error scenarios
+     if (error.response) {
+       const { status, data } = error.response;    
+       // Log error in development
+       if (import.meta.env.DEV) {
+         console.error(`❌ ${status} ${error.config.url}`, data);
+       }    
+       // Handle unauthorized - redirect to login
+       if (status === 401) {
+         localStorage.removeItem('token');
+         localStorage.removeItem('user');
+         window.location.href = '/auth/login';
+         return Promise.reject(new Error('Session expired. Please log in again.'));
+       }    
+       // Handle forbidden
+       if (status === 403) {
+         return Promise.reject(new Error('Access denied. Insufficient permissions.'));
+       }    
+       // Handle server errors
+       if (status >= 500) {
+         return Promise.reject(new Error('Server error. Please try again later.'));
+       }    
+       // Handle other errors with API message
+       const message = data?.message || data?.title || 'An error occurred';
+       return Promise.reject(new Error(message));
+     }   
+     // Network errors
+     if (error.request) {
+       return Promise.reject(new Error('Network error. Please check your connection.'));
+     }  
+     // Other errors
+     return Promise.reject(new Error(error.message || 'An unexpected error occurred'));
+   }
+ );
+
+// apiClient.interceptors.response.use(
+//   response => {
+//     // Optional: Log responses in development
+//     if (import.meta.env.DEV) {
+//       console.log(`✅ ${response.status} ${response.config.url}`, response.data);
+//     }
+//     return response;
+//   },
+//   error => {
+//     // Handle different error scenarios
+//     if (error.response) {
+//       const { status, data } = error.response;
       
-      // Log error in development
-      if (import.meta.env.DEV) {
-        console.error(`❌ ${status} ${error.config.url}`, data);
-      }
+//       // Log error in development - but preserve the original error
+//       if (import.meta.env.DEV) {
+//         console.error(`❌ ${status} ${error.config.url}`, data);
+//         console.log('🔍 Full error response data:', JSON.stringify(data, null, 2));
+//       }
       
-      // Handle unauthorized - redirect to login
-      if (status === 401) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/auth/login';
-        return Promise.reject(new Error('Session expired. Please log in again.'));
-      }
+//       // DON'T modify the error - just attach the response for debugging
+//       error.backendData = data;
+//       error.backendStatus = status;
       
-      // Handle forbidden
-      if (status === 403) {
-        return Promise.reject(new Error('Access denied. Insufficient permissions.'));
-      }
+//       // Only handle auth redirects here, preserve other errors as-is
+//       if (status === 401) {
+//         localStorage.removeItem('token');
+//         localStorage.removeItem('user');
+//         window.location.href = '/auth/login';
+//       }
       
-      // Handle server errors
-      if (status >= 500) {
-        return Promise.reject(new Error('Server error. Please try again later.'));
-      }
-      
-      // Handle other errors with API message
-      const message = data?.message || data?.title || 'An error occurred';
-      return Promise.reject(new Error(message));
-    } 
+//       // Return the original error so we can access error.response.data
+//       return Promise.reject(error);
+//     } 
     
-    // Network errors
-    if (error.request) {
-      return Promise.reject(new Error('Network error. Please check your connection.'));
-    }
+//     // Network errors
+//     if (error.request) {
+//       return Promise.reject(new Error('Network error. Please check your connection.'));
+//     }
     
-    // Other errors
-    return Promise.reject(new Error(error.message || 'An unexpected error occurred'));
-  }
-);
+//     // Other errors  
+//     return Promise.reject(error);
+//   }
+// );
 
 export const promotionData = {}
 
@@ -582,6 +619,8 @@ export const reportService = {
   }
 };
 
+
+// Updated userService with correct backend format
 export const userService = {
   async getAll() {
     const response = await apiClient.get('/users');
@@ -589,19 +628,84 @@ export const userService = {
   },
 
   async create(user) {
-    const response = await apiClient.post('/users', user);
-    return response.data;
+    console.log('🚀 userService.create called with:', user);
+    
+    // Convert role string to enum number
+    const roleMap = {
+      'Admin': 1,      // or whatever your enum values are
+      'Teacher': 2,
+      'Staff': 3
+    };
+    
+    // Create the payload in the format your backend expects
+    const payload = {
+      
+        Username: user.username,
+        FullName: user.fullName,
+        Email: user.email,
+        Role: roleMap[user.role] !== undefined ? roleMap[user.role] : user.role, // Convert to number
+        Password: user.password,
+        IsActive: user.isActive
+      
+    };
+    
+    console.log('🚀 Sending to backend (wrapped in createUserDto):', JSON.stringify(payload, null, 2));
+    
+    try {
+      const response = await apiClient.post('/users', payload);
+      console.log('✅ Backend response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ userService.create error:', error);
+      throw error;
+    }
   },
 
   async update(id, user) {
-    const response = await apiClient.put(`/users/${id}`, user);
-    return response.data;
+    console.log('🔄 userService.update called with:', { id, user });
+    
+    // Convert role string to enum number for updates too
+    const roleMap = {
+      'Admin': 1,
+      'Teacher': 2,
+      'Staff': 3,
+      
+    };
+    
+    // For updates, you might need a different wrapper - check your backend
+    const payload = {
+      updateUserDto: {  // or just send the user data directly
+        Username: user.username,
+        FullName: user.fullName,
+        Email: user.email,
+        Role: roleMap[user.role] !== undefined ? roleMap[user.role] : user.role,
+        IsActive: user.isActive
+      }
+    };
+    
+    // Include password only if it's being changed
+    if (user.password && user.password.length > 0) {
+      payload.updateUserDto.Password = user.password;
+    }
+    
+    console.log('🔄 Sending update to backend:', JSON.stringify(payload, null, 2));
+    
+    try {
+      const response = await apiClient.put(`/users/${id}`, payload);
+      console.log('✅ Update response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ userService.update error:', error);
+      throw error;
+    }
   },
 
   async resetPassword(id, newPassword) {
     await apiClient.post(`/users/${id}/reset-password`, { newPassword });
   }
 };
+
+
 
 // Utility function to get current user
 export const getCurrentUser = () => {
