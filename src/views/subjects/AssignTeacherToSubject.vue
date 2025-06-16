@@ -1,5 +1,5 @@
 <template>
-    <div class="assign-teacher-subject">
+    <div class="assign-teacher-subject ">
       <Card>
         <template #title>
           <i class="pi pi-user-plus mr-2"></i>

@@ -125,7 +125,16 @@ const router = createRouter({
                         requiresAuth: true,
                     },
                     component: () => import('@/views/exams/ScoresEntry.vue')
+                },
+                {
+                    path: '/manage-exams',
+                    name: 'ManageExams',
+                    meta: {
+                        requiresAuth: true,
+                    },
+                    component: () => import('@/views/exams/ExamType.vue')
                 }
+             
              
              
                 

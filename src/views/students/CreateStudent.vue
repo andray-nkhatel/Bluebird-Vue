@@ -1,5 +1,5 @@
 <template>
-    <div class="student-form">
+    <div class="student-form w-1/2 mx-auto mt-6">
       <div class="card">
         <div class="flex justify-content-between align-items-center mb-4">
           <h2 class="text-2xl font-semibold text-900 m-0">Add New Student</h2>
@@ -13,7 +13,7 @@
         </div>
   
         <form @submit.prevent="handleSubmit" class="p-fluid">
-          <div class="grid">
+          <div class="grid flex flex-wrap gap-4">
             <!-- Personal Information Section -->
             <div class="col-12">
               <h3 class="text-lg font-medium text-900 mb-3">Personal Information</h3>
@@ -24,6 +24,7 @@
                 <label for="firstName" class="font-medium">First Name *</label>
                 <InputText 
                   id="firstName"
+                  class="w-full"
                   v-model="form.firstName" 
                   :class="{ 'p-invalid': errors.firstName }"
                   placeholder="Enter first name"
@@ -35,7 +36,8 @@
             <div class="col-12 md:col-4">
               <div class="field">
                 <label for="middleName" class="font-medium">Middle Name</label>
-                <InputText 
+                <InputText
+                  class="w-full" 
                   id="middleName"
                   v-model="form.middleName" 
                   placeholder="Enter middle name (optional)"
@@ -47,6 +49,7 @@
               <div class="field">
                 <label for="lastName" class="font-medium">Last Name *</label>
                 <InputText 
+                  class="w-full"
                   id="lastName"
                   v-model="form.lastName" 
                   :class="{ 'p-invalid': errors.lastName }"
@@ -60,6 +63,7 @@
               <div class="field">
                 <label for="studentNumber" class="font-medium">Student Number *</label>
                 <InputText 
+                 class="w-full"
                   id="studentNumber"
                   v-model="form.studentNumber" 
                   :class="{ 'p-invalid': errors.studentNumber }"
@@ -74,6 +78,7 @@
                 <label for="gradeId" class="font-medium">Grade *</label>
                 <Select 
                   id="gradeId"
+                  class="w-full"
                   v-model="form.gradeId" 
                   :options="gradeOptions" 
                   optionLabel="name" 
@@ -89,7 +94,8 @@
             <div class="col-12 md:col-6">
               <div class="field">
                 <label for="dateOfBirth" class="font-medium">Date of Birth *</label>
-                <DatePicker 
+                <Calendar
+                  class="w-full"
                   id="dateOfBirth"
                   v-model="form.dateOfBirth" 
                   :class="{ 'p-invalid': errors.dateOfBirth }"
@@ -106,6 +112,7 @@
               <div class="field">
                 <label for="gender" class="font-medium">Gender *</label>
                 <Select 
+                 class="w-full"
                   id="gender"
                   v-model="form.gender" 
                   :options="genderOptions" 
@@ -125,6 +132,7 @@
               <div class="field">
                 <label for="address" class="font-medium">Address</label>
                 <Textarea 
+                  class="w-full"
                   id="address"
                   v-model="form.address" 
                   placeholder="Enter full address"
@@ -137,6 +145,7 @@
               <div class="field">
                 <label for="phoneNumber" class="font-medium">Phone Number</label>
                 <InputText 
+                  class="w-full"
                   id="phoneNumber"
                   v-model="form.phoneNumber" 
                   placeholder="Enter phone number"
@@ -153,6 +162,7 @@
               <div class="field">
                 <label for="guardianName" class="font-medium">Guardian Name *</label>
                 <InputText 
+                  class="w-full"
                   id="guardianName"
                   v-model="form.guardianName" 
                   :class="{ 'p-invalid': errors.guardianName }"
@@ -166,6 +176,7 @@
               <div class="field">
                 <label for="guardianPhone" class="font-medium">Guardian Phone *</label>
                 <InputText 
+                class="w-full"
                   id="guardianPhone"
                   v-model="form.guardianPhone" 
                   :class="{ 'p-invalid': errors.guardianPhone }"
@@ -423,12 +434,12 @@ function goToStudentPage() {
     padding: 1rem;
   }
   
-  .card {
+  /* .card {
    
     border-radius: 8px;
     padding: 1.5rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  }
+  } */
   
   .field {
     margin-bottom: 1rem;

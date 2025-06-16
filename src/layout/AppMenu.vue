@@ -161,7 +161,7 @@ const allMenuItems = [
             { 
                 label: 'Exam Types', 
                 icon: 'pi pi-fw pi-list', 
-                to: '/exam-types',
+                to: '/manage-exams',
                 roles: ['Admin'] // Admin only
             }
         ]
