@@ -59,6 +59,17 @@
           </div>
         </template>
 
+        <div class="flex flex-col sm:flex-row sm:items-center gap-6">
+        <div class="flex-auto">
+            <label for="firstname" class="block font-semibold mb-2">Firstname</label>
+            <InputText id="firstname" class="w-full" />
+        </div>
+        <div class="flex-auto">
+            <label for="lastname" class="block font-semibold mb-2">Lastname</label>
+            <InputText id="lastname" class="w-full" />
+        </div>
+    </div>
+
         <Column field="studentNumber" header="Student #" sortable style="min-width: 120px">
           <template #body="{ data }">
             <Tag :value="data.studentNumber" severity="info" />

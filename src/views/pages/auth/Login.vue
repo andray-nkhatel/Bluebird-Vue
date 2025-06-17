@@ -54,9 +54,9 @@ const login = async () => {
     let redirectPath = '/';
 
     if (userRole === 'Admin') {
-      redirectPath = '/';
+      redirectPath = '/profile';
     } else if (userRole === 'Teacher') {
-      redirectPath = '/';
+      redirectPath = '/scores/entry';
     } else {
       redirectPath = '/';
     }

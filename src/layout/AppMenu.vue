@@ -138,10 +138,10 @@ const allMenuItems = [
         ]
     },
     {
-        label: 'Assessments',
+        label: 'Exams',
         items: [
             { 
-                label: 'Score Entry', 
+                label: 'Marks Entry', 
                 icon: 'pi pi-fw pi-pencil', 
                 to: '/scores/entry',
                 roles: ['Admin','Teacher'] // Teachers only
@@ -163,7 +163,13 @@ const allMenuItems = [
                 icon: 'pi pi-fw pi-list', 
                 to: '/manage-exams',
                 roles: ['Admin'] // Admin only
-            }
+            },
+            { 
+                label: 'Academic Years', 
+                icon: 'pi pi-fw pi-list', 
+                to: '/manage-years',
+                roles: ['Admin'] // Admin only
+            },
         ]
     },
     {
@@ -172,27 +178,27 @@ const allMenuItems = [
             { 
                 label: 'Report Cards', 
                 icon: 'pi pi-fw pi-file-pdf', 
-                to: '/reports/cards',
+                to: '/report-cards',
                 roles: ['Admin'] // Admin only - can generate reports
-            },
-            { 
-                label: 'View Report Cards', 
-                icon: 'pi pi-fw pi-eye', 
-                to: '/reports/cards/history',
-                roles: ['Admin', 'Staff'] // All can view
-            },
-            { 
-                label: 'Academic Reports', 
-                icon: 'pi pi-fw pi-chart-bar', 
-                to: '/reports/academic',
-                roles: ['Admin'] // Admin only
-            },
-            { 
-                label: 'Performance Analysis', 
-                icon: 'pi pi-fw pi-chart-pie', 
-                to: '/reports/performance',
-                roles: ['Admin'] // Admin and Teachers
             }
+            // { 
+            //     label: 'View Report Cards', 
+            //     icon: 'pi pi-fw pi-eye', 
+            //     to: '/reports/cards/history',
+            //     roles: ['Admin', 'Staff'] // All can view
+            // },
+            // { 
+            //     label: 'Academic Reports', 
+            //     icon: 'pi pi-fw pi-chart-bar', 
+            //     to: '/reports/academic',
+            //     roles: ['Admin'] // Admin only
+            // },
+            // { 
+            //     label: 'Performance Analysis', 
+            //     icon: 'pi pi-fw pi-chart-pie', 
+            //     to: '/reports/performance',
+            //     roles: ['Admin'] // Admin and Teachers
+            // }
         ]
     },
     // {

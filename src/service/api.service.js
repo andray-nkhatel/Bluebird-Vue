@@ -467,6 +467,77 @@ export const examService = {
     return response.data;
   },
 
+async createAcademicYear(formData){
+  const response = await apiClient.post(`/AcademicYears/`, formData);
+  return response.data;
+
+},
+
+
+  // Update academic year (Admin only)
+  async updateAcademicYear(id, academicYearData) {
+    try {
+      if (!id) {
+        throw new Error('Academic year ID is required');
+      }
+
+      if (!academicYearData) {
+        throw new Error('Academic year data is required');
+      }
+
+      const response = await apiClient.put(`/AcademicYears/${id}`, {
+        name: academicYearData.name,
+        startDate: academicYearData.startDate,
+        endDate: academicYearData.endDate
+      });
+      return response.data;
+    } catch (error) {
+      this.handleApiError(error);
+    }
+  },
+
+  // Delete academic year (Admin only)
+  async deleteAcademicYear(id) {
+    try {
+      if (!id) {
+        throw new Error('Academic year ID is required');
+      }
+
+      await apiClient.delete(`/AcademicYears/${id}`);
+      return { success: true };
+    } catch (error) {
+      this.handleApiError(error);
+    }
+  },
+  async closeAcademicYear(academicYearId) {
+    try {
+      const response = await apiClient.post(`/AcademicYears/${academicYearId}/close`);
+      return response.data;
+    } catch (error) {
+      this.handleApiError(error);
+    }
+  },
+
+  // Promote all students to next grade (Admin only)
+  async promoteAllStudents(academicYearId) {
+    try {
+      const response = await apiClient.post(`/AcademicYears/${academicYearId}/promote-all`);
+      return response.data;
+    } catch (error) {
+      this.handleApiError(error);
+    }
+  },
+
+  // Archive graduates (Admin only)
+  async archiveGraduates(academicYearId) {
+    try {
+      const response = await apiClient.post(`/AcademicYears/${academicYearId}/archive-graduates`);
+      return response.data;
+    } catch (error) {
+      this.handleApiError(error);
+    }
+  },
+
   // ===== UTILITY METHODS =====
   
   // Get gradebook data (combines grade scores with filtering)

@@ -133,7 +133,28 @@ const router = createRouter({
                         requiresAuth: true,
                     },
                     component: () => import('@/views/exams/ExamType.vue')
-                }
+                },
+               {
+                path: '/manage-years',
+                name: 'ManageYears',
+                meta: {
+                    requiresAuth: true,
+                },
+                component: () => import('@/views/years/AcademicYears.vue')
+
+               },
+               {
+                path: '/report-cards',
+                name: 'ReportCards',
+                meta: {
+                    requiresAuth: true,
+                },
+                component: () => import('@/views/report/ReportCard.vue')
+
+               }
+             
+             
+             
              
              
              

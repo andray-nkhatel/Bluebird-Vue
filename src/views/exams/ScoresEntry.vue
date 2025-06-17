@@ -9,6 +9,7 @@
         </h2>
         <p class="text-600 mt-1 mb-0">Enter and manage exam scores for your assigned subjects</p>
       </div>
+      <div class="ml-auto">
       <Button
         label="Save All Changes"
         icon="pi pi-save"
@@ -17,6 +18,7 @@
         @click="saveAllChanges"
         :loading="saving"
       />
+    </div>
     </div>
 
     <!-- Filters Card -->

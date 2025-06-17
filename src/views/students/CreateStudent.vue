@@ -18,6 +18,25 @@
             <div class="col-12">
               <h3 class="text-lg font-medium text-900 mb-3">Personal Information</h3>
             </div>
+
+    <!-- <div class="flex flex-col sm:flex-row sm:items-center gap-6">
+        <div class="flex-auto">
+            <label for="firstname" class="block font-semibold mb-2">Firstname</label>
+            <InputText id="firstname" class="w-full" />
+        </div>
+        <div class="flex-auto">
+            <label for="lastname" class="block font-semibold mb-2">Lastname</label>
+            <InputText id="lastname" class="w-full" />
+        </div>
+        <div class="flex-auto">
+            <label for="lastname" class="block font-semibold mb-2">Lastname</label>
+            <InputText id="lastname" class="w-full" />
+        </div>
+        <div class="flex-auto">
+            <label for="lastname" class="block font-semibold mb-2">Lastname</label>
+            <InputText id="lastname" class="w-full" />
+        </div>
+    </div> -->
   
             <div class="col-12 md:col-4">
               <div class="field">

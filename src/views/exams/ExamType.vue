@@ -5,6 +5,7 @@
             <div class="ml-auto">
                 <Button 
                 label="Add New Exam" 
+                raised
                 icon="pi pi-plus" 
                 @click="showAddDialog = true"
                 class="p-button-success mx-2"
