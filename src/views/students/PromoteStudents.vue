@@ -6,7 +6,7 @@
           <Button 
             label="Back to List" 
             icon="pi pi-arrow-left" 
-            @click="$emit('back')"
+            @click="backToList"
             outlined
             class="ml-auto"
           />
@@ -361,12 +361,18 @@
   </template>
   
   <script setup>
-  import { gradeService, studentService } from '@/service/api.service'; // Adjust path as needed
+import { gradeService, studentService } from '@/service/api.service'; // Adjust path as needed
 import { useToast } from 'primevue/usetoast';
 import { computed, onMounted, reactive, ref } from 'vue';
+import { useRouter } from 'vue-router';
   
   // Emits
   const emit = defineEmits(['back', 'studentsPromoted'])
+  const router = useRouter()
+  const backToList = () => {
+    router.push({name: 'students'})
+    //router.push('/students');
+  }
   
   // Toast for notifications
   const toast = useToast()

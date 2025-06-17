@@ -23,6 +23,8 @@
                         placeholder="Select Student"
                         class="w-full"
                         :loading="studentsLoading"
+                        filter
+                        filterPlaceholder="Search students..."
                       />
                     </div>
                     
@@ -102,6 +104,8 @@
                         placeholder="Select Grade"
                         class="w-full"
                         :loading="gradesLoading"
+                        filter
+                        filterPlaceholder="Search grades..."
                       >
                         <template #value="slotProps">
                           <div v-if="slotProps.value">
@@ -196,7 +200,20 @@
                         placeholder="Select Student to View Report Cards"
                         class="w-full"
                         :loading="studentsLoading"
-                      />
+                        filter
+                        filterPlaceholder="Search for a student..."
+                        filterMatchMode="contains"
+                        :filterFields="['fullName', 'firstName', 'lastName', 'gradeName']"
+                      >
+                        <template #option="slotProps">
+                          <div class="flex justify-between items-center w-full">
+                            <div class="flex flex-col">
+                              <span class="font-medium">{{ slotProps.option.fullName }}</span>
+                              <small class="text-gray-500">{{ slotProps.option.gradeName }}</small>
+                            </div>
+                          </div>
+                        </template>
+                      </Dropdown>
                     </div>
                     <div class="field">
                       <label class="block text-sm font-medium mb-2">&nbsp;</label>
@@ -733,6 +750,10 @@ import Toast from 'primevue/toast'
   
   .flex {
     display: flex;
+  }
+  
+  .flex-col {
+    flex-direction: column;
   }
   
   .justify-between {

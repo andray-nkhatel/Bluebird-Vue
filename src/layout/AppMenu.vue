@@ -100,12 +100,12 @@ const allMenuItems = [
                 to: '/students/promotion',
                 roles: ['Admin'] // Admin only
             },
-            { 
-                label: 'Archived Students', 
-                icon: 'pi pi-fw pi-save', 
-                to: '/students/archived',
-                roles: ['Admin', 'Staff'] // Admin and Staff only
-            }
+            // { 
+            //     label: 'Archived Students', 
+            //     icon: 'pi pi-fw pi-save', 
+            //     to: '/students/archived',
+            //     roles: ['Admin', 'Staff'] // Admin and Staff only
+            // }
         ]
     },
     {
@@ -166,7 +166,7 @@ const allMenuItems = [
             },
             { 
                 label: 'Academic Years', 
-                icon: 'pi pi-fw pi-list', 
+                icon: 'pi pi-fw pi-graduation-cap', 
                 to: '/manage-years',
                 roles: ['Admin'] // Admin only
             },

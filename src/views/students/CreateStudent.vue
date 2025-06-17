@@ -1,5 +1,5 @@
 <template>
-  <div class="student-form w-1/2 mx-auto mt-6">
+  <div class="student-form w-full mx-auto mt-6">
     <div class="card">
       <div class="flex justify-content-between align-items-center mb-4">
         <h2 class="text-2xl font-semibold text-900 m-0">

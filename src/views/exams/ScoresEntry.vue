@@ -15,7 +15,7 @@
         icon="pi pi-save"
         class="p-button-primary ml-auto"
         :disabled="!hasUnsavedChanges || loading"
-        @click="saveAllChanges"
+        @click="saveChangesManually"
         :loading="saving"
       />
     </div>
@@ -157,12 +157,6 @@
           <Column field="studentName" header="Student Name" style="min-width: 200px;">
             <template #body="slotProps">
               <div class="flex align-items-center">
-                <!-- <Avatar
-                  :label="getInitials(slotProps.data.studentName)"
-                  size="small"
-                  shape="circle"
-                  class="mr-2"
-                /> -->
                 <span class="font-medium">{{ slotProps.data.studentName }}</span>
               </div>
             </template>
@@ -196,6 +190,37 @@
             </template>
           </Column>
 
+          <Column field="comments" header="Comments" style="min-width: 250px;">
+            <template #body="slotProps">
+              <div v-if="slotProps.data.comments" class="flex align-items-center">
+                <i class="pi pi-comment text-blue-500 mr-2"></i>
+                <span class="text-sm text-600 line-height-3" style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  {{ slotProps.data.comments }}
+                </span>
+                <Button
+                  icon="pi pi-eye"
+                  size="small"
+                  text
+                  rounded
+                  class="ml-2"
+                  @click="viewComment(slotProps.data)"
+                  v-tooltip.top="'View full comment'"
+                />
+              </div>
+              <span v-else class="text-400 text-sm">No comments</span>
+            </template>
+            <template #editor="slotProps">
+              <Textarea
+                v-model="slotProps.data.comments"
+                :maxlength="1000"
+                rows="3"
+                class="w-full"
+                placeholder="Enter comments (optional)"
+                :autoResize="true"
+              />
+            </template>
+          </Column>
+
           <Column field="grade" header="Grade" style="min-width: 100px;">
             <template #body="slotProps">
               <Tag
@@ -208,10 +233,25 @@
 
           <Column field="lastUpdated" header="Last Updated" style="min-width: 150px;">
             <template #body="slotProps">
-              <span v-if="slotProps.data.lastUpdated" class="text-500">
-                {{ formatDate(slotProps.data.lastUpdated) }}
-              </span>
+              <div v-if="slotProps.data.lastUpdated">
+                <span class="text-500 text-sm">{{ formatDate(slotProps.data.lastUpdated) }}</span>
+                <div v-if="slotProps.data.recordedBy" class="text-xs text-400 mt-1">
+                  by {{ slotProps.data.recordedBy }}
+                </div>
+              </div>
               <span v-else class="text-400">Never</span>
+            </template>
+          </Column>
+
+          <Column field="commentsInfo" header="Comment Info" style="min-width: 150px;">
+            <template #body="slotProps">
+              <div v-if="slotProps.data.commentsUpdatedAt">
+                <span class="text-500 text-sm">{{ formatDate(slotProps.data.commentsUpdatedAt) }}</span>
+                <div v-if="slotProps.data.commentsUpdatedBy" class="text-xs text-400 mt-1">
+                  by {{ slotProps.data.commentsUpdatedBy }}
+                </div>
+              </div>
+              <span v-else class="text-400 text-sm">No comments</span>
             </template>
           </Column>
 
@@ -261,12 +301,46 @@
       </template>
     </Card>
 
+    <!-- Comment Viewer Dialog -->
+    <Dialog 
+      v-model:visible="commentDialog.visible" 
+      :header="`Comments for ${commentDialog.student?.studentName}`"
+      :style="{ width: '600px' }"
+      modal
+    >
+      <div class="mb-4">
+        <label class="block font-medium mb-2">Comments:</label>
+        <div class="p-3 border-1 surface-border border-round bg-surface-50">
+          <p class="m-0 line-height-3" style="white-space: pre-wrap;">
+            {{ commentDialog.student?.comments || 'No comments available' }}
+          </p>
+        </div>
+      </div>
+      
+      <div v-if="commentDialog.student?.commentsUpdatedAt" class="text-sm text-500">
+        <i class="pi pi-clock mr-1"></i>
+        Last updated: {{ formatDate(commentDialog.student.commentsUpdatedAt) }}
+        <span v-if="commentDialog.student.commentsUpdatedBy">
+          by {{ commentDialog.student.commentsUpdatedBy }}
+        </span>
+      </div>
+
+      <template #footer>
+        <Button 
+          label="Close" 
+          icon="pi pi-times" 
+          @click="commentDialog.visible = false"
+          autofocus 
+        />
+      </template>
+    </Dialog>
+
     <Toast ref="toast" />
     <ConfirmDialog />
   </div>
 </template>
 
-<script>
+<script scope>
 import { examService } from '@/service/api.service'
 
 export default {
@@ -306,7 +380,13 @@ export default {
       loadingScores: false,
 
       // Change tracking
-      pendingChanges: new Map()
+      pendingChanges: new Map(),
+
+      // Comment dialog
+      commentDialog: {
+        visible: false,
+        student: null
+      }
     }
   },
 
@@ -325,9 +405,18 @@ export default {
 
   async mounted() {
     await this.initializeData()
+    document.addEventListener('visibilitychange', this.handleVisibilityChange)
   },
 
   beforeUnmount() {
+    // Clear auto-save timeout
+    if (this.autoSaveTimeout) {
+      clearTimeout(this.autoSaveTimeout)
+    }
+
+    // Remove visibility change listener
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange)
+
     if (this.hasUnsavedChanges) {
       const answer = confirm('You have unsaved changes. Are you sure you want to leave?')
       if (!answer) {
@@ -482,7 +571,11 @@ export default {
             currentScore: existingScore ? existingScore.score : null,
             scoreId: existingScore ? existingScore.id : null,
             lastUpdated: existingScore ? existingScore.recordedAt : null,
-            recordedBy: existingScore ? existingScore.recordedByName : null
+            recordedBy: existingScore ? existingScore.recordedByName : null,
+            // Add comment fields
+            comments: existingScore ? existingScore.comments : null,
+            commentsUpdatedAt: existingScore ? existingScore.commentsUpdatedAt : null,
+            commentsUpdatedBy: existingScore ? existingScore.commentsUpdatedByName : null
           }
         })
 
@@ -516,76 +609,147 @@ export default {
     },
 
     scheduleAutoSave() {
-  // Clear existing timeout
-  if (this.autoSaveTimeout) {
-    clearTimeout(this.autoSaveTimeout)
-  }
-  
-  // Schedule new auto-save
-  this.autoSaveTimeout = setTimeout(async () => {
-    if (this.hasUnsavedChanges) {
-      try {
-        await this.saveAllChanges()
-        this.showSuccess('Changes auto-saved. ZESCO got notthing on you!', 10000)
-      } catch (error) {
-        this.showError('Auto-save failed - please save manually')
+      // Clear existing timeout
+      if (this.autoSaveTimeout) {
+        clearTimeout(this.autoSaveTimeout)
       }
-    }
-  }, 2000) // 2 second delay
-},
+      
+      // Schedule new auto-save
+      this.autoSaveTimeout = setTimeout(async () => {
+        if (this.hasUnsavedChanges && !this.saving) {
+          try {
+            await this.saveAllChanges(true) // Pass flag to indicate auto-save
+            this.showSuccess('Changes auto-saved. ZESCO got nothing on you!', 3000)
+          } catch (error) {
+            this.showError('Auto-save failed - please save manually')
+          }
+        }
+      }, 2000) // 2 second delay
+    },
 
     onRowEditSave(event) {
-    const { newData, index } = event
-    this.students[index] = { ...newData }
-    const student = this.students[index] 
-    const originalStudent = this.originalStudents[index]
+      const { newData, index } = event
+      
+      // Check if currently saving to prevent conflicts
+      if (this.saving) {
+        this.showInfo('Please wait for current save to complete')
+        return
+      }
 
-    // Check if score actually changed
-    if (student.currentScore !== originalStudent.currentScore) {
-      this.pendingChanges.set(student.studentId, {
-        studentId: student.studentId,
-        subjectId: this.selectedAssignment.subjectId,
-        examTypeId: this.selectedExamType,
-        score: student.currentScore,
-        academicYear: this.selectedAcademicYear,
-        term: this.selectedTerm
-      })
-      this.scheduleAutoSave();
-      //this.showSuccess('Score Autosaved. Not even a power outage can lose this!');
-    } else {
-      this.pendingChanges.delete(student.studentId)
-    }
-},
+      this.students[index] = { ...newData }
+      const student = this.students[index] 
+      const originalStudent = this.originalStudents[index]
+
+      // Check if score or comments actually changed
+      const scoreChanged = student.currentScore !== originalStudent.currentScore
+      const commentsChanged = student.comments !== originalStudent.comments
+
+      if (scoreChanged || commentsChanged) {
+        this.pendingChanges.set(student.studentId, {
+          studentId: student.studentId,
+          subjectId: this.selectedAssignment.subjectId,
+          examTypeId: this.selectedExamType,
+          score: student.currentScore,
+          academicYear: this.selectedAcademicYear,
+          term: this.selectedTerm,
+          comments: student.comments
+        })
+        this.scheduleAutoSave()
+      } else {
+        this.pendingChanges.delete(student.studentId)
+      }
+    },
 
     onRowEditCancel(event) {
       const { index } = event
+      
+      // Cancel any pending auto-save for this student
+      const student = this.students[index]
+      this.pendingChanges.delete(student.studentId)
+      
+      // If no more pending changes, clear the auto-save timeout
+      if (this.pendingChanges.size === 0 && this.autoSaveTimeout) {
+        clearTimeout(this.autoSaveTimeout)
+        this.autoSaveTimeout = null
+      }
+      
       // Restore original value
       this.students[index] = { ...this.originalStudents[index] }
-      this.pendingChanges.delete(this.students[index].studentId)
     },
 
-    async saveAllChanges() {
-      if (!this.hasUnsavedChanges) return
+    // Enhanced method to handle manual save with user feedback
+    async saveChangesManually() {
+      if (!this.hasUnsavedChanges) {
+        this.showInfo('No changes to save')
+        return
+      }
+
+      // Cancel auto-save since we're doing manual save
+      if (this.autoSaveTimeout) {
+        clearTimeout(this.autoSaveTimeout)
+        this.autoSaveTimeout = null
+      }
+
+      await this.saveAllChanges(false)
+    },
+
+    async saveAllChanges(isAutoSave = false) {
+      if (!this.hasUnsavedChanges || this.saving) return
 
       try {
         this.saving = true
         const changes = Array.from(this.pendingChanges.values())
 
-        // Submit each score individually using your existing endpoint
-        const promises = changes.map(change => examService.submitScore(change))
-        await Promise.all(promises)
+        console.log(`💾 ${isAutoSave ? 'Auto-saving' : 'Saving'} ${changes.length} changes`)
 
-        this.pendingChanges.clear()
-        this.showSuccess(`Successfully saved ${changes.length} score(s)`)
+        // Submit each score individually
+        const results = await Promise.all(
+          changes.map(change => examService.submitScore(change))
+        )
+
+        // Update the student records with the returned data instead of reloading
+        this.updateStudentsWithSavedData(results)
         
-        // Reload to get updated data
-        await this.loadStudentScores()
+        this.pendingChanges.clear()
+        
+        // Update originalStudents to reflect the new saved state
+        this.originalStudents = JSON.parse(JSON.stringify(this.students))
+
+        if (!isAutoSave) {
+          this.showSuccess(`Successfully saved ${changes.length} score(s)`)
+        }
 
       } catch (error) {
         console.error('Failed to save scores:', error)
         this.showError('Failed to save scores. Please try again.')
       } finally {
         this.saving = false
+      }
+    },
+
+    // New method to update students with saved data without reloading
+    updateStudentsWithSavedData(savedScores) {
+      savedScores.forEach(savedScore => {
+        const studentIndex = this.students.findIndex(s => s.studentId === savedScore.studentId)
+        if (studentIndex !== -1) {
+          // Update the student record with the saved data
+          this.students[studentIndex] = {
+            ...this.students[studentIndex],
+            scoreId: savedScore.id,
+            lastUpdated: savedScore.recordedAt,
+            recordedBy: savedScore.recordedByName,
+            commentsUpdatedAt: savedScore.commentsUpdatedAt,
+            commentsUpdatedBy: savedScore.commentsUpdatedByName
+          }
+        }
+      })
+    },
+
+    // Add this to handle tab visibility (auto-save when tab becomes hidden)
+    handleVisibilityChange() {
+      if (document.hidden && this.hasUnsavedChanges && !this.saving) {
+        // User switched tabs/minimized - auto-save immediately
+        this.saveAllChanges(true)
       }
     },
 
@@ -597,6 +761,12 @@ export default {
         rejectClass: 'p-button-secondary p-button-outlined',
         acceptClass: 'p-button-danger',
         accept: () => {
+          // Clear any pending auto-save
+          if (this.autoSaveTimeout) {
+            clearTimeout(this.autoSaveTimeout)
+            this.autoSaveTimeout = null
+          }
+          
           this.students = JSON.parse(JSON.stringify(this.originalStudents))
           this.pendingChanges.clear()
           this.showInfo('All changes have been reset')
@@ -631,6 +801,12 @@ export default {
       }
     },
 
+    // Comment methods
+    viewComment(student) {
+      this.commentDialog.student = student
+      this.commentDialog.visible = true
+    },
+
     // Utility methods
     getInitials(name) {
       if (!name) return '??'
@@ -661,20 +837,20 @@ export default {
     },
 
     formatDate(dateString) {
-  if (!dateString) return ''
-  
-  const utcDate = new Date(dateString)
-  
-  // Manually add 2 hours for Zambia time
-  const zambiaTime = new Date(utcDate.getTime() + (2 * 60 * 60 * 1000))
-  
-  return zambiaTime.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-},
+      if (!dateString) return ''
+      
+      const utcDate = new Date(dateString)
+      
+      // Manually add 2 hours for Zambia time
+      const zambiaTime = new Date(utcDate.getTime() + (2 * 60 * 60 * 1000))
+      
+      return zambiaTime.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    },
 
     // Toast methods
     showSuccess(message, duration=3000) {
@@ -700,33 +876,36 @@ export default {
         severity: 'info',
         summary: 'Info',
         detail: message,
-        life: 3000
+        life: 4000
       })
+    },
+
+    showWarn(message) {
+      this.$toast.add({
+        severity: 'warn',
+        summary: 'Warning',
+        detail: message,
+        life: 4000
+      })
+    }
+  },
+
+  // Add computed property for development mode detection
+  computed: {
+    canLoadStudents() {
+      return this.selectedAssignment && 
+             this.selectedAcademicYear && 
+             this.selectedTerm && 
+             this.selectedExamType
+    },
+
+    hasUnsavedChanges() {
+      return this.pendingChanges.size > 0
+    },
+
+    isDevelopment() {
+      return process.env.NODE_ENV === 'development'
     }
   }
 }
 </script>
-
-<style scoped>
-.score-entry {
-  padding: 1rem;
-}
-
-.p-datatable :deep(.p-datatable-tbody > tr > td) {
-  padding: 0.75rem;
-}
-
-.p-datatable :deep(.p-datatable-tbody > tr:hover) {
-  background-color: var(--surface-hover);
-}
-
-.p-datatable :deep(.p-row-editor-init),
-.p-datatable :deep(.p-row-editor-save),
-.p-datatable :deep(.p-row-editor-cancel) {
-  margin-right: 0.5rem;
-}
-
-.p-datatable :deep(.p-inputnumber-input) {
-  width: 100% !important;
-}
-</style>

@@ -342,9 +342,35 @@ export const examService = {
   },
 
   // Create or update exam score (Teachers only)
+  // async submitScore(scoreData) {
+  //   const response = await apiClient.post('/exams/scores', scoreData);
+  //   return response.data;
+  // },
+
   async submitScore(scoreData) {
-    const response = await apiClient.post('/exams/scores', scoreData);
-    return response.data;
+    try {
+      console.log('📤 examService.submitScore called with:', scoreData)
+      
+      const payload = {
+        studentId: scoreData.studentId,
+        subjectId: scoreData.subjectId,
+        examTypeId: scoreData.examTypeId,
+        score: scoreData.score,
+        academicYear: scoreData.academicYear,
+        term: scoreData.term,
+        comments: scoreData.comments || null // Include comments in submission
+      }
+      
+      console.log('📦 API Payload being sent:', payload)
+  
+      const response = await apiClient.post('/exams/scores', payload)
+      console.log('✅ API Response received:', response.data)
+      return response.data
+    } catch (error) {
+      console.error('❌ Failed to submit score:', error)
+      console.error('❌ Error details:', error.response?.data)
+      throw error
+    }
   },
 
   // Update existing score

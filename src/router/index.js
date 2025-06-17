@@ -85,15 +85,6 @@ const router = createRouter({
                     component: () => import('@/views/students/PromoteStudents.vue')
                 },
                 {
-                    path: '/students/archived',
-                    name: 'ArchiveStudent',
-                 
-                    meta: {
-                        requiresAuth: true,
-                    },
-                    component: () => import('@/views/students/ArchiveStudent.vue')
-                },
-                {
                     path: '/grades',
                     name: 'GradeList',
                  
