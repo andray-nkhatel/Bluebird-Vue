@@ -85,7 +85,7 @@ const allMenuItems = [
             { 
                 label: 'Add Student', 
                 icon: 'pi pi-fw pi-user-plus', 
-                to: '/add-students/',
+                to: '/students/add',
                 roles: ['Admin'] // Admin only
             },
             { 

@@ -52,12 +52,20 @@ const router = createRouter({
                     component: () => import('../views/pages/Users.vue')
                 },
                 {
-                    path: '/add-students',
-                    name: 'AddStudent',
+                    path: '/students/add',
+                    name: 'AddStudent', 
                     meta: {
                         requiresAuth: true,
                     },
                     component: () => import('@/views/students/CreateStudent.vue')
+                },
+                {
+                    path: '/students/edit/:id',
+                    name: 'EditStudent',
+                    meta: {
+                        requiresAuth: true,
+                    },
+                    component: () => import('@/views/students/CreateStudent.vue') // Same component!
                 },
                 {
                     path: '/students/import',

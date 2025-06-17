@@ -59,17 +59,6 @@
           </div>
         </template>
 
-        <div class="flex flex-col sm:flex-row sm:items-center gap-6">
-        <div class="flex-auto">
-            <label for="firstname" class="block font-semibold mb-2">Firstname</label>
-            <InputText id="firstname" class="w-full" />
-        </div>
-        <div class="flex-auto">
-            <label for="lastname" class="block font-semibold mb-2">Lastname</label>
-            <InputText id="lastname" class="w-full" />
-        </div>
-    </div>
-
         <Column field="studentNumber" header="Student #" sortable style="min-width: 120px">
           <template #body="{ data }">
             <Tag :value="data.studentNumber" severity="info" />
@@ -158,6 +147,30 @@
           </template>
         </Column>
 
+        <!-- Actions Column -->
+        <Column header="Actions" style="min-width: 120px">
+          <template #body="{ data }">
+            <div class="flex gap-2">
+              <Button 
+                icon="pi pi-pencil" 
+                severity="info"
+                size="small"
+                outlined
+                @click="editStudent(data)"
+                v-tooltip.top="'Edit Student'"
+              />
+              <Button 
+                icon="pi pi-trash" 
+                severity="danger"
+                size="small"
+                outlined
+                @click="confirmDelete(data)"
+                v-tooltip.top="'Delete Student'"
+              />
+            </div>
+          </template>
+        </Column>
+
         <template #empty>
           <div class="text-center py-4">
             <i class="pi pi-users text-4xl text-400"></i>
@@ -166,6 +179,38 @@
         </template>
       </DataTable>
     </div>
+
+    <!-- Delete Confirmation Dialog -->
+    <Dialog 
+      v-model:visible="deleteDialog" 
+      :style="{ width: '450px' }" 
+      header="Confirm Delete" 
+      :modal="true"
+    >
+      <div class="flex align-items-center justify-content-center">
+        <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem; color: var(--red-500)" />
+        <span v-if="selectedStudent">
+          Are you sure you want to delete <strong>{{ selectedStudent.fullName }}</strong>?
+          <br>
+          <small class="text-500">This action cannot be undone.</small>
+        </span>
+      </div>
+      <template #footer>
+        <Button 
+          label="Cancel" 
+          icon="pi pi-times" 
+          @click="deleteDialog = false" 
+          outlined 
+        />
+        <Button 
+          label="Delete" 
+          icon="pi pi-check" 
+          severity="danger"
+          @click="deleteStudent" 
+          :loading="deleting"
+        />
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -183,6 +228,11 @@ const includeArchived = ref(false)
 const globalFilter = ref('')
 const sortField = ref('fullName')
 const sortOrder = ref(1)
+
+// Delete dialog state
+const deleteDialog = ref(false)
+const selectedStudent = ref(null)
+const deleting = ref(false)
 
 function navigateToAddStudent() {
   router.push({ name: 'AddStudent' }) // Adjust the route name as needed
@@ -207,6 +257,45 @@ const loadStudents = async () => {
 const toggleArchived = async () => {
   includeArchived.value = !includeArchived.value
   await loadStudents()
+}
+
+// Edit student
+const editStudent = (student) => {
+  // Navigate to edit page with student ID
+  router.push({ 
+    name: 'EditStudent', // Adjust the route name as needed
+    params: { id: student.id }
+  })
+}
+
+// Show delete confirmation
+const confirmDelete = (student) => {
+  selectedStudent.value = student
+  deleteDialog.value = true
+}
+
+// Delete student
+const deleteStudent = async () => {
+  if (!selectedStudent.value) return
+  
+  deleting.value = true
+  try {
+    await studentService.delete(selectedStudent.value.id)
+    // Show success message (you might want to use a toast notification)
+    console.log('Student deleted successfully')
+    
+    // Reload the students list
+    await loadStudents()
+    
+    // Close the dialog
+    deleteDialog.value = false
+    selectedStudent.value = null
+  } catch (error) {
+    console.error('Error deleting student:', error)
+    // Show error message (you might want to use a toast notification)
+  } finally {
+    deleting.value = false
+  }
 }
 
 // Format date helper
