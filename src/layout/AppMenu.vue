@@ -141,10 +141,10 @@ const allMenuItems = [
         label: 'Exams',
         items: [
             { 
-                label: 'Marks Entry', 
+                label: 'Mark Entry', 
                 icon: 'pi pi-fw pi-pencil', 
                 to: '/scores/entry',
-                roles: ['Admin','Teacher'] // Teachers only
+                roles: ['Teacher'] // Teachers only
             },
             // { 
             //     label: 'Grade Books', 

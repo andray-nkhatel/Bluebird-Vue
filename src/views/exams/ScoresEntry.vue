@@ -5,9 +5,9 @@
       <div>
         <h2 class="text-2xl font-semibold text-900 m-0">
           <i class="pi pi-pencil mr-2"></i>
-          Score Entry
+          Mark Entry
         </h2>
-        <p class="text-600 mt-1 mb-0">Enter and manage exam scores for your assigned subjects</p>
+        <p class="text-600 mt-1 mb-0">Enter and manage exam marks for your assigned subjects</p>
       </div>
       <div class="ml-auto">
       <Button
@@ -162,11 +162,11 @@
             </template>
           </Column>
 
-          <Column field="studentNumber" header="Student #" style="min-width: 120px;">
+          <!-- <Column field="studentNumber" header="Student #" style="min-width: 120px;">
             <template #body="slotProps">
               <span class="text-500">{{ slotProps.data.studentNumber }}</span>
             </template>
-          </Column>
+          </Column> -->
 
           <Column field="currentScore" header="Current Score" style="min-width: 120px;">
             <template #body="slotProps">
@@ -210,15 +210,21 @@
               <span v-else class="text-400 text-sm">No comments</span>
             </template>
             <template #editor="slotProps">
-              <Textarea
-                v-model="slotProps.data.comments"
-                :maxlength="1000"
-                rows="3"
-                class="w-full"
-                placeholder="Enter comments (optional)"
-                :autoResize="true"
-              />
-            </template>
+              <div>
+                <Textarea
+                  v-model="slotProps.data.comments"
+                  :maxlength="100"
+                  rows="3"
+                  class="w-full"
+                  placeholder="Enter comments (optional)"
+                  :autoResize="true"
+                />
+                <div class="text-right text-sm text-gray-500 mt-1">
+                  {{ 100 - (slotProps.data.comments?.length || 0) }} characters left
+                </div>
+              </div>
+          </template>
+
           </Column>
 
           <Column field="grade" header="Grade" style="min-width: 100px;">
@@ -838,18 +844,19 @@ export default {
 
     formatDate(dateString) {
       if (!dateString) return ''
-      
+
       const utcDate = new Date(dateString)
-      
+
       // Manually add 2 hours for Zambia time
       const zambiaTime = new Date(utcDate.getTime() + (2 * 60 * 60 * 1000))
-      
-      return zambiaTime.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })
+
+      // Format in military time (24-hour format)
+      const day = zambiaTime.getUTCDate()
+      const month = zambiaTime.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })
+      const hours = zambiaTime.getUTCHours().toString().padStart(2, '0')
+      const minutes = zambiaTime.getUTCMinutes().toString().padStart(2, '0')
+
+      return `${month} ${day}, ${hours}:${minutes} hrs`
     },
 
     // Toast methods
