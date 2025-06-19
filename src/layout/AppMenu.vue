@@ -112,7 +112,7 @@ const allMenuItems = [
         label: 'Academic',
         items: [
             { 
-                label: 'Grades/Classes', 
+                label: 'Classes', 
                 icon: 'pi pi-fw pi-building', 
                 to: '/grades',
                 roles: ['Admin', 'Staff']

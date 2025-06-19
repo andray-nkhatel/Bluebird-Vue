@@ -39,7 +39,7 @@
                 id="grade"
                 v-model="selectedGrade"
                 :options="grades"
-                optionLabel="name"
+                optionLabel="fullName"
                 optionValue="id"
                 placeholder="Select a grade"
                 :loading="loadingGrades"
