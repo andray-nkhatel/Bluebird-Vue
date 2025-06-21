@@ -58,17 +58,17 @@
 
           <!-- Student Details Row -->
           <div class="flex flex-col sm:flex-row sm:items-start gap-4">
-            <div class="flex-auto">
-              <label for="studentNumber" class="block font-semibold mb-2">Student Number *</label>
-              <InputText 
+            <!-- <div class="flex-auto"> -->
+              <!-- <label for="studentNumber" class="block font-semibold mb-2">Student Number *</label> -->
+              <!-- <InputText 
                 class="w-full"
                 id="studentNumber"
                 v-model="form.studentNumber" 
                 :class="{ 'p-invalid': errors.studentNumber }"
                 placeholder="Enter student number"
-              />
-              <small v-if="errors.studentNumber" class="p-error">{{ errors.studentNumber }}</small>
-            </div>
+              /> -->
+              <!-- <small v-if="errors.studentNumber" class="p-error">{{ errors.studentNumber }}</small> -->
+            <!-- </div> -->
             <div class="flex-auto">
               <label for="gradeId" class="block font-semibold mb-2">Grade *</label>
               <Select 
@@ -84,10 +84,7 @@
               />
               <small v-if="errors.gradeId" class="p-error">{{ errors.gradeId }}</small>
             </div>
-          </div>
 
-          <!-- Birth & Gender Row -->
-          <div class="flex flex-col sm:flex-row sm:items-start gap-4">
             <div class="flex-auto">
               <label for="dateOfBirth" class="block font-semibold mb-2">Date of Birth *</label>
               <Calendar
@@ -115,6 +112,36 @@
               <small v-if="errors.gender" class="p-error">{{ errors.gender }}</small>
             </div>
           </div>
+
+          <!-- Birth & Gender Row -->
+          <!-- <div class="flex flex-col sm:flex-row sm:items-start gap-4">
+            <div class="flex-auto">
+              <label for="dateOfBirth" class="block font-semibold mb-2">Date of Birth *</label>
+              <Calendar
+                class="w-full"
+                id="dateOfBirth"
+                v-model="form.dateOfBirth" 
+                :class="{ 'p-invalid': errors.dateOfBirth }"
+                placeholder="Select date of birth"
+                dateFormat="mm/dd/yy"
+                :maxDate="maxDate"
+                showIcon
+              />
+              <small v-if="errors.dateOfBirth" class="p-error">{{ errors.dateOfBirth }}</small>
+            </div>
+            <div class="flex-auto">
+              <label for="gender" class="block font-semibold mb-2">Gender *</label>
+              <Select 
+                class="w-full"
+                id="gender"
+                v-model="form.gender" 
+                :options="genderOptions" 
+                :class="{ 'p-invalid': errors.gender }"
+                placeholder="Select gender"
+              />
+              <small v-if="errors.gender" class="p-error">{{ errors.gender }}</small>
+            </div>
+          </div> -->
 
           <!-- Contact Information Section -->
           <div class="mt-4">
@@ -280,9 +307,9 @@ const validateForm = () => {
     newErrors.lastName = 'Last name is required'
   }
 
-  if (!form.studentNumber?.trim()) {
-    newErrors.studentNumber = 'Student number is required'
-  }
+  // if (!form.studentNumber?.trim()) {
+  //   newErrors.studentNumber = 'Student number is required'
+  // }
 
   if (!form.dateOfBirth) {
     newErrors.dateOfBirth = 'Date of birth is required'
