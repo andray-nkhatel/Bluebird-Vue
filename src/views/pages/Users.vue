@@ -159,6 +159,13 @@
                     v-tooltip.top="'View Details'"
                   />
                   <Button 
+                    icon="pi pi-key" 
+                    size="small"
+                    severity="warning"
+                    @click="resetUserPassword(data)"
+                    v-tooltip.top="'Reset Password'"
+                  />
+                  <Button 
                     :icon="data.isActive ? 'pi pi-ban' : 'pi pi-check'" 
                     size="small"
                     :severity="data.isActive ? 'warning' : 'success'"
@@ -171,6 +178,107 @@
           </DataTable>
         </template>
       </Card>
+
+
+      <!-- Password Reset Dialog -->
+<Dialog 
+  v-model:visible="showPasswordResetDialog" 
+  header="Reset User Password"
+  :modal="true" 
+  class="p-fluid" 
+  style="width: 400px"
+>
+  <div v-if="userToResetPassword" class="mb-4">
+    <div class="flex align-items-center mb-3">
+      <Avatar 
+        :label="userToResetPassword.username.charAt(0).toUpperCase()" 
+        class="mr-3" 
+        :style="{ backgroundColor: getAvatarColor(userToResetPassword.username) }"
+      />
+      <div>
+        <h4 class="m-0">{{ userToResetPassword.fullName }}</h4>
+        <p class="text-600 m-0">@{{ userToResetPassword.username }}</p>
+      </div>
+    </div>
+    
+    <Message severity="warn" :closable="false">
+      <p class="m-0">This will generate a new password for the user. The old password will be invalidated immediately.</p>
+    </Message>
+  </div>
+
+  <div class="grid">
+    <div class="col-12">
+      <label for="newPassword" class="block text-900 font-medium mb-2">New Password</label>
+      <div class="p-inputgroup">
+        <InputText 
+          id="newPassword"
+          v-model="passwordResetForm.newPassword" 
+          :type="showPassword ? 'text' : 'password'"
+          placeholder="Enter new password"
+          :class="{ 'p-invalid': passwordResetSubmitted && (!passwordResetForm.newPassword || passwordResetForm.newPassword.length < 6) }"
+          class="w-full"
+        />
+        <Button 
+          :icon="showPassword ? 'pi pi-eye-slash' : 'pi pi-eye'"
+          @click="showPassword = !showPassword"
+          class="p-button-outlined"
+          type="button"
+        />
+      </div>
+      <small v-show="passwordResetSubmitted && !passwordResetForm.newPassword" class="p-error">
+        New password is required.
+      </small>
+      <small v-show="passwordResetSubmitted && passwordResetForm.newPassword && passwordResetForm.newPassword.length < 6" class="p-error">
+        Password must be at least 6 characters long.
+      </small>
+    </div>
+
+    <div class="col-12 mt-2">
+      <label for="confirmPassword" class="block text-900 font-medium mb-2">Confirm Password</label>
+      <InputText 
+        id="confirmPassword"
+        v-model="passwordResetForm.confirmPassword" 
+        :type="showConfirmPassword ? 'text' : 'password'"
+        placeholder="Confirm new password"
+        :class="{ 'p-invalid': passwordResetSubmitted && (!passwordResetForm.confirmPassword || passwordResetForm.newPassword !== passwordResetForm.confirmPassword) }"
+        class="w-full"
+      />
+      <small v-show="passwordResetSubmitted && !passwordResetForm.confirmPassword" class="p-error">
+        Please confirm the password.
+      </small>
+      <small v-show="passwordResetSubmitted && passwordResetForm.confirmPassword && passwordResetForm.newPassword !== passwordResetForm.confirmPassword" class="p-error">
+        Passwords do not match.
+      </small>
+    </div>
+
+    <div class="col-12 mt-3">
+      <div class="field-checkbox">
+        <Checkbox 
+          id="notifyUser" 
+          v-model="passwordResetForm.notifyUser" 
+          :binary="true" 
+        />
+        <label class="ml-2" for="notifyUser">Send password reset notification to user</label>
+      </div>
+    </div>
+  </div>
+
+  <template #footer>
+    <Button 
+      label="Cancel" 
+      icon="pi pi-times" 
+      @click="hidePasswordResetDialog" 
+      class="p-button-text" 
+    />
+    <Button 
+      label="Reset Password" 
+      icon="pi pi-key" 
+      @click="confirmPasswordReset" 
+      class="p-button-danger"
+      :loading="passwordResetLoading"
+    />
+  </template>
+</Dialog>
   
       <!-- Add/Edit User Dialog -->
       <Dialog 
@@ -384,8 +492,172 @@ import { useToast } from 'primevue/usetoast';
       const editingUser = ref(false)
       const selectedUser = ref(null)
 
-  
+      const showPasswordResetDialog = ref(false)
+      const passwordResetSubmitted = ref(false)
+      const passwordResetLoading = ref(false)
+      const userToResetPassword = ref(null)
+      const showPassword = ref(false)
+      const showConfirmPassword = ref(false)
 
+      // Form data (add to existing form data)
+const passwordResetForm = ref({
+  newPassword: '',
+  confirmPassword: '',
+  notifyUser: true
+})
+
+// Methods (add to existing methods)
+const resetUserPassword = (user) => {
+  userToResetPassword.value = user
+  passwordResetForm.value = {
+    newPassword: '',
+    confirmPassword: '',
+    notifyUser: true
+  }
+  showPasswordResetDialog.value = true
+  passwordResetSubmitted.value = false
+  showPassword.value = false
+  showConfirmPassword.value = false
+}
+
+const hidePasswordResetDialog = () => {
+  showPasswordResetDialog.value = false
+  passwordResetSubmitted.value = false
+  passwordResetLoading.value = false
+  userToResetPassword.value = null
+  passwordResetForm.value = {
+    newPassword: '',
+    confirmPassword: '',
+    notifyUser: true
+  }
+  showPassword.value = false
+  showConfirmPassword.value = false
+}
+
+const confirmPasswordReset = () => {
+  passwordResetSubmitted.value = true
+  
+  // Validation
+  if (!passwordResetForm.value.newPassword || 
+      passwordResetForm.value.newPassword.length < 6 ||
+      !passwordResetForm.value.confirmPassword ||
+      passwordResetForm.value.newPassword !== passwordResetForm.value.confirmPassword) {
+    return
+  }
+
+  // Show confirmation dialog
+  confirm.require({
+    message: `Are you sure you want to reset the password for "${userToResetPassword.value.fullName}"? This action cannot be undone and will immediately invalidate their current password.`,
+    header: 'Reset Password Confirmation',
+    icon: 'pi pi-exclamation-triangle',
+    rejectClass: 'p-button-secondary p-button-outlined',
+    rejectLabel: 'Cancel',
+    acceptClass: 'p-button-danger',
+    acceptLabel: 'Reset Password',
+    accept: async () => {
+      await executePasswordReset()
+    }
+  })
+}
+
+const executePasswordReset = async () => {
+  passwordResetLoading.value = true
+  
+  try {
+    // Validate inputs
+    if (!userToResetPassword.value?.id) {
+      throw new Error('No user selected for password reset')
+    }
+
+    const newPassword = passwordResetForm.value.newPassword?.trim()
+    if (!newPassword) {
+      throw new Error('Password cannot be empty')
+    }
+
+    if (typeof newPassword !== 'string') {
+      throw new Error('New password must be a string')
+    }
+
+    // Validate password strength on frontend too
+    if (newPassword.length < 8) {
+      throw new Error('Password must be at least 8 characters long')
+    }
+
+    // Match your backend DTO structure exactly
+    const resetData = {
+      newPassword: newPassword
+    }
+
+    console.log('🔍 Resetting password for user:', userToResetPassword.value.fullName)
+    console.log('🔍 User ID:', userToResetPassword.value.id)
+    console.log('🔍 Reset data structure:', resetData)
+    
+    const response = await userService.resetPassword(userToResetPassword.value.id, resetData)
+    
+    console.log('✅ Password reset response:', response)
+    console.log('✅ Password reset successfully for user:', userToResetPassword.value.fullName)
+    
+    // Show success toast
+    toast.add({
+      severity: 'success',
+      summary: 'Password Reset Successfully',
+      detail: `Password has been reset for "${userToResetPassword.value.fullName}".`,
+      life: 4000
+    })
+    
+    hidePasswordResetDialog()
+    
+    // Optional: Clear the form
+    passwordResetForm.value.newPassword = ''
+    
+  } catch (error) {
+    console.error('❌ Error resetting password:', error)
+    
+    let errorMessage = 'Failed to reset password'
+    
+    // Handle different types of errors
+    if (error.response?.status === 404) {
+      errorMessage = 'User not found'
+    } else if (error.response?.status === 400) {
+      // Handle validation errors
+      const validationErrors = error.response?.data?.errors
+      if (validationErrors) {
+        const passwordErrors = validationErrors.NewPassword || validationErrors.newPassword
+        if (passwordErrors && passwordErrors.length > 0) {
+          errorMessage = passwordErrors[0]
+        } else {
+          errorMessage = error.response?.data?.message || 'Invalid request data'
+        }
+      } else {
+        errorMessage = error.response?.data?.message || 'Invalid request data'
+      }
+    } else if (error.response?.status === 403) {
+      errorMessage = 'You do not have permission to reset passwords'
+    } else if (error.response?.status === 401) {
+      errorMessage = 'You are not authorized. Please log in again.'
+    } else if (error.response?.data?.message) {
+      errorMessage = error.response.data.message
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+    
+    console.error('❌ Error details:', {
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message
+    })
+    
+    // Show error toast
+    toast.add({
+      severity: 'error',
+      summary: 'Password Reset Failed',
+      detail: errorMessage,
+      life: 6000
+    })
+  } finally {
+    passwordResetLoading.value = false
+  }
+}
 
      
       
@@ -747,7 +1019,18 @@ import { useToast } from 'primevue/usetoast';
         formatDate,
         formatRelativeDate,
         getRoleSeverity,
-        getAvatarColor
+        getAvatarColor,
+        showPasswordResetDialog,
+        passwordResetSubmitted,
+        passwordResetLoading,
+        userToResetPassword,
+        showPassword,
+        showConfirmPassword,
+        passwordResetForm,
+        resetUserPassword,
+        hidePasswordResetDialog,
+        confirmPasswordReset,
+        executePasswordReset
       }
     }
   }

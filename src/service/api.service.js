@@ -1017,6 +1017,16 @@ export const userService = {
       throw error;
     }
   },
+  async resetPassword(userId, resetData) {
+    try {
+      console.log('🔍 Reset password payload:', resetData); // Add this line
+      const response = await apiClient.post(`/users/${userId}/reset-password`, resetData);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Reset password error details:', error.response?.data); // Add this line
+      throw error;  
+    }
+  },
   async delete(id) {
     console.log('🗑️ userService.delete called with id:', id);
     try {
@@ -1029,9 +1039,9 @@ export const userService = {
     }
 },
 
-  async resetPassword(id, newPassword) {
-    await apiClient.post(`/users/${id}/reset-password`, { newPassword });
-  }
+  // async resetPassword(id, newPassword) {
+  //   await apiClient.post(`/users/${id}/reset-password`, { newPassword });
+  // }
 };
 
 
