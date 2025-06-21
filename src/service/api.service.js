@@ -267,62 +267,256 @@ export const gradeService = {
   }
 };
 export const subjectService = {
-  // Add to your subjectService
-async update(id, subject) {
-  const response = await apiClient.put(`/subjects/${id}`, subject);
-  return response.data;
-},
 
   async getAll(includeInactive = false) {
-    const params = includeInactive ? '?includeInactive=true' : '';
-    const response = await apiClient.get(`/subjects${params}`);
-    return response.data;
+    try {
+      const params = includeInactive ? '?includeInactive=true' : '';
+      const response = await apiClient.get(`/subjects${params}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching subjects:', error);
+      throw error;
+    }
   },
 
-  // Get subject by ID
+
   async getById(id) {
-    const response = await apiClient.get(`/subjects/${id}`);
-    return response.data;
+    try {
+      const response = await apiClient.get(`/subjects/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching subject ${id}:`, error);
+      throw error;
+    }
   },
 
-  // Create new subject (Admin only)
+
   async create(subject) {
-    const response = await apiClient.post('/subjects', subject);
-    return response.data;
+    try {
+      const response = await apiClient.post('/subjects', subject);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating subject:', error);
+      throw error;
+    }
   },
-  // Add this to your subjectService
-async toggleStatus(id) {
-  const response = await apiClient.patch(`/subjects/${id}/toggle`);
-  return response.data;
-},
 
-  // Assign subject to grade (Admin only)
+ 
+  async update(id, subject) {
+    try {
+      const response = await apiClient.put(`/subjects/${id}`, subject);
+      return response.data;
+    } catch (error) {
+      console.error(`Error updating subject ${id}:`, error);
+      throw error;
+    }
+  },
+
+
+  async delete(id) {
+    try {
+      await apiClient.delete(`/subjects/${id}`);
+    } catch (error) {
+      console.error(`Error deleting subject ${id}:`, error);
+      throw error;
+    }
+  },
+
+
+  async toggleStatus(id) {
+    try {
+      const response = await apiClient.patch(`/subjects/${id}/toggle`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error toggling subject ${id} status:`, error);
+      throw error;
+    }
+  },
+
+
+  async getSubjectAssignments(subjectId) {
+    try {
+      const response = await apiClient.get(`/subjects/${subjectId}/assignments`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching assignments for subject ${subjectId}:`, error);
+      throw error;
+    }
+  },
+
+
   async assignToGrade(subjectId, gradeId, assignmentData) {
-    const response = await apiClient.post(
-      `/subjects/${subjectId}/assign-to-grade/${gradeId}`, 
-      assignmentData
-    );
-    return response.data;
+    try {
+      const response = await apiClient.post(
+        `/subjects/${subjectId}/assign-to-grade/${gradeId}`, 
+        assignmentData
+      );
+      return response.data;
+    } catch (error) {
+      console.error(`Error assigning subject ${subjectId} to grade ${gradeId}:`, error);
+      throw error;
+    }
   },
 
-  // Assign teacher to subject for specific grade (Admin only)
+  
   async assignTeacher(subjectId, assignmentData) {
-    const response = await apiClient.post(
-      `/subjects/${subjectId}/assign-teacher`, 
-      assignmentData
-    );
-    return response.data;
+    try {
+      const response = await apiClient.post(`/subjects/${subjectId}/assign-teacher`, assignmentData);
+      return response.data;
+    } catch (error) {
+      console.error(`Error assigning teacher to subject ${subjectId}:`, error);
+      throw error;
+    }
   },
 
-  // Bulk import subjects from CSV (Admin only)
+
+  async assignTeacherToMultipleGrades(subjectId, assignmentData) {
+    try {
+      const response = await apiClient.post(`/subjects/${subjectId}/assign-teacher-multiple-grades`, assignmentData);
+      return response.data;
+    } catch (error) {
+      console.error(`Error assigning teacher to multiple grades for subject ${subjectId}:`, error);
+      throw error;
+    }
+  },
+
+  
+  async bulkAssignTeachersToSubjects(bulkAssignmentData) {
+    try {
+      const response = await apiClient.post('/subjects/bulk-assign', bulkAssignmentData);
+      return response.data;
+    } catch (error) {
+      console.error('Error performing bulk assignment:', error);
+      throw error;
+    }
+  },
+
+ 
   async importFromCsv(file) {
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    const response = await apiClient.post('/subjects/import/csv', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-    return response.data;
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await apiClient.post('/subjects/import/csv', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error importing subjects from CSV:', error);
+      throw error;
+    }
+  },
+
+ 
+  async transferAssignments(transferData) {
+    try {
+      const response = await apiClient.post('/subjects/transfer-assignments', transferData);
+      return response.data;
+    } catch (error) {
+      console.error('Error transferring assignments:', error);
+      throw error;
+    }
+  },
+
+ 
+  async removeTeacherAssignment(assignmentId) {
+    try {
+      await apiClient.delete(`/subjects/assignments/${assignmentId}`);
+    } catch (error) {
+      console.error(`Error removing assignment ${assignmentId}:`, error);
+      throw error;
+    }
+  },
+
+ 
+  async getByGrade(gradeId) {
+    try {
+      const response = await apiClient.get(`/subjects/grade/${gradeId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching subjects for grade ${gradeId}:`, error);
+      throw error;
+    }
+  },
+
+ 
+  async getByTeacher(teacherId) {
+    try {
+      const response = await apiClient.get(`/subjects/teacher/${teacherId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching subjects for teacher ${teacherId}:`, error);
+      throw error;
+    }
+  },
+
+ 
+  async search(query) {
+    try {
+      const response = await apiClient.get(`/subjects/search`, {
+        params: { q: query }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error searching subjects:', error);
+      throw error;
+    }
+  },
+
+ 
+  async getStatistics(subjectId = null) {
+    try {
+      const url = subjectId ? `/subjects/${subjectId}/statistics` : '/subjects/statistics';
+      const response = await apiClient.get(url);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching subject statistics:', error);
+      throw error;
+    }
+  },
+
+
+  async toggleStatus(id, isActive) {
+    try {
+      const response = await apiClient.patch(`/subjects/${id}/status`, { isActive });
+      return response.data;
+    } catch (error) {
+      console.error(`Error toggling subject ${id} status:`, error);
+      throw error;
+    }
+  },
+
+
+  async getUnassignedForGrade(gradeId) {
+    try {
+      const response = await apiClient.get(`/subjects/unassigned/grade/${gradeId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching unassigned subjects for grade ${gradeId}:`, error);
+      throw error;
+    }
+  },
+
+ 
+  async getAssignmentConflicts() {
+    try {
+      const response = await apiClient.get('/subjects/assignment-conflicts');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching assignment conflicts:', error);
+      throw error;
+    }
+  },
+
+ 
+  async resolveConflict(conflictId, resolution) {
+    try {
+      const response = await apiClient.post(`/subjects/conflicts/${conflictId}/resolve`, resolution);
+      return response.data;
+    } catch (error) {
+      console.error(`Error resolving conflict ${conflictId}:`, error);
+      throw error;
+    }
   }
 };
 

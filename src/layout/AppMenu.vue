@@ -129,12 +129,12 @@ const allMenuItems = [
                 to: '/teacher-subject/assignments',
                 roles: ['Admin'] // Admin only
             },
-            {
-              label: 'Subject Assignments',
-              icon: 'pi pi-fw pi-calendar',
-              to: '/subject-grade/assignments',
-              roles: ['Admin'] // Admin, Teacher, and Staff
-            }
+            // {
+            //   label: 'Subject Assignments',
+            //   icon: 'pi pi-fw pi-calendar',
+            //   to: '/subject-grade/assignments',
+            //   roles: ['Admin'] // Admin, Teacher, and Staff
+            // }
         ]
     },
     {
