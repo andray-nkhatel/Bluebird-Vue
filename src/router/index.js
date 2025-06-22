@@ -21,12 +21,12 @@ const router = createRouter({
             component: AppLayout,
             children: [
                 {
-                    path: '/',
-                    name: 'dashboard',
+                    path: '/overview',
+                    name: 'overview',
                     meta:{
                         requiresAuth: true,
                     },
-                    component: () => import('@/views/pages/Dashboard.vue')
+                    component: () => import('@/views/dashboard/Dashboard.vue')
                 },
                 {   path: '/profile',
                     name: 'profile',

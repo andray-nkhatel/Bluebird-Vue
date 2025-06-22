@@ -627,6 +627,23 @@ export const examService = {
     return response.data;
   },
 
+  async getTeacherAssignmentsStats() {
+    const response = await apiClient.get('/exams/admin/teacher-assignments/stats');
+    return response.data;
+  },
+
+  async statistics({ gradeId, subjectId, academicYear, term } = {}) {
+    const response = await apiClient.get('/exams/statistics', {
+      params: {
+        ...(gradeId !== undefined && { gradeId }),
+        ...(subjectId !== undefined && { subjectId }),
+        ...(academicYear !== undefined && { academicYear }),
+        ...(term !== undefined && { term }),
+      }
+    });
+    return response.data;
+  },
+
   // Check if teacher can enter score for subject/grade
   async canTeacherEnterScore(teacherId, subjectId, gradeId) {
     const response = await apiClient.get(`/exams/teacher/${teacherId}/can-enter-score?subjectId=${subjectId}&gradeId=${gradeId}`);

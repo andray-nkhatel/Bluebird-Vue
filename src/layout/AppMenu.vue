@@ -27,7 +27,7 @@ const allMenuItems = [
             { 
                 label: 'Overview', 
                 icon: 'pi pi-fw pi-home', 
-                to: '/dashboard',
+                to: '/overview',
                 roles: ['Admin', 'Teacher', 'Staff']
             },
             {
