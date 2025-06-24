@@ -27,34 +27,33 @@
       </div>
 
       <DataTable 
-        :value="students" 
+        :value="filteredStudents" 
         :loading="loading"
         :paginator="true" 
         :rows="10"
         :rowsPerPageOptions="[5, 10, 20, 50]"
-        :globalFilterFields="['firstName', 'lastName', 'studentNumber', 'gradeName', 'guardianName']"
         :sortField="sortField"
         :sortOrder="sortOrder"
         showGridlines
         stripedRows
         responsiveLayout="scroll"
         filterDisplay="menu"
-        v-model:globalFilter="globalFilter"
         class="p-datatable-sm"
       >
         <template #header>
           <div class="flex justify-content-between align-items-center" style="align-items: center;">
             <span class="text-xl font-semibold">
-              {{ students.length }} student{{ students.length !== 1 ? 's' : '' }} found
+              {{ filteredStudents.length }} student{{ filteredStudents.length !== 1 ? 's' : '' }} found
             </span>
             <span class="p-input-icon-left">
-              
+             
               <InputText 
                 v-model="globalFilter" 
                 placeholder="Search students..." 
                 class="w-20rem ml-3"
               />
-              <i class="pi pi-search ml-2" />
+
+              <i class="pi pi-search ml-3" />
             </span>
           </div>
         </template>
@@ -68,7 +67,7 @@
         <Column field="fullName" header="Full Name" sortable style="min-width: 200px">
           <template #body="{ data }">
             <div class="flex flex-column gap-1">
-              <span class="font-medium">{{ data.fullName }}</span>
+              <span class="font-medium">{{ data.fullName}}</span>
               <!-- <small class="text-500">{{ data.firstName }} {{ data.middleName }} {{ data.lastName }}</small> -->
             </div>
           </template>
@@ -215,9 +214,9 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { studentService } from '../../service/api.service'; // Adjust path as needed
+import { studentService } from '../../service/api.service';
 
 const router = useRouter();
 
@@ -234,6 +233,35 @@ const deleteDialog = ref(false)
 const selectedStudent = ref(null)
 const deleting = ref(false)
 
+// Computed property for filtered students
+const filteredStudents = computed(() => {
+  if (!globalFilter.value) {
+    return students.value;
+  }
+
+  const searchTerm = globalFilter.value.toLowerCase().trim();
+  
+  return students.value.filter(student => {
+    // Check all searchable fields
+    const searchableFields = [
+      student.firstName || '',
+      student.lastName || '',
+      student.fullName || '',
+      student.studentNumber || '',
+      student.gradeName || '',
+      student.guardianName || '',
+      student.guardianPhone || '',
+      student.gender || '',
+      // Also search in optional subjects
+      ...(student.optionalSubjects || []).map(subject => subject.name || '')
+    ];
+    
+    return searchableFields.some(field => 
+      field.toString().toLowerCase().includes(searchTerm)
+    );
+  });
+});
+
 function navigateToAddStudent() {
   router.push({ name: 'AddStudent' }) // Adjust the route name as needed
 }
@@ -243,7 +271,25 @@ const loadStudents = async () => {
   loading.value = true
   try {
     const data = await studentService.getAll(includeArchived.value)
-    students.value = data || []
+    students.value = (data || []).map(s => ({
+      ...s,
+      // Ensure all searchable fields exist and are strings
+      firstName: String(s.firstName || ''),
+      lastName: String(s.lastName || ''),
+      fullName: String(s.fullName || `${s.firstName || ''} ${s.lastName || ''}`.trim()),
+      studentNumber: String(s.studentNumber || ''),
+      gradeName: String(s.gradeName || ''),
+      guardianPhone: String(s.guardianPhone || s.phoneNumber || ''),
+      guardianName: String(s.guardianName || ''),
+      gender: String(s.gender || ''),
+      // Ensure optionalSubjects is an array
+      optionalSubjects: Array.isArray(s.optionalSubjects) ? s.optionalSubjects : []
+    }))
+    
+    // Debug: Log first student to verify data structure
+    if (students.value.length > 0) {
+      console.log('Sample student data:', students.value[0])
+    }
   } catch (error) {
     console.error('Error loading students:', error)
     // You might want to show a toast notification here
@@ -325,7 +371,6 @@ onMounted(() => {
 }
 
 .card {
-  
   border-radius: 8px;
   padding: 1.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
