@@ -177,6 +177,16 @@
                       >
                         Generate Class Report Cards
                       </Button>
+
+                      <Button
+                            @click="downloadClassReportCardsZip"
+                            :loading="downloadingClassBundle"
+                            :disabled="!selectedGrade || !classAcademicYear || !selectedClassTerm"
+                            class="w-full mt-2"
+                            severity="info"
+                      >
+                            Download All as ZIP
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -366,6 +376,48 @@ import Toast from 'primevue/toast'
   const gradesLoading = ref(false)
   const academicYearsLoading = ref(false)
   const downloading = ref(null)
+
+  const downloadingClassBundle = ref(false);
+
+const downloadClassReportCardsZip = async () => {
+  if (!selectedGrade.value || !classAcademicYear.value || !selectedClassTerm.value) return;
+  downloadingClassBundle.value = true;
+  try {
+    // Call the new backend endpoint
+    const response = await reportService.downloadClassReportCardsZip(
+      selectedGrade.value,
+      classAcademicYear.value,
+      selectedClassTerm.value
+    );
+    // response should be a Blob (ZIP)
+    const url = window.URL.createObjectURL(response);
+    const fileName = `ReportCards_Grade${selectedGrade.value}_${classAcademicYear.value}_Term${selectedClassTerm.value}.zip`;
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    toast.add({
+      severity: 'success',
+      summary: 'Success',
+      detail: 'All class report cards downloaded as ZIP!',
+      life: 3000
+    });
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.message || 'Failed to download class report cards ZIP',
+      life: 5000
+    });
+  } finally {
+    downloadingClassBundle.value = false;
+  }
+};
+
   
   // API Methods
   const generateSingleReportCard = async () => {

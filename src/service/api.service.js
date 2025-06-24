@@ -988,7 +988,16 @@ export const reportService = {
   async getStudentReportCards(studentId) {
     const response = await apiClient.get(`/reportcards/student/${studentId}`);
     return response.data;
-  }
+  },
+
+async downloadClassReportCardsZip(gradeId, academicYear, term) {
+  const response = await apiClient.get(
+    `/reportcards/download/class/${gradeId}?academicYear=${academicYear}&term=${term}`,
+    { responseType: 'blob' }
+  );
+  return response.data; // This is the Blob
+}
+
 };
 
 
