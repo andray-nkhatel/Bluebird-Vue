@@ -41,7 +41,7 @@ const router = createRouter({
                     meta:{
                         requiresAuth: true,
                     },
-                    component: () => import('@/views/pages/Profile.vue')
+                    component: () => import('@/views/users/Profile.vue')
                 },
                 {   path: '/students',
                     name: 'students',
@@ -57,7 +57,7 @@ const router = createRouter({
                         requiresAuth: true,
                         // roles: ['admin']
                     },
-                    component: () => import('@/views/pages/Users.vue')
+                    component: () => import('@/views/users/Users.vue')
                 },
                 {
                     path: '/students/add',

@@ -266,6 +266,8 @@ export const gradeService = {
     return response.data;
   }
 };
+
+
 export const subjectService = {
 
   async getAll(includeInactive = false) {
@@ -517,7 +519,19 @@ export const subjectService = {
       console.error(`Error resolving conflict ${conflictId}:`, error);
       throw error;
     }
+  },
+
+  async getTeacherAssignments(teacherId, includeInactive = false) {
+    try {
+      const params = includeInactive ? '?includeInactive=true' : '';
+      const response = await apiClient.get(`/subjects/assignments/teacher/${teacherId}${params}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching assignments for teacher ${teacherId}:`, error);
+      throw error;
+    }
   }
+
 };
 
 export const examService = {
