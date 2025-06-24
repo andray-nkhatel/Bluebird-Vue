@@ -76,7 +76,7 @@
                 class="w-full"
                 v-model="form.gradeId" 
                 :options="gradeOptions" 
-                optionLabel="name" 
+                optionLabel="fullName" 
                 optionValue="id"
                 :class="{ 'p-invalid': errors.gradeId }"
                 placeholder="Select grade"

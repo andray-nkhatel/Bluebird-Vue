@@ -2,13 +2,12 @@
   <div class="score-entry">
     <!-- Header -->
     <div class="flex justify-content-between align-items-center mb-4">
-      <div>
-        <h2 class="text-2xl font-semibold text-900 m-0">
-          <i class="pi pi-pencil mr-2"></i>
+      <h2 class="text-2xl font-semibold text-900 m-0">
+          <i class="pi pi-pencil "></i>
           Mark Entry
         </h2>
-        <p class="text-600 mt-1 mb-0">Enter and manage exam marks for your assigned subjects</p>
-      </div>
+       
+      
       <div class="ml-auto">
       <Button
         label="Save All Changes"
@@ -24,9 +23,11 @@
     <!-- Filters Card -->
     <Card class="mb-4">
       <template #content>
-        <div class="grid">
-          <div class="col-12 md:col-3">
-            <label for="assignment" class="block font-medium mb-2">Subject & Grade *</label>
+        <div >
+          <div class="flex flex-wrap justify-content-between align-items-center mb-4">
+
+            <div class="flex-auto mr-4 mb-4">
+              <label for="assignment" class="block font-medium mb-2">Subject & Grade *</label>
             <Select
               id="assignment"
               v-model="selectedAssignment"
@@ -44,9 +45,12 @@
                 </div>
               </template>
             </Select>
-          </div>
 
-          <div class="col-12 md:col-2">
+            </div>
+           
+          
+          
+          <div class="flex-auto mr-4 mb-4">
             <label for="academicYear" class="block font-medium mb-2">Academic Year *</label>
             <Select
               id="academicYear"
@@ -60,8 +64,8 @@
               @change="onFiltersChange"
             />
           </div>
-
-          <div class="col-12 md:col-2">
+          
+          <div class="flex-auto mr-4 mb-4">
             <label for="term" class="block font-medium mb-2">Term *</label>
             <Select
               id="term"
@@ -76,7 +80,7 @@
             />
           </div>
 
-          <div class="col-12 md:col-3">
+          <div class="flex-auto mr-4">
             <label for="examType" class="block font-medium mb-2">Exam Type *</label>
             <Select
               id="examType"
@@ -90,9 +94,10 @@
               @change="onFiltersChange"
             />
           </div>
-
-          <div class="col-12 md:col-2">
-            <label class="block font-medium mb-2">&nbsp;</label>
+        </div>
+        <div class="flex flex-wrap justify-content-center align-items-center mt-4">
+          <div class="flex-auto">
+            <label class="block font-medium mb-2 mx-auto">&nbsp;</label>
             <Button
               label="Load Students"
               icon="pi pi-search"
@@ -102,6 +107,7 @@
               :loading="loadingScores"
             />
           </div>
+        </div>
         </div>
       </template>
     </Card>

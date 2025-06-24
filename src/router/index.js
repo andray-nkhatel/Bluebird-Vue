@@ -28,6 +28,14 @@ const router = createRouter({
                     },
                     component: () => import('@/views/dashboard/Dashboard.vue')
                 },
+                {
+                    path: '/my-assignments',
+                    name: 'MyAssignments',
+                    meta:{
+                        requiresAuth: true,
+                    },
+                    component: () => import('@/views/teachers/MyAssignments.vue')
+                },
                 {   path: '/profile',
                     name: 'profile',
                     meta:{
@@ -49,7 +57,7 @@ const router = createRouter({
                         requiresAuth: true,
                         // roles: ['admin']
                     },
-                    component: () => import('../views/pages/Users.vue')
+                    component: () => import('@/views/pages/Users.vue')
                 },
                 {
                     path: '/students/add',
@@ -150,7 +158,18 @@ const router = createRouter({
                 },
                 component: () => import('@/views/report/ReportCard.vue')
 
-               }
+               },
+               {
+               path: '/settings/system',
+               name: 'SystemSettings',
+               meta: {
+                   requiresAuth: true,
+               },
+               component: () => import('@/views/settings/System.vue')
+
+              }
+            
+
              
              
              

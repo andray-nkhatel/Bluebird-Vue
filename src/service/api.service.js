@@ -707,8 +707,22 @@ export const examService = {
 async createAcademicYear(formData){
   const response = await apiClient.post(`/AcademicYears/`, formData);
   return response.data;
-
 },
+  // async closeAcademicYear(academicYearId) {
+  //   const response = await apiClient.post(`/AcademicYears/${academicYearId}/close`);
+  //   return response.data;
+  // },
+  // async promoteAllStudents(academicYearId) {
+  //   const response = await apiClient.post(`/AcademicYears/${academicYearId}/promote-all`);
+  //   return response.data;
+  // },
+
+  // async archiveGraduates(academicYearId) {
+  //   const response = await apiClient.post(`/AcademicYears/${academicYearId}/archive-graduates`);
+  //   return response.data;
+  // }
+
+
 
 
   // Update academic year (Admin only)

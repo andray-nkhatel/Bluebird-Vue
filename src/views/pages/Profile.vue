@@ -1,4 +1,4 @@
-<script lang="ts" setup>
+<script setup>
 import { useToast } from 'primevue/usetoast';
 import { computed, onMounted, ref } from 'vue';
 import { authService } from '../../service/api.service';
@@ -19,13 +19,13 @@ const profileData = ref({
   lastLoginAt: ''
 });
 
-// Computed properties
 const formattedCreatedAt = computed(() => {
   if (!profileData.value.createdAt) return 'N/A';
   return new Date(profileData.value.createdAt).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
-    day: 'numeric'
+    day: 'numeric',
+    timeZone: 'Africa/Lusaka'
   });
 });
 
@@ -36,7 +36,8 @@ const formattedLastLogin = computed(() => {
     month: 'long',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    timeZone: 'Africa/Lusaka'
   });
 });
 
@@ -86,6 +87,15 @@ const refreshProfile = async () => {
   });
 };
 
+const profileTableRows = computed(() => [
+  { label: 'Full Name', value: profileData.value.fullName || 'Not provided' },
+  { label: 'Username', value: profileData.value.username },
+  { label: 'Email Address', value: profileData.value.email || 'Not provided' },
+  { label: 'Role', value: profileData.value.role },
+  { label: 'Account Created', value: formattedCreatedAt.value },
+  { label: 'Last Login', value: formattedLastLogin.value }
+]);
+
 // Lifecycle
 onMounted(() => {
   loadProfile();
@@ -93,37 +103,38 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="grid">
-    <div class="col-12">
-      <div class="card">
+
         <!-- Header -->
-        <div class="flex justify-content-between align-items-center mb-4">
-          <div>
-            <h2 class="text-2xl font-bold text-900 m-0">User Profile</h2>
-            <p class="text-600 mt-1 mb-0">View your account information</p>
-          </div>
-          <div class="flex gap-2 ml-auto">
-            <Button 
-              icon="pi pi-refresh" 
-              outlined 
-              @click="refreshProfile"
-              :loading="loading"
-              v-tooltip.top="'Refresh Profile'"
-            />
-          </div>
-        </div>
 
-        <!-- Loading State -->
-        <div v-if="loading && !profileData.id" class="flex justify-content-center py-8">
-          <ProgressSpinner style="width: 50px; height: 50px" strokeWidth="3" />
-        </div>
+        <Panel class="mb-4">
+         
 
-        <!-- Profile Content -->
-        <div v-else class="grid">
-          <!-- Profile Card -->
-          <div class="col-12 lg:col-8">
-            <Card>
-              <template #title>
+            <div class="flex justify-content-between align-items-center mb-4">
+              <div>
+                <h2 class="text-2xl font-bold text-900 m-0">User Profile</h2>
+                <p class="text-600 mt-1 mb-0">View your account information</p>
+              </div>
+
+              <div class="flex gap-2 ml-auto">
+                <Button 
+                  icon="pi pi-refresh" 
+                  outlined 
+                  @click="refreshProfile"
+                  :loading="loading"
+                  v-tooltip.top="'Refresh Profile'"
+                />
+              </div>
+            </div>
+     
+
+        </Panel>
+
+        <div class="grid grid-cols-1 md:grid-cols-2">
+
+
+          
+          <Panel>
+              <template #header>
                 <div class="flex align-items-center gap-3">
                   <Avatar 
                     :label="profileData.fullName?.charAt(0) || 'U'" 
@@ -131,6 +142,9 @@ onMounted(() => {
                     class="text-white font-bold"
                     :style="{ backgroundColor: profileData.role === 'Admin' ? '#ef4444' : profileData.role === 'Teacher' ? '#3b82f6' : '#10b981' }"
                   />
+
+                
+
                   <div>
                     <h3 class="text-xl font-bold m-0">{{ profileData.fullName }}</h3>
                     <div class="flex align-items-center gap-2 mt-1">
@@ -155,62 +169,20 @@ onMounted(() => {
                 </div>
               </template>
 
-              <template #content>
-                <div class="grid">
-                  <div class="col-12 md:col-6">
-                    <div class="field">
-                      <label class="font-semibold text-900">Full Name</label>
-                      <p class="text-700 mt-1">{{ profileData.fullName || 'Not provided' }}</p>
-                    </div>
-                  </div>
-                  
-                  <div class="col-12 md:col-6">
-                    <div class="field">
-                      <label class="font-semibold text-900">Username</label>
-                      <p class="text-700 mt-1">{{ profileData.username }}</p>
-                    </div>
-                  </div>
-                  
-                  <div class="col-12 md:col-6">
-                    <div class="field">
-                      <label class="font-semibold text-900">Email Address</label>
-                      <p class="text-700 mt-1">{{ profileData.email || 'Not provided' }}</p>
-                    </div>
-                  </div>
-                  
-                  <div class="col-12 md:col-6">
-                    <div class="field">
-                      <label class="font-semibold text-900">Role</label>
-                      <p class="text-700 mt-1">{{ profileData.role }}</p>
-                    </div>
-                  </div>
-                  
-                  <div class="col-12 md:col-6">
-                    <div class="field">
-                      <label class="font-semibold text-900">Account Created</label>
-                      <p class="text-700 mt-1">{{ formattedCreatedAt }}</p>
-                    </div>
-                  </div>
-                  
-                  <div class="col-12 md:col-6">
-                    <div class="field">
-                      <label class="font-semibold text-900">Last Login</label>
-                      <p class="text-700 mt-1">{{ formattedLastLogin }}</p>
-                    </div>
-                  </div>
-                </div>
-              </template>
-            </Card>
-          </div>
+              <DataTable :value="profileTableRows" class="p-datatable-sm w-full">
+                <Column field="label" header="Field" style="width: 40%"></Column>
+                <Column field="value" header="Value"></Column>
+              </DataTable>
+            </Panel>
 
-          <!-- Quick Stats -->
-          <div class="col-12 lg:col-4">
-            <Card class="mt-3" >
-              <template #title>
+            <!-- Quick Stats -->
+      
+            <Panel class="ml-4">
+              <template #header>
                 <h4 class="m-0">Account Information</h4>
               </template>
               
-              <template #content>
+              <template #default>
                 <div class="flex flex-column gap-3">
                   <div class="flex align-items-center justify-content-between p-3 border-round" style="background: var(--surface-50)">
                     <div class="flex align-items-center gap-2">
@@ -223,7 +195,7 @@ onMounted(() => {
                   <div class="flex align-items-center justify-content-between p-3 border-round" style="background: var(--surface-50)">
                     <div class="flex align-items-center gap-2">
                       <i class="pi pi-shield text-primary"></i>
-                      <span class="font-medium">Account Status</span>
+                      <span class="font-medium mr-2">Account Status: </span>
                     </div>
                     <Tag 
                       :severity="profileData.isActive ? 'success' : 'danger'"
@@ -234,21 +206,36 @@ onMounted(() => {
                   <div class="flex align-items-center justify-content-between p-3 border-round" style="background: var(--surface-50)">
                     <div class="flex align-items-center gap-2">
                       <i :class="`pi ${roleIcon} text-primary`"></i>
-                      <span class="font-medium">Access Level</span>
+                      <span class="font-medium mr-2">Access Level:</span>
                     </div>
                     <span class="font-bold">{{ profileData.role }}</span>
                   </div>
                 </div>
               </template>
-            </Card>
+            </Panel>
+
+
+        </div>
+
+
+        <!-- Loading State -->
+        <div v-if="loading && !profileData.id" class="flex justify-content-center py-8">
+          <ProgressSpinner style="width: 50px; height: 50px" strokeWidth="3" />
+        </div>
+
+        <!-- Profile Content -->
+       
+         
+
+          
 
             <!-- Additional Info Card -->
-            <Card class="mt-3">
-              <template #title>
+            <Panel class="mt-3">
+              <template #header>
                 <h4 class="m-0">Session Information</h4>
               </template>
               
-              <template #content>
+              <template #default>
                 <div class="flex flex-column gap-3">
                   <div class="text-center">
                     <i class="pi pi-clock text-primary text-3xl mb-2"></i>
@@ -265,12 +252,9 @@ onMounted(() => {
                   </div>
                 </div>
               </template>
-            </Card>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+            </Panel>
+     
+  
 </template>
 
 <style scoped>

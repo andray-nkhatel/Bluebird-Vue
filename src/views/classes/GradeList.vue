@@ -86,6 +86,49 @@
 </Dialog>
 
 
+
+<Dialog 
+    v-model:visible="editGradeDialogVisible" 
+    modal 
+    header="Edit Homeroom Teacher" 
+    :style="{ width: '30rem' }"
+    :breakpoints="{ '1199px': '75vw', '575px': '90vw' }"
+  >
+    <div>
+      <div class="mb-4">
+        <label for="editHomeroomTeacher">Homeroom Teacher</label>
+        <Dropdown 
+          id="editHomeroomTeacher" 
+          v-model="editGradeData.homeroomTeacherId" 
+          :options="teacherOptions" 
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Select homeroom teacher"
+          :loading="loadingTeachers"
+          class="w-full"
+          showClear
+        />
+      </div>
+    </div>
+    <template #footer>
+      <Button 
+        label="Cancel" 
+        icon="pi pi-times" 
+        @click="cancelEdit" 
+        text 
+      />
+      <Button 
+        label="Save" 
+        icon="pi pi-check" 
+        @click="saveEditHomeroomTeacher" 
+        :loading="savingEdit"
+      />
+    </template>
+  </Dialog>
+
+
+
+
   <div class="grade-list">
     <div class="card">
       <div class="flex justify-content-between align-items-center mb-4">
@@ -473,6 +516,68 @@ const showAddGradeDialog = () => {
   })
 }
 
+// Edit dialog state
+const editGradeDialogVisible = ref(false)
+const savingEdit = ref(false)
+const editGradeData = reactive({
+  id: null,
+  homeroomTeacherId: null
+})
+
+// Function to open the edit dialog for Homeroom Teacher
+const openEditHomeroomTeacherDialog = (grade) => {
+  loadTeachers()
+  editGradeData.id = grade.id
+  editGradeData.homeroomTeacherId = grade.homeroomTeacherId ?? null
+  editGradeDialogVisible.value = true
+}
+
+
+// Save only the Homeroom Teacher using the dedicated endpoint
+const saveEditHomeroomTeacher = async () => {
+  savingEdit.value = true
+  try {
+    await gradeService.assignHomeroomTeacher(editGradeData.id, editGradeData.homeroomTeacherId)
+    editGradeDialogVisible.value = false
+    toast.add({
+      severity: 'success',
+      summary: 'Success',
+      detail: `Homeroom teacher updated successfully`,
+      life: 3000
+    })
+    await loadGrades()
+  } catch (error) {
+    console.error('Error updating homeroom teacher:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to update homeroom teacher. Please try again.',
+      life: 3000
+    })
+  } finally {
+    savingEdit.value = false
+  }
+}
+
+
+// Cancel edit
+const cancelEdit = () => {
+  editGradeDialogVisible.value = false
+}
+
+
+// Update editGrade and editSelectedGrade handlers:
+const editGrade = (grade) => {
+  openEditHomeroomTeacherDialog(grade)
+}
+const editSelectedGrade = () => {
+  showDetailsDialog.value = false
+  openEditHomeroomTeacherDialog(selectedGrade.value)
+}
+
+
+
+
 const cancelAdd = () => {
   addGradeDialogVisible.value = false
 }
@@ -622,14 +727,6 @@ const viewGrade = (grade) => {
   showDetailsDialog.value = true
 }
 
-const editGrade = (grade) => {
-  emit('editGrade', grade)
-}
-
-const editSelectedGrade = () => {
-  showDetailsDialog.value = false
-  emit('editGrade', selectedGrade.value)
-}
 
 const toggleGradeStatus = async (grade) => {
   try {

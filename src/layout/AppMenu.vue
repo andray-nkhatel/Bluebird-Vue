@@ -28,7 +28,13 @@ const allMenuItems = [
                 label: 'Overview', 
                 icon: 'pi pi-fw pi-home', 
                 to: '/overview',
-                roles: ['Admin', 'Teacher', 'Staff']
+                roles: ['Admin', 'Staff']
+            },
+            { 
+                label: 'My Assignments', 
+                icon: 'pi pi-fw pi-list-check', 
+                to: '/my-assignments',
+                roles: ['Teacher']
             },
             {
                 label: 'Profile', 
@@ -180,27 +186,20 @@ const allMenuItems = [
                 icon: 'pi pi-fw pi-file-pdf', 
                 to: '/report-cards',
                 roles: ['Admin'] // Admin only - can generate reports
-            }
-            // { 
-            //     label: 'View Report Cards', 
-            //     icon: 'pi pi-fw pi-eye', 
-            //     to: '/reports/cards/history',
-            //     roles: ['Admin', 'Staff'] // All can view
-            // },
-            // { 
-            //     label: 'Academic Reports', 
-            //     icon: 'pi pi-fw pi-chart-bar', 
-            //     to: '/reports/academic',
-            //     roles: ['Admin'] // Admin only
-            // },
-            // { 
-            //     label: 'Performance Analysis', 
-            //     icon: 'pi pi-fw pi-chart-pie', 
-            //     to: '/reports/performance',
-            //     roles: ['Admin'] // Admin and Teachers
-            // }
+            },
+           
         ]
     },
+    {
+      label: 'Settings',
+      items: [
+          {
+              label: 'System Settings',
+              icon: 'pi pi-fw pi-cog',
+              to: '/settings/system',
+              roles: ['Admin'] // Admin only
+          },]
+    }
     // {
     //     label: 'Administration',
     //     roles: ['Admin'], // Entire section for Admin only

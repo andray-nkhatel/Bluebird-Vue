@@ -1,41 +1,41 @@
 <template>
   <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-    <div class="bg-blue-100 dark:bg-black dark:text-blue-50 p-4 rounded shadow">
-      <h2 class="text-lg font-semibold text-blue-900">Total Teachers</h2>
-      <p class="text-2xl text-blue-900">{{ teacherCount }}</p>
+    <div class="bg-blue-100 dark:bg-black dark:text-white p-4 rounded shadow">
+      <h2 class="text-lg font-semibold text-blue-900 dark:text-white ">Total Teachers</h2>
+      <p class="text-2xl text-blue-900 dark:text-white ">{{ teacherCount }}</p>
     </div>
     <div class="bg-blue-100 dark:bg-black dark:text-blue-50 p-4 rounded shadow">
-      <h2 class="text-lg font-semibold text-blue-900">Active Teachers</h2>
-      <p class="text-2xl text-blue-900">{{ activeTeacherCount }}</p>
+      <h2 class="text-lg font-semibold text-blue-900 dark:text-white ">Active Teachers</h2>
+      <p class="text-2xl text-blue-900 dark:text-white ">{{ activeTeacherCount }}</p>
     </div>
     <div class="bg-blue-100 dark:bg-black dark:text-blue-50 p-4 rounded shadow">
-      <h2 class="text-lg font-semibold text-blue-900">Students</h2>
-      <p class="text-2xl text-blue-900">{{ students }}</p>
+      <h2 class="text-lg font-semibold text-blue-900 dark:text-white ">Students</h2>
+      <p class="text-2xl text-blue-900 dark:text-white ">{{ students }}</p>
     </div>
     <div class="bg-blue-100 p-4 dark:bg-black dark:text-blue-50 rounded shadow">
-      <h2 class="text-lg font-semibold text-blue-900">Classes</h2>
-      <p class="text-2xl text-blue-900">{{ grades.length }}</p>
+      <h2 class="text-lg font-semibold text-blue-900 dark:text-white ">Classes</h2>
+      <p class="text-2xl text-blue-900 dark:text-white ">{{ grades.length }}</p>
     </div>
     <div class="bg-blue-100 dark:bg-black dark:text-blue-50 p-4 rounded shadow">
-      <h2 class="text-lg font-semibold text-blue-900">Active Assignments</h2>
-      <p class="text-2xl text-blue-900">{{ teacherAssignmentStats.totalActiveAssignments }}</p>
+      <h2 class="text-lg font-semibold text-blue-900 dark:text-white ">Active Assignments</h2>
+      <p class="text-2xl text-blue-900 dark:text-white ">{{ teacherAssignmentStats.totalActiveAssignments }}</p>
     </div>
     <div class="bg-blue-100 dark:bg-black dark:text-blue-50 p-4 rounded shadow">
-      <h2 class="text-lg font-semibold text-blue-900">Teachers with Assignments</h2>
-      <p class="text-2xl text-blue-900">{{ teacherAssignmentStats.totalTeachersWithAssignments }}</p>
+      <h2 class="text-lg font-semibold text-blue-900 dark:text-white ">Teachers with Assignments</h2>
+      <p class="text-2xl text-blue-900 dark:text-white ">{{ teacherAssignmentStats.totalTeachersWithAssignments }}</p>
     </div>
   </div>
 
   <Divider class="my-10" />
 
-  <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
     <!-- Bar Chart: Grade Distribution -->
     <div class="bg-blue-50 dark:bg-black dark:text-blue-50 p-4 rounded shadow">
       <Chart
         type="bar"
         :data="gradeChartData"
         :options="gradeChartOptions"
-        class="w-full md:w-[30rem] h-[28rem] "
+        class="w-full md:w-[30rem] h-[28rem] dark:text-white  "
       />
     </div>
 
@@ -45,7 +45,7 @@
         type="radar"
         :data="examRadarChartData"
         :options="examRadarChartOptions"
-        class="w-full md:w-[30rem] h-[28rem]"
+        class="w-full md:w-[30rem] h-[28rem] dark:text-white "
       />
     </div>
 
@@ -55,7 +55,7 @@
         type="doughnut"
         :data="assignmentDoughnutChartData"
         :options="assignmentDoughnutChartOptions"
-        class="w-full md:w-[30rem] h-[28rem]"
+        class="w-full md:w-[30rem] h-[28rem] dark:text-white "
       />
     </div>
   </div>
