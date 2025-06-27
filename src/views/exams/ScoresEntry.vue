@@ -222,7 +222,7 @@
                   :maxlength="100"
                   rows="3"
                   class="w-full"
-                  placeholder="Enter comments (optional)"
+                  placeholder="Enter comment."
                   :autoResize="true"
                 />
                 <div class="text-right text-sm text-gray-500 mt-1">

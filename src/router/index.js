@@ -1,10 +1,15 @@
 import AppLayout from '@/layout/AppLayout.vue';
-import { createRouter, createWebHistory } from 'vue-router';
+import { createRouter, createWebHashHistory } from 'vue-router';
 import { authGuard } from './guard/auth.guard';
 
 const router = createRouter({
-    history: createWebHistory(),
+    history: createWebHashHistory(),
     routes: [
+        // Redirect root to login
+        {
+            path: '/',
+            redirect: '/auth/login'
+        },
         {
             path: '/auth/login',
             name: 'login',
@@ -15,13 +20,13 @@ const router = createRouter({
             name: 'register',
             component: () => import('@/views/pages/auth/Register.vue')
         },
-        
+        // All authenticated routes under /app
         {
-            path: '/',
+            path: '/app',
             component: AppLayout,
             children: [
                 {
-                    path: '/overview',
+                    path: 'overview',
                     name: 'overview',
                     meta:{
                         requiresAuth: true,
@@ -29,21 +34,23 @@ const router = createRouter({
                     component: () => import('@/views/dashboard/Dashboard.vue')
                 },
                 {
-                    path: '/my-assignments',
+                    path: 'my-assignments',
                     name: 'MyAssignments',
                     meta:{
                         requiresAuth: true,
                     },
                     component: () => import('@/views/teachers/MyAssignments.vue')
                 },
-                {   path: '/profile',
+                {   
+                    path: 'profile',
                     name: 'profile',
                     meta:{
                         requiresAuth: true,
                     },
                     component: () => import('@/views/users/Profile.vue')
                 },
-                {   path: '/students',
+                {   
+                    path: 'students',
                     name: 'students',
                     meta:{
                         requiresAuth: true,
@@ -51,7 +58,7 @@ const router = createRouter({
                     component: () => import('@/views/students/StudentVue.vue')
                 },
                 {
-                    path: '/users',
+                    path: 'users',
                     name: 'users',
                     meta: {
                         requiresAuth: true,
@@ -60,7 +67,7 @@ const router = createRouter({
                     component: () => import('@/views/users/Users.vue')
                 },
                 {
-                    path: '/students/add',
+                    path: 'students/add',
                     name: 'AddStudent', 
                     meta: {
                         requiresAuth: true,
@@ -68,7 +75,7 @@ const router = createRouter({
                     component: () => import('@/views/students/CreateStudent.vue')
                 },
                 {
-                    path: '/students/edit/:id',
+                    path: 'students/edit/:id',
                     name: 'EditStudent',
                     meta: {
                         requiresAuth: true,
@@ -76,7 +83,7 @@ const router = createRouter({
                     component: () => import('@/views/students/CreateStudent.vue') // Same component!
                 },
                 {
-                    path: '/students/import',
+                    path: 'students/import',
                     name: 'AddBulkStudent',
                     meta: {
                         requiresAuth: true,
@@ -84,25 +91,23 @@ const router = createRouter({
                     component: () => import('@/views/students/StudentImportCsv.vue')
                 },
                 {
-                    path: '/students/promotion',
+                    path: 'students/promotion',
                     name: 'PromoteStudent',
-                 
                     meta: {
                         requiresAuth: true,
                     },
                     component: () => import('@/views/students/PromoteStudents.vue')
                 },
                 {
-                    path: '/grades',
+                    path: 'grades',
                     name: 'GradeList',
-                 
                     meta: {
                         requiresAuth: true,
                     },
                     component: () => import('@/views/classes/GradeList.vue')
                 },
                 {
-                    path: '/subjects',
+                    path: 'subjects',
                     name: 'SubjectList',
                     meta: {
                         requiresAuth: true,
@@ -110,7 +115,7 @@ const router = createRouter({
                     component: () => import('@/views/subjects/SubjectList.vue')
                 },
                 {
-                    path: '/subject-grade/assignments',
+                    path: 'subject-grade/assignments',
                     name: 'AssignSubjectToGrade',
                     meta: {
                         requiresAuth: true,
@@ -118,7 +123,7 @@ const router = createRouter({
                     component: () => import('@/views/subjects/AssignSubjectToGrade.vue')
                 },
                 {
-                    path: '/teacher-subject/assignments',
+                    path: 'teacher-subject/assignments',
                     name: 'AssignTeacherToSubject',
                     meta: {
                         requiresAuth: true,
@@ -126,7 +131,7 @@ const router = createRouter({
                     component: () => import('@/views/subjects/AssignTeacherToSubject.vue')
                 },
                 {
-                    path: '/scores/entry',
+                    path: 'scores/entry',
                     name: 'ScoresEntry',
                     meta: {
                         requiresAuth: true,
@@ -134,59 +139,41 @@ const router = createRouter({
                     component: () => import('@/views/exams/ScoresEntry.vue')
                 },
                 {
-                    path: '/manage-exams',
+                    path: 'manage-exams',
                     name: 'ManageExams',
                     meta: {
                         requiresAuth: true,
                     },
                     component: () => import('@/views/exams/ExamType.vue')
                 },
-               {
-                path: '/manage-years',
-                name: 'ManageYears',
-                meta: {
-                    requiresAuth: true,
+                {
+                    path: 'manage-years',
+                    name: 'ManageYears',
+                    meta: {
+                        requiresAuth: true,
+                    },
+                    component: () => import('@/views/years/AcademicYears.vue')
                 },
-                component: () => import('@/views/years/AcademicYears.vue')
-
-               },
-               {
-                path: '/report-cards',
-                name: 'ReportCards',
-                meta: {
-                    requiresAuth: true,
+                {
+                    path: 'report-cards',
+                    name: 'ReportCards',
+                    meta: {
+                        requiresAuth: true,
+                    },
+                    component: () => import('@/views/report/ReportCard.vue')
                 },
-                component: () => import('@/views/report/ReportCard.vue')
-
-               },
-               {
-               path: '/settings/system',
-               name: 'SystemSettings',
-               meta: {
-                   requiresAuth: true,
-               },
-               component: () => import('@/views/settings/System.vue')
-
-              }
-            
-
-             
-             
-             
-             
-             
-             
-                
-              
-                
-        ],
-
-
-        },
-    
+                {
+                    path: 'settings/system',
+                    name: 'SystemSettings',
+                    meta: {
+                        requiresAuth: true,
+                    },
+                    component: () => import('@/views/settings/System.vue')
+                }
+            ]
+        }
     ]
 });
-
 
 router.beforeEach(authGuard);
 export default router;

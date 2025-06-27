@@ -54,9 +54,9 @@ const login = async () => {
     let redirectPath = '/';
 
     if (userRole === 'Admin') {
-      redirectPath = '/profile';
+      redirectPath = '/app/profile';
     } else if (userRole === 'Teacher') {
-      redirectPath = '/scores/entry';
+      redirectPath = '/app/scores/entry';
     } else {
       redirectPath = '/';
     }
@@ -117,24 +117,42 @@ const registerNavigation = () => {
   router.push('/auth/register');
 };
 </script>
+
 <template>
   <Toast position="top-center" />
   <FloatingConfigurator />
   <div class="bg-surface-200 dark:bg-surface-950 flex items-center justify-center min-h-screen min-w-[100vw] overflow-hidden">
-    <div class="flex flex-col items-center justify-center">
-      <!-- Removed all background styling, keeping only padding and border radius -->
-      <div class="w-full py-20 px-8 sm:px-20" style="border-radius: 53px">
-        <Message v-if="isEnabled"  class="mb-6" severity="success" size="large">Login successful!</Message>
+    <div class="flex flex-col items-center justify-center w-full">
+      <!-- Responsive form container -->
+      <div
+        class="w-full max-w-lg py-20 px-4 sm:px-8"
+        style="border-radius: 53px"
+      >
+        <Message v-if="isEnabled" class="mb-6" severity="success" size="large">Login successful!</Message>
         <div class="text-center mb-8">
-          <div class="text-surface-900 dark:text-surface-0 text-3xl font-medium mb-4">Bluebird</div>
+          <div class="text-surface-900 dark:text-surface-0 text-3xl font-medium mb-4">Bluebird 2.0</div>
           <span class="text-muted-color font-medium">Sign in to continue</span>
         </div>
         <form @submit.prevent="login">
           <div>
             <label for="User1" class="block text-surface-900 dark:text-surface-0 text-xl font-medium mb-2">Username</label>
-            <InputText id="username" type="text" placeholder="Username" class="w-full md:w-[30rem] mb-8" v-model="username" />
+            <InputText
+              id="username"
+              type="text"
+              placeholder="Username"
+              class="w-full mb-8"
+              v-model="username"
+            />
             <label for="password1" class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2">Password</label>
-            <Password id="password1" v-model="password" placeholder="Password" :toggleMask="true" class="mb-4" fluid :feedback="false"></Password>
+            <Password
+              id="password1"
+              v-model="password"
+              placeholder="Password"
+              :toggleMask="true"
+              class="w-full mb-4"
+              fluid
+              :feedback="false"
+            ></Password>
             <div class="flex items-center justify-end mt-2 mb-8 gap-8">
               <!-- <div class="flex items-center">
                 <Checkbox v-model="checked" id="rememberme1" binary class="mr-2"></Checkbox>

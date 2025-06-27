@@ -20,6 +20,7 @@ const logout = async () => {
 };
 
 // Define all menu items with their role requirements
+
 const allMenuItems = [
     {
         label: 'Dashboard',
@@ -27,27 +28,21 @@ const allMenuItems = [
             { 
                 label: 'Overview', 
                 icon: 'pi pi-fw pi-home', 
-                to: '/overview',
+                to: '/app/overview',
                 roles: ['Admin', 'Staff']
             },
             { 
                 label: 'My Assignments', 
                 icon: 'pi pi-fw pi-list-check', 
-                to: '/my-assignments',
+                to: '/app/my-assignments',
                 roles: ['Teacher']
             },
             {
                 label: 'Profile', 
                 icon: 'pi pi-user', 
-                to: '/profile',
+                to: '/app/profile',
                 roles: ['Admin', 'Teacher', 'Staff']
             },
-            // { 
-            //     label: 'Analytics', 
-            //     icon: 'pi pi-fw pi-chart-line', 
-            //     to: '/analytics',
-            //     roles: ['Admin'] // Admin only
-            // }
         ]
     },
     {
@@ -56,21 +51,9 @@ const allMenuItems = [
           { 
               label: 'Manage Users', 
               icon: 'pi pi-fw pi-users', 
-              to: '/users',
+              to: '/app/users',
               roles: ['Admin', 'Staff']
           },
-          // { 
-          //     label: 'Add User', 
-          //     icon: 'pi pi-fw pi-user-plus', 
-          //     to: '/users/add',
-          //     roles: ['Admin'] // Admin only
-          // },
-          // { 
-          //     label: 'User Roles', 
-          //     icon: 'pi pi-fw pi-shield', 
-          //     to: '/users/roles',
-          //     roles: ['Admin'] // Admin only
-          // }
       ]
     },
     {
@@ -79,39 +62,27 @@ const allMenuItems = [
             { 
                 label: 'All Students', 
                 icon: 'pi pi-fw pi-users', 
-                to: '/students',
+                to: '/app/students',
                 roles: ['Admin', 'Staff']
             },
-            // { 
-            //     label: 'My Students', 
-            //     icon: 'pi pi-fw pi-users', 
-            //     to: '/my-students',
-            //     roles: ['Teacher']
-            // },
             { 
                 label: 'Add Student', 
                 icon: 'pi pi-fw pi-user-plus', 
-                to: '/students/add',
-                roles: ['Admin'] // Admin only
+                to: '/app/students/add',
+                roles: ['Admin']
             },
             { 
                 label: 'Bulk Import', 
                 icon: 'pi pi-fw pi-upload', 
-                to: '/students/import',
-                roles: ['Admin'] // Admin only
+                to: '/app/students/import',
+                roles: ['Admin']
             },
             { 
                 label: 'Student Promotion', 
                 icon: 'pi pi-fw pi-arrow-up', 
-                to: '/students/promotion',
-                roles: ['Admin'] // Admin only
+                to: '/app/students/promotion',
+                roles: ['Admin']
             },
-            // { 
-            //     label: 'Archived Students', 
-            //     icon: 'pi pi-fw pi-save', 
-            //     to: '/students/archived',
-            //     roles: ['Admin', 'Staff'] // Admin and Staff only
-            // }
         ]
     },
     {
@@ -120,27 +91,21 @@ const allMenuItems = [
             { 
                 label: 'Classes', 
                 icon: 'pi pi-fw pi-building', 
-                to: '/grades',
+                to: '/app/grades',
                 roles: ['Admin', 'Staff']
             },
             { 
                 label: 'Subjects', 
                 icon: 'pi pi-fw pi-book', 
-                to: '/subjects',
-                roles: ['Admin']
+                to: '/app/subjects',
+                roles: ['Admin','Staff']
             },
             { 
                 label: 'Teacher Assignments', 
                 icon: 'pi pi-fw pi-user-edit', 
-                to: '/teacher-subject/assignments',
-                roles: ['Admin'] // Admin only
+                to: '/app/teacher-subject/assignments',
+                roles: ['Admin','Staff']
             },
-            // {
-            //   label: 'Subject Assignments',
-            //   icon: 'pi pi-fw pi-calendar',
-            //   to: '/subject-grade/assignments',
-            //   roles: ['Admin'] // Admin, Teacher, and Staff
-            // }
         ]
     },
     {
@@ -149,32 +114,20 @@ const allMenuItems = [
             { 
                 label: 'Mark Entry', 
                 icon: 'pi pi-fw pi-pencil', 
-                to: '/scores/entry',
-                roles: ['Teacher'] // Teachers only
+                to: '/app/scores/entry',
+                roles: ['Teacher']
             },
-            // { 
-            //     label: 'Grade Books', 
-            //     icon: 'pi pi-fw pi-table', 
-            //     to: '/gradebooks',
-            //     roles: ['Admin', 'Teacher'] // Admin and Teachers
-            // },
-            // { 
-            //     label: 'My Assignments', 
-            //     icon: 'pi pi-fw pi-list-check', 
-            //     to: '/exams/teacher/assignments',
-            //     roles: ['Teacher'] // Teachers only - to see their assigned subjects
-            // },
             { 
                 label: 'Exam Types', 
                 icon: 'pi pi-fw pi-list', 
-                to: '/manage-exams',
-                roles: ['Admin'] // Admin only
+                to: '/app/manage-exams',
+                roles: ['Admin']
             },
             { 
                 label: 'Academic Years', 
                 icon: 'pi pi-fw pi-graduation-cap', 
-                to: '/manage-years',
-                roles: ['Admin'] // Admin only
+                to: '/app/manage-years',
+                roles: ['Admin']
             },
         ]
     },
@@ -184,106 +137,13 @@ const allMenuItems = [
             { 
                 label: 'Report Cards', 
                 icon: 'pi pi-fw pi-file-pdf', 
-                to: '/report-cards',
-                roles: ['Admin'] // Admin only - can generate reports
+                to: '/app/report-cards',
+                roles: ['Admin','Staff']
             },
-           
         ]
     },
-    {
-      label: 'Settings',
-      items: [
-          {
-              label: 'System Settings',
-              icon: 'pi pi-fw pi-cog',
-              to: '/settings/system',
-              roles: ['Admin'] // Admin only
-          },]
-    }
-    // {
-    //     label: 'Administration',
-    //     roles: ['Admin'], // Entire section for Admin only
-    //     items: [
-    //         { 
-    //             label: 'Users', 
-    //             icon: 'pi pi-fw pi-users', 
-    //             to: '/admin/users',
-    //             roles: ['Admin']
-    //         },
-    //         { 
-    //             label: 'Academic Years', 
-    //             icon: 'pi pi-fw pi-calendar', 
-    //             to: '/admin/academic-years',
-    //             roles: ['Admin']
-    //         },
-    //         { 
-    //             label: 'Year-End Operations', 
-    //             icon: 'pi pi-fw pi-sync', 
-    //             to: '/admin/year-end',
-    //             roles: ['Admin']
-    //         },
-    //         { 
-    //             label: 'System Settings', 
-    //             icon: 'pi pi-fw pi-cog', 
-    //             to: '/admin/settings',
-    //             roles: ['Admin']
-    //         },
-    //         { 
-    //             label: 'Security Settings', 
-    //             icon: 'pi pi-fw pi-shield', 
-    //             to: '/admin/security',
-    //             roles: ['Admin']
-    //         }
-    //     ]
-    // },
-    // {
-    //     label: 'Data Management',
-    //     roles: ['Admin'], // Entire section for Admin only
-    //     items: [
-    //         { 
-    //             label: 'Bulk Import', 
-    //             icon: 'pi pi-fw pi-upload', 
-    //             to: '/data/import',
-    //             roles: ['Admin']
-    //         },
-    //         { 
-    //             label: 'Data Export', 
-    //             icon: 'pi pi-fw pi-download', 
-    //             to: '/data/export',
-    //             roles: ['Admin']
-    //         },
-    //         { 
-    //             label: 'Backup Management', 
-    //             icon: 'pi pi-fw pi-save', 
-    //             to: '/data/backup',
-    //             roles: ['Admin']
-    //         }
-    //     ]
-    // },
-    // {
-    //     label: 'Help & Support',
-    //     items: [
-    //         { 
-    //             label: 'User Guide', 
-    //             icon: 'pi pi-fw pi-question-circle', 
-    //             to: '/help',
-    //             roles: ['Admin', 'Teacher', 'Staff']
-    //         },
-    //         { 
-    //             label: 'FAQ', 
-    //             icon: 'pi pi-fw pi-info-circle', 
-    //             to: '/help/faq',
-    //             roles: ['Admin', 'Teacher', 'Staff']
-    //         },
-    //         { 
-    //             label: 'About', 
-    //             icon: 'pi pi-fw pi-info', 
-    //             to: '/about',
-    //             roles: ['Admin', 'Teacher', 'Staff']
-    //         }
-    //     ]
-    // }
 ];
+
 
 // Check if user is authenticated
 const isAuthenticated = computed(() => store.getters['auth/isAuthenticated']);

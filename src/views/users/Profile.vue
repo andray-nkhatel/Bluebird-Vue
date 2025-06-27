@@ -177,7 +177,7 @@ onMounted(() => {
 
             <!-- Quick Stats -->
       
-            <Panel class="ml-4">
+            <Panel>
               <template #header>
                 <h4 class="m-0">Account Information</h4>
               </template>
@@ -195,7 +195,7 @@ onMounted(() => {
                   <div class="flex align-items-center justify-content-between p-3 border-round" style="background: var(--surface-50)">
                     <div class="flex align-items-center gap-2">
                       <i class="pi pi-shield text-primary"></i>
-                      <span class="font-medium mr-2">Account Status: </span>
+                      <!-- <span class=" text-wrap mr-2">Account Status: </span> -->
                     </div>
                     <Tag 
                       :severity="profileData.isActive ? 'success' : 'danger'"

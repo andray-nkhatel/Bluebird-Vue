@@ -996,6 +996,14 @@ async downloadClassReportCardsZip(gradeId, academicYear, term) {
     { responseType: 'blob' }
   );
   return response.data; // This is the Blob
+},
+
+async downloadClassReportCardsMergedPdf(gradeId, academicYear, term) {
+  const response = await apiClient.get(
+    `/reportcards/download/class/${gradeId}/merged?academicYear=${academicYear}&term=${term}`,
+    { responseType: 'blob' }
+  );
+  return response.data; // This is the Blob (PDF)
 }
 
 };
