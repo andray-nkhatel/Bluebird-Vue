@@ -108,6 +108,7 @@
             v-model:editingRows="editingRows"
             :value="students"
             :striped-rows="true"
+            :row-hover="true"
             :show-gridlines="true"
             editMode="row"
             dataKey="studentId"
@@ -248,92 +249,93 @@
         <Button label="Cancel" icon="pi pi-times" text @click="onDialogCancel" />
         <Button label="Save" icon="pi pi-check" @click="onDialogSave" :disabled="!dialogHasChanges" />
       </template>
+
+
     </Dialog>
     <!-- Mobile Card Layout -->
-    <div v-if="students.length > 0 && isMobile" class="flex flex-col gap-3" header="Student Scores" :toggleable="true" :collapsed="false">
-      <Panel
-        v-for="(student, idx) in students"
-        :key="student.studentId"
-        :header="student.studentName"
-        :toggleable="true"
+<div v-if="students.length > 0 && isMobile" class="flex flex-col gap-3" header="Student Scores" :toggleable="true" :collapsed="false">
+  <Panel
+    v-for="(student, idx) in students"
+    :key="student.studentId"
+    :header="student.studentName"
+    :toggleable="true"
+    class="w-full"
+  >
+    <template #icons>
+      <span v-if="student.currentScore !== null" :class="['badge', getScoreSeverityClass(student.currentScore)]">
+        {{ student.currentScore }}
+      </span>
+      <span v-else class="text-gray-400 text-sm">No score</span>
+    </template>
+    <div class="mb-2">
+      <label class="block text-xs font-medium mb-1">Score</label>
+      <InputNumber
+        v-model="student.currentScore"
+        :min="0"
+        :max="150"
+        :maxFractionDigits="1"
         class="w-full"
-      >
-        <template #icons>
-          <span v-if="student.currentScore !== null" :class="['badge', getScoreSeverityClass(student.currentScore)]">
-            {{ student.currentScore }}
-          </span>
-          <span v-else class="text-gray-400 text-sm">No score</span>
-        </template>
-        <div class="mb-2">
-          <label class="block text-xs font-medium mb-1">Score</label>
-          <InputNumber
-            v-model="student.currentScore"
-            :min="0"
-            :max="150"
-            :maxFractionDigits="1"
-            class="w-full"
-            placeholder="Enter score"
-            @blur="onMobileScoreEdit(idx)"
-          />
-        </div>
-        <div v-if="selectedExamType === 3" class="mb-2">
-          <label class="block text-xs font-medium mb-1">Comments</label>
-          <Textarea
-            v-model="student.comments"
-            :maxlength="100"
-            rows="2"
-            class="w-full"
-            placeholder="Enter comment"
-            :autoResize="true"
-            @blur="onMobileScoreEdit(idx)"
-          />
-          <div class="text-right text-xs text-gray-400">
-            {{ 100 - (student.comments?.length || 0) }} left
-          </div>
-        </div>
-        <div class="flex justify-end gap-2 mt-2">
-          <Button
-            v-if="selectedExamType === 3 && student.comments"
-            icon="pi pi-eye"
-            size="small"
-            text
-            rounded
-            @click="viewComment(student)"
-            v-tooltip.top="'View full comment'"
-          />
-        </div>
-        <div v-if="student.lastUpdated" class="text-xs text-gray-400 mt-1">
-          <i class="pi pi-clock mr-1"></i>
-          Last updated: {{ formatDate(student.lastUpdated) }}
-          <span v-if="student.recordedBy">by {{ student.recordedBy }}</span>
-        </div>
-      </Panel>
-      <div class="flex flex-col gap-2 mt-4">
-        <Button
-          label="Save All Changes"
-          icon="pi pi-save"
-          class="p-button-primary w-full"
-          :disabled="!hasUnsavedChanges || loading"
-          @click="saveChangesManually"
-          :loading="saving"
-        />
-        <Button
-          label="Reset All"
-          icon="pi pi-refresh"
-          class="p-button-secondary w-full"
-          @click="resetChanges"
-          :disabled="!hasUnsavedChanges"
-        />
-        <Button
-          label="Export"
-          icon="pi pi-download"
-          class="p-button-help w-full"
-          @click="exportMarkSchedule"
-          :disabled="!canLoadStudents"
-        />
+        placeholder="Enter score"
+        @blur="onMobileScoreEdit(idx)"
+      />
+    </div>
+    <div v-if="selectedExamType === 3" class="mb-2">
+      <label class="block text-xs font-medium mb-1">Comments</label>
+      <Textarea
+        v-model="student.comments"
+        :maxlength="100"
+        rows="2"
+        class="w-full"
+        placeholder="Enter comment"
+        :autoResize="true"
+        @blur="onMobileScoreEdit(idx)"
+      />
+      <div class="text-right text-xs text-gray-400">
+        {{ 100 - (student.comments?.length || 0) }} left
       </div>
     </div>
-
+    <div class="flex justify-end gap-2 mt-2">
+      <Button
+        v-if="selectedExamType === 3 && student.comments"
+        icon="pi pi-eye"
+        size="small"
+        text
+        rounded
+        @click="viewComment(student)"
+        v-tooltip.top="'View full comment'"
+      />
+    </div>
+    <div v-if="student.lastUpdated" class="text-xs text-gray-400 mt-1">
+      <i class="pi pi-clock mr-1"></i>
+      Last updated: {{ formatDate(student.lastUpdated) }}
+      <span v-if="student.recordedBy">by {{ student.recordedBy }}</span>
+    </div>
+  </Panel>
+  <div class="flex flex-col gap-2 mt-4">
+    <Button
+      label="Save All Changes"
+      icon="pi pi-save"
+      class="p-button-primary w-full"
+      :disabled="!hasUnsavedChanges || loading"
+      @click="saveChangesManually"
+      :loading="saving"
+    />
+    <Button
+      label="Reset All"
+      icon="pi pi-refresh"
+      class="p-button-secondary w-full"
+      @click="resetChanges"
+      :disabled="!hasUnsavedChanges"
+    />
+    <Button
+      label="Export"
+      icon="pi pi-download"
+      class="p-button-help w-full"
+      @click="exportMarkSchedule"
+      :disabled="!canLoadStudents"
+    />
+  </div>
+</div>
     <!-- Initial State -->
     <Card v-else-if="!selectedAssignment">
       <template #content>
@@ -502,6 +504,21 @@ export default {
     handleResize() {
       this.isMobile = window.innerWidth < 768
     },
+
+    async saveSingleChange(change) {
+  const scoreData = {
+    ...change,
+    studentId: change.studentId,
+    subjectId: change.subjectId,
+    examTypeId: change.examTypeId,
+    academicYearId: change.academicYear,
+    term: change.term,
+    score: change.score,
+    gradeId: this.selectedAssignment.gradeId,
+    comments: change.comments || '',
+  };
+  return await examService.submitScore(scoreData);
+},
 
     exportScoresUI() {
       if (!this.students.length) {
@@ -1053,34 +1070,42 @@ export default {
       })
     },
 
-    // --- Mobile card layout methods ---
-    onMobileScoreEdit(idx, forceSave = false) {
-      const student = this.students[idx]
-      const originalStudent = this.originalStudents[idx]
-      const scoreChanged = student.currentScore !== originalStudent.currentScore
-      const commentsChanged = student.comments !== originalStudent.comments
+    async onMobileScoreEdit(idx) {
+  const student = this.students[idx];
+  const originalStudent = this.originalStudents[idx];
+  const scoreChanged = student.currentScore !== originalStudent.currentScore;
+  const commentsChanged = student.comments !== originalStudent.comments;
 
-      if (scoreChanged || commentsChanged || forceSave) {
-        const pendingChange = {
-          studentId: student.studentId,
-          subjectId: this.selectedAssignment.subjectId,
-          examTypeId: this.selectedExamType,
-          score: student.currentScore,
-          academicYear: this.selectedAcademicYear,
-          term: this.selectedTerm,
-          comments: student.comments || ''
-        }
-        this.pendingChanges = this.pendingChanges.filter(change => change.studentId !== student.studentId)
-        this.pendingChanges.push(pendingChange)
-        this.scheduleAutoSave()
-      } else {
-        this.pendingChanges = this.pendingChanges.filter(change => change.studentId !== student.studentId)
-      }
-    },
-    resetMobileStudent(idx) {
-      this.students[idx] = { ...this.originalStudents[idx] }
-      this.pendingChanges = this.pendingChanges.filter(change => change.studentId !== this.students[idx].studentId)
-    },
+  if (scoreChanged || commentsChanged) {
+    const pendingChange = {
+      studentId: student.studentId,
+      subjectId: this.selectedAssignment.subjectId,
+      examTypeId: this.selectedExamType,
+      score: student.currentScore,
+      academicYear: this.selectedAcademicYear,
+      term: this.selectedTerm,
+      comments: student.comments || ''
+    };
+    // Optionally update pendingChanges for consistency
+    this.pendingChanges = this.pendingChanges.filter(change => change.studentId !== student.studentId);
+    this.pendingChanges.push(pendingChange);
+
+    // Persist immediately
+    try {
+      this.saving = true;
+      const result = await this.$options.methods.saveSingleChange.call(this, pendingChange);
+      // Update originalStudents to reflect the saved value
+      this.originalStudents[idx] = { ...student };
+      // Remove from pendingChanges
+      this.pendingChanges = this.pendingChanges.filter(change => change.studentId !== student.studentId);
+      this.showSuccess('Score saved!');
+    } catch (e) {
+      this.showError('Failed to save score');
+    } finally {
+      this.saving = false;
+    }
+  }
+},
 
     // --- Multi-subject dialog logic ---
     async onRowClick(event) {
