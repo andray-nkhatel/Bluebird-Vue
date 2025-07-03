@@ -1,33 +1,29 @@
 <template>
   <div class="score-entry">
     <!-- Header -->
-    <div class="flex justify-content-between align-items-center mb-4">
-      <h2 class="text-2xl font-semibold text-900 m-0">
-          <i class="pi pi-pencil "></i>
-          Mark Entry
-        </h2>
-       
-      
-      <div class="ml-auto">
-      <Button
-        label="Save All Changes"
-        icon="pi pi-save"
-        class="p-button-primary ml-auto"
-        :disabled="!hasUnsavedChanges || loading"
-        @click="saveChangesManually"
-        :loading="saving"
-      />
-    </div>
+    <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-2 md:gap-0">
+      <h2 class="text-xl md:text-2xl font-semibold text-900 m-0 flex items-center gap-2">
+        <i class="pi pi-pencil"></i>
+        Mark Entry
+      </h2>
+      <div class="w-full md:w-auto mt-2 md:mt-0">
+        <Button
+          label="Save All Changes"
+          icon="pi pi-save"
+          class="p-button-primary w-full md:w-auto"
+          :disabled="!hasUnsavedChanges || loading"
+          @click="saveChangesManually"
+          :loading="saving"
+        />
+      </div>
     </div>
 
     <!-- Filters Card -->
     <Card class="mb-4">
       <template #content>
-        <div >
-          <div class="flex flex-wrap justify-content-between align-items-center mb-4">
-
-            <div class="flex-auto mr-4 mb-4">
-              <label for="assignment" class="block font-medium mb-2">Subject & Grade *</label>
+        <div class="flex flex-col md:flex-row flex-wrap gap-3 md:gap-4">
+          <div class="flex-1 min-w-0">
+            <label for="assignment" class="block font-medium mb-2">Subject & Grade *</label>
             <Select
               id="assignment"
               v-model="selectedAssignment"
@@ -45,12 +41,8 @@
                 </div>
               </template>
             </Select>
-
-            </div>
-           
-          
-          
-          <div class="flex-auto mr-4 mb-4">
+          </div>
+          <div class="flex-1 min-w-0">
             <label for="academicYear" class="block font-medium mb-2">Academic Year *</label>
             <Select
               id="academicYear"
@@ -64,8 +56,7 @@
               @change="onFiltersChange"
             />
           </div>
-          
-          <div class="flex-auto mr-4 mb-4">
+          <div class="flex-1 min-w-0">
             <label for="term" class="block font-medium mb-2">Term *</label>
             <Select
               id="term"
@@ -79,8 +70,7 @@
               @change="onFiltersChange"
             />
           </div>
-
-          <div class="flex-auto mr-4">
+          <div class="flex-1 min-w-0">
             <label for="examType" class="block font-medium mb-2">Exam Type *</label>
             <Select
               id="examType"
@@ -95,9 +85,8 @@
             />
           </div>
         </div>
-        <div class="flex flex-wrap justify-content-center align-items-center mt-4">
-          <div class="flex-auto">
-            <label class="block font-medium mb-2 mx-auto">&nbsp;</label>
+        <div class="flex flex-col md:flex-row justify-center items-center mt-4 gap-2">
+          <div class="w-full md:w-auto">
             <Button
               label="Load Students"
               icon="pi pi-search"
@@ -108,14 +97,13 @@
             />
           </div>
         </div>
-        </div>
       </template>
     </Card>
 
-    <!-- Scores DataTable -->
-    <Card v-if="students.length > 0">
+    <!-- Scores DataTable (Desktop) -->
+    <Card v-if="students.length > 0 && !isMobile">
       <template #title>
-        <div class="flex justify-content-between align-items-center">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-2">
           <div>
             <span>Student Scores</span>
             <Badge 
@@ -125,7 +113,7 @@
               class="ml-2"
             />
           </div>
-          <div class="flex gap-2 ml-auto">
+          <div class="flex gap-2 w-full md:w-auto">
             <Button
               label="Reset Changes"
               icon="pi pi-refresh"
@@ -133,179 +121,245 @@
               size="small"
               @click="resetChanges"
               :disabled="!hasUnsavedChanges"
+              class="w-full md:w-auto"
             />
             <Button
               label="Export"
               icon="pi pi-download"
               severity="help"
               size="small"
-              @click="exportScores"
+              @click="exportMarkSchedule"
               :disabled="!canLoadStudents"
+              class="w-full md:w-auto"
             />
           </div>
         </div>
       </template>
-      
       <template #content>
-        <DataTable
-          v-model:editingRows="editingRows"
-          :value="students"
-          editMode="row"
-          dataKey="studentId"
-          :loading="loadingScores"
-          responsiveLayout="scroll"
-          :scrollable="true"
-          scrollHeight="60vh"
-          class="p-datatable-sm"
-          @row-edit-save="onRowEditSave"
-          @row-edit-cancel="onRowEditCancel"
-        >
-          <Column field="studentName" header="Student Name" style="min-width: 200px;">
-            <template #body="slotProps">
-              <div class="flex align-items-center">
-                <span class="font-medium">{{ slotProps.data.studentName }}</span>
-              </div>
-            </template>
-          </Column>
-
-          <!-- <Column field="studentNumber" header="Student #" style="min-width: 120px;">
-            <template #body="slotProps">
-              <span class="text-500">{{ slotProps.data.studentNumber }}</span>
-            </template>
-          </Column> -->
-
-          <Column field="currentScore" header="Current Score" style="min-width: 120px;">
-            <template #body="slotProps">
-              <Tag
-                v-if="slotProps.data.currentScore !== null && slotProps.data.currentScore !== undefined"
-                :value="slotProps.data.currentScore"
-                :severity="getScoreSeverity(slotProps.data.currentScore)"
-              />
-              <span v-else class="text-400">No score</span>
-            </template>
-            <template #editor="slotProps">
-              <InputNumber
-                v-model="slotProps.data.currentScore"
-                :min="0"
-                :max="100"
-                :maxFractionDigits="1"
-                class="w-full"
-                placeholder="Enter score"
-                :inputStyle="{ width: '100%' }"
-              />
-            </template>
-          </Column>
-
-          <Column field="comments" header="Comments" style="min-width: 250px;">
-            <template #body="slotProps">
-              <div v-if="slotProps.data.comments" class="flex align-items-center">
-                <i class="pi pi-comment text-blue-500 mr-2"></i>
-                <span class="text-sm text-600 line-height-3" style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                  {{ slotProps.data.comments }}
-                </span>
-                <Button
-                  icon="pi pi-eye"
-                  size="small"
-                  text
-                  rounded
-                  class="ml-2"
-                  @click="viewComment(slotProps.data)"
-                  v-tooltip.top="'View full comment'"
+        <div class="overflow-x-auto">
+          <DataTable
+            v-model:editingRows="editingRows"
+            :value="students"
+            :striped-rows="true"
+            :show-gridlines="true"
+            editMode="row"
+            dataKey="studentId"
+            :loading="loadingScores"
+            responsiveLayout="scroll"
+            :scrollable="true"
+            scrollHeight="60vh"
+            class="p-datatable-sm min-w-[600px] md:min-w-0"
+            @row-edit-save="onRowEditSave"
+            @row-edit-cancel="onRowEditCancel"
+          >
+            <Column field="studentName" header="Student Name" style="width: 25%">
+              <template #body="slotProps">
+                <div class="flex align-items-center text-bold">
+                  <span class="font-medium text-bold">{{ slotProps.data.studentName }}</span>
+                </div>
+              </template>
+            </Column>
+            <Column field="currentScore" header="Current Score" style="width: 25%" bodyStyle="text-align:center;">
+              <template #body="slotProps">
+                <Tag
+                  v-if="slotProps.data.currentScore !== null && slotProps.data.currentScore !== undefined"
+                  :value="slotProps.data.currentScore"
+                  class="align-items-center justify-content-center"
+                  :severity="getScoreSeverity(slotProps.data.currentScore)"
                 />
-              </div>
-              <span v-else class="text-400 text-sm">No comments</span>
-            </template>
-            <template #editor="slotProps">
-              <div>
-                <Textarea
-                  v-model="slotProps.data.comments"
-                  :maxlength="100"
-                  rows="3"
+                <span v-else class="text-400">No score</span>
+              </template>
+              <template #editor="slotProps">
+                <InputNumber
+                  v-model="slotProps.data.currentScore"
+                  :min="0"
+                  :max="150"
+                  :maxFractionDigits="1"
                   class="w-full"
-                  placeholder="Enter comment."
-                  :autoResize="true"
+                  placeholder="Enter score"
+                  :inputStyle="{ width: '100%' }"
                 />
-                <div class="text-right text-sm text-gray-500 mt-1">
-                  {{ 100 - (slotProps.data.comments?.length || 0) }} characters left
+              </template>
+            </Column>
+            <Column v-if="selectedExamType === 3" field="comments" header="Comments" style="width: 25%" bodyStyle="text-align:center;">
+              <template #body="slotProps">
+                <div v-if="slotProps.data.comments" class="flex align-items-center">
+                  <i class="pi pi-comment text-blue-500 mr-2"></i>
+                  <span class="text-sm text-600 line-height-3 truncate max-w-[120px] md:max-w-[200px]">
+                    {{ slotProps.data.comments }}
+                  </span>
+                  <Button
+                    icon="pi pi-eye"
+                    size="small"
+                    text
+                    rounded
+                    class="ml-2"
+                    @click="viewComment(slotProps.data)"
+                    v-tooltip.top="'View full comment'"
+                  />
                 </div>
-              </div>
-          </template>
-
-          </Column>
-
-          <Column field="grade" header="Grade" style="min-width: 100px;">
-            <template #body="slotProps">
-              <Tag
-                v-if="slotProps.data.currentScore !== null && slotProps.data.currentScore !== undefined"
-                :value="calculateGrade(slotProps.data.currentScore)"
-                :severity="getGradeSeverity(calculateGrade(slotProps.data.currentScore))"
-              />
-            </template>
-          </Column>
-
-          <Column field="lastUpdated" header="Last Updated" style="min-width: 150px;">
-            <template #body="slotProps">
-              <div v-if="slotProps.data.lastUpdated">
-                <span class="text-500 text-sm">{{ formatDate(slotProps.data.lastUpdated) }}</span>
-                <div v-if="slotProps.data.recordedBy" class="text-xs text-400 mt-1">
-                  by {{ slotProps.data.recordedBy }}
+                <span v-else class="text-400 text-sm">No comments</span>
+              </template>
+              <template #editor="slotProps">
+                <div>
+                  <Textarea
+                    v-model="slotProps.data.comments"
+                    :maxlength="100"
+                    rows="3"
+                    class="w-full mt-2"
+                    placeholder="Enter comment."
+                    :autoResize="true"
+                  />
+                  <div class="text-right text-sm text-gray-500 mt-1">
+                    {{ 100 - (slotProps.data.comments?.length || 0) }} characters left
+                  </div>
                 </div>
-              </div>
-              <span v-else class="text-400">Never</span>
-            </template>
-          </Column>
-
-          <Column field="commentsInfo" header="Comment Info" style="min-width: 150px;">
-            <template #body="slotProps">
-              <div v-if="slotProps.data.commentsUpdatedAt">
-                <span class="text-500 text-sm">{{ formatDate(slotProps.data.commentsUpdatedAt) }}</span>
-                <div v-if="slotProps.data.commentsUpdatedBy" class="text-xs text-400 mt-1">
-                  by {{ slotProps.data.commentsUpdatedBy }}
-                </div>
-              </div>
-              <span v-else class="text-400 text-sm">No comments</span>
-            </template>
-          </Column>
-
-          <Column :rowEditor="true" style="width: 10%; min-width: 8rem;" bodyStyle="text-align:center">
-            <template #roweditoriniticon>
-              <i class="pi pi-pencil"></i>
-            </template>
-            <template #roweditorsaveicon>
-              <i class="pi pi-check"></i>
-            </template>
-            <template #roweditorcancelicon>
-              <i class="pi pi-times"></i>
-            </template>
-          </Column>
-        </DataTable>
+              </template>
+            </Column>
+            <Column :rowEditor="true" style="width: 25%" bodyStyle="text-align:center;">
+              <template #roweditoriniticon>
+                <i class="pi pi-pencil"></i>
+              </template>
+              <template #roweditorsaveicon>
+                <i class="pi pi-check"></i>
+              </template>
+              <template #roweditorcancelicon>
+                <i class="pi pi-times"></i>
+              </template>
+            </Column>
+            <template #footer> In total there are {{ students ? students.length : 0 }} students. </template>
+          </DataTable>
+        </div>
       </template>
     </Card>
 
+    <!-- Mobile Card Layout -->
+    <div v-if="students.length > 0 && isMobile" class="flex flex-col gap-3" header="Student Scores" :toggleable="true" :collapsed="false">
+      <Panel
+        v-for="(student, idx) in students"
+        :key="student.studentId"
+        :header="student.studentName"
+        :toggleable="true"
+        class="w-full"
+      >
+        <template #icons>
+          <span v-if="student.currentScore !== null" :class="['badge', getScoreSeverityClass(student.currentScore)]">
+            {{ student.currentScore }}
+          </span>
+          <span v-else class="text-gray-400 text-sm">No score</span>
+        </template>
+        <div class="mb-2">
+          <label class="block text-xs font-medium mb-1">Score</label>
+          <InputNumber
+            v-model="student.currentScore"
+            :min="0"
+            :max="150"
+            :maxFractionDigits="1"
+            class="w-full"
+            placeholder="Enter score"
+            @blur="onMobileScoreEdit(idx)"
+          />
+        </div>
+        <div v-if="selectedExamType === 3" class="mb-2">
+          <label class="block text-xs font-medium mb-1">Comments</label>
+          <Textarea
+            v-model="student.comments"
+            :maxlength="100"
+            rows="2"
+            class="w-full"
+            placeholder="Enter comment"
+            :autoResize="true"
+            @blur="onMobileScoreEdit(idx)"
+          />
+          <div class="text-right text-xs text-gray-400">
+            {{ 100 - (student.comments?.length || 0) }} left
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 mt-2">
+          <!-- <Button
+            icon="pi pi-check"
+            label="Save"
+            size="small"
+            class="p-button-success"
+            @click="onMobileScoreEdit(idx, true)"
+            :loading="saving"
+            :disabled="saving"
+          />
+          <Button
+            icon="pi pi-refresh"
+            label="Reset"
+            size="small"
+            class="p-button-secondary"
+            @click="resetMobileStudent(idx)"
+            :disabled="saving"
+          /> -->
+          <Button
+            v-if="selectedExamType === 3 && student.comments"
+            icon="pi pi-eye"
+            size="small"
+            text
+            rounded
+            @click="viewComment(student)"
+            v-tooltip.top="'View full comment'"
+          />
+        </div>
+        <div v-if="student.lastUpdated" class="text-xs text-gray-400 mt-1">
+          <i class="pi pi-clock mr-1"></i>
+          Last updated: {{ formatDate(student.lastUpdated) }}
+          <span v-if="student.recordedBy">by {{ student.recordedBy }}</span>
+        </div>
+      </Panel>
+      <div class="flex flex-col gap-2 mt-4">
+        <Button
+          label="Save All Changes"
+          icon="pi pi-save"
+          class="p-button-primary w-full"
+          :disabled="!hasUnsavedChanges || loading"
+          @click="saveChangesManually"
+          :loading="saving"
+        />
+        <Button
+          label="Reset All"
+          icon="pi pi-refresh"
+          class="p-button-secondary w-full"
+          @click="resetChanges"
+          :disabled="!hasUnsavedChanges"
+        />
+        <Button
+          label="Export"
+          icon="pi pi-download"
+          class="p-button-help w-full"
+          @click="exportMarkSchedule"
+          :disabled="!canLoadStudents"
+        />
+      </div>
+    </div>
+
     <!-- Empty State -->
-    <Card v-else-if="!loadingScores && selectedAssignment && canLoadStudents">
+    <!-- <Card v-else-if="!loadingScores && selectedAssignment && canLoadStudents" class="mt-4">
       <template #content>
         <div class="text-center py-6">
           <i class="pi pi-users text-6xl text-400 mb-3"></i>
-          <h3 class="text-xl text-600 mb-2">No Students Found</h3>
+          <h3 class="text-lg md:text-xl text-600 mb-2">No Students Found</h3>
           <p class="text-500 mb-4">
             No students are enrolled in the selected grade.
           </p>
           <Button
             label="Refresh"
             icon="pi pi-refresh"
+            class="w-full md:w-auto"
             @click="loadStudentScores"
           />
         </div>
       </template>
-    </Card>
+    </Card> -->
 
     <!-- Initial State -->
     <Card v-else-if="!selectedAssignment">
       <template #content>
         <div class="text-center py-6">
           <i class="pi pi-info-circle text-6xl text-400 mb-3"></i>
-          <h3 class="text-xl text-600 mb-2">Select Assignment</h3>
+          <h3 class="text-lg md:text-xl text-600 mb-2">Select Assignment</h3>
           <p class="text-500">
             Please select a subject, academic year, term, and exam type to begin entering scores.
           </p>
@@ -317,7 +371,7 @@
     <Dialog 
       v-model:visible="commentDialog.visible" 
       :header="`Comments for ${commentDialog.student?.studentName}`"
-      :style="{ width: '600px' }"
+      :style="{ width: '90vw', maxWidth: '600px' }"
       modal
     >
       <div class="mb-4">
@@ -328,7 +382,6 @@
           </p>
         </div>
       </div>
-      
       <div v-if="commentDialog.student?.commentsUpdatedAt" class="text-sm text-500">
         <i class="pi pi-clock mr-1"></i>
         Last updated: {{ formatDate(commentDialog.student.commentsUpdatedAt) }}
@@ -336,13 +389,13 @@
           by {{ commentDialog.student.commentsUpdatedBy }}
         </span>
       </div>
-
       <template #footer>
         <Button 
           label="Close" 
           icon="pi pi-times" 
           @click="commentDialog.visible = false"
           autofocus 
+          class="w-full md:w-auto"
         />
       </template>
     </Dialog>
@@ -352,8 +405,9 @@
   </div>
 </template>
 
-<script scope>
-import { examService } from '@/service/api.service'
+<script>
+import { examService } from '@/service/api.service';
+import * as XLSX from 'xlsx';
 
 export default {
   name: 'ScoreEntry',
@@ -392,13 +446,16 @@ export default {
       loadingScores: false,
 
       // Change tracking
-      pendingChanges: new Map(),
+      pendingChanges: [],
 
       // Comment dialog
       commentDialog: {
         visible: false,
         student: null
-      }
+      },
+
+      // Mobile detection
+      isMobile: false
     }
   },
 
@@ -410,25 +467,32 @@ export default {
              this.selectedExamType
     },
 
+    showCommentsField() {
+      return this.selectedExamType === 3;
+    },
+
     hasUnsavedChanges() {
-      return this.pendingChanges.size > 0
+      return this.pendingChanges.length > 0
+    },
+
+    isDevelopment() {
+      return process.env.NODE_ENV === 'development'
     }
   },
 
-  async mounted() {
-    await this.initializeData()
+  mounted() {
+    this.initializeData()
     document.addEventListener('visibilitychange', this.handleVisibilityChange)
+    this.handleResize()
+    window.addEventListener('resize', this.handleResize)
   },
 
   beforeUnmount() {
-    // Clear auto-save timeout
     if (this.autoSaveTimeout) {
       clearTimeout(this.autoSaveTimeout)
     }
-
-    // Remove visibility change listener
     document.removeEventListener('visibilitychange', this.handleVisibilityChange)
-
+    window.removeEventListener('resize', this.handleResize)
     if (this.hasUnsavedChanges) {
       const answer = confirm('You have unsaved changes. Are you sure you want to leave?')
       if (!answer) {
@@ -438,6 +502,162 @@ export default {
   },
 
   methods: {
+    handleResize() {
+      this.isMobile = window.innerWidth < 768
+    },
+
+    exportScoresUI() {
+      if (!this.students.length) {
+        this.showWarn('No student data to export.');
+        return;
+      }
+      // Prepare data for export
+      const subject = this.selectedAssignment?.subjectName || '';
+      const grade = this.selectedAssignment?.gradeName || '';
+      const examType = this.examTypes.find(e => e.id === this.selectedExamType)?.name || '';
+      const academicYear = this.academicYears.find(y => y.id === this.selectedAcademicYear)?.name || '';
+      const term = this.terms.find(t => t.id === this.selectedTerm)?.name || '';
+
+      const exportData = this.students.map(student => ({
+        'Student Name': student.studentName,
+        'Student Number': student.studentNumber,
+        'Score': student.currentScore,
+        ...(this.selectedExamType === 3 ? { 'Comments': student.comments } : {}),
+        'Last Updated': student.lastUpdated ? this.formatDate(student.lastUpdated) : '',
+        'Recorded By': student.recordedBy || ''
+      }));
+
+      // Add a header row with context info
+      const contextRows = [
+        [`Subject:`, subject],
+        [`Grade:`, grade],
+        [`Exam Type:`, examType],
+        [`Academic Year:`, academicYear],
+        [`Term:`, term],
+        [],
+      ];
+
+      // Convert to worksheet
+      const ws = XLSX.utils.json_to_sheet(exportData, { origin: contextRows.length });
+      // Insert context rows at the top
+      XLSX.utils.sheet_add_aoa(ws, contextRows, { origin: 0 });
+
+      // Create workbook and add worksheet
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Scores');
+
+      // Generate filename
+      const filename = `Scores_${subject}_${grade}_${examType}_${academicYear}_${term}.xlsx`
+        .replace(/\s+/g, '_')
+        .replace(/[^a-zA-Z0-9_\-\.]/g, '');
+
+      // Export to file
+      XLSX.writeFile(wb, filename);
+
+      this.showSuccess('Scores exported successfully!');
+    },
+
+
+
+
+// ... inside your Vue component methods:
+async exportMarkSchedule() {
+  if (!this.selectedAssignment || !this.selectedAcademicYear || !this.selectedTerm || !this.selectedExamType) {
+    this.showWarn('Please select all required fields.');
+    return;
+  }
+
+  try {
+    // 1. Get all subjects for the selected grade
+    const gradeId = this.selectedAssignment.gradeId;
+    const academicYearId = this.selectedAcademicYear;
+    const term = this.selectedTerm;
+    const examTypeId = this.selectedExamType;
+
+    // Get all assignments for this grade (to get all subjects)
+    let assignments = this.teacherAssignments.filter(a => a.gradeId === gradeId);
+
+    // Get unique subjects for the grade
+    const subjects = [];
+    const subjectMap = {};
+    assignments.forEach(a => {
+      if (!subjectMap[a.subjectId]) {
+        subjects.push({ id: a.subjectId, name: a.subjectName });
+        subjectMap[a.subjectId] = true;
+      }
+    });
+
+    // 2. Get all students in the grade
+    const students = await examService.getStudentsByGrade(gradeId);
+
+    // 3. Get all scores for the grade, academic year, term
+    const allScores = await examService.getGradeScores(gradeId, academicYearId, term);
+
+    // 4. Build a map: { studentId: { subjectId: score } }
+    const scoreMap = {};
+    allScores.forEach(score => {
+      if (score.examTypeId !== examTypeId) return;
+      if (!scoreMap[score.studentId]) scoreMap[score.studentId] = {};
+      scoreMap[score.studentId][score.subjectId] = score.score;
+    });
+
+    // 5. Build export data: one row per student, columns: Student Name, Subject1, Subject2, ...
+    const exportData = students.map(student => {
+      const row = { 'Student Name': student.fullName };
+      subjects.forEach(subject => {
+        row[subject.name] = (scoreMap[student.id] && scoreMap[student.id][subject.id] != null)
+          ? scoreMap[student.id][subject.id]
+          : '';
+      });
+      return row;
+    });
+
+    // 6. Add context rows at the top
+    const gradeName = this.selectedAssignment.gradeName || '';
+    const examTypeName = this.examTypes.find(e => e.id === examTypeId)?.name || '';
+    const academicYearName = this.academicYears.find(y => y.id === academicYearId)?.name || '';
+    const termName = this.terms.find(t => t.id === term)?.name || '';
+
+    const contextRows = [
+      [`Grade:`, gradeName],
+      [`Exam Type:`, examTypeName],
+      [`Academic Year:`, academicYearName],
+      [`Term:`, termName],
+      [],
+    ];
+
+    // 7. Convert to worksheet
+    const ws = XLSX.utils.json_to_sheet(exportData, { origin: contextRows.length });
+    XLSX.utils.sheet_add_aoa(ws, contextRows, { origin: 0 });
+
+    // 8. Create workbook and add worksheet
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Mark Schedule');
+
+    // 9. Generate filename
+    const filename = `MarkSchedule_${gradeName}_${examTypeName}_${academicYearName}_${termName}.xlsx`
+      .replace(/\s+/g, '_')
+      .replace(/[^a-zA-Z0-9_\-\.]/g, '');
+
+    // 10. Export to file
+    XLSX.writeFile(wb, filename);
+
+    this.showSuccess('Mark Schedule exported successfully!');
+  } catch (err) {
+    this.showError('Failed to export Mark Schedule.');
+    if (process.env.NODE_ENV === 'development') {
+      // eslint-disable-next-line no-console
+      console.error(err);
+    }
+  }
+},
+
+
+
+   
+
+    
+
     async initializeData() {
       try {
         await Promise.all([
@@ -446,13 +666,10 @@ export default {
           this.loadExamTypes()
         ])
         
-        // Set current year if available
         if (this.academicYears.length > 0) {
           const currentYear = this.academicYears.find(y => y.isActive && !y.isClosed)
           this.selectedAcademicYear = currentYear ? currentYear.id : this.academicYears[0].id
         }
-
-        // Set first term by default
         if (this.terms.length > 0) {
           this.selectedTerm = this.terms[0].id
         }
@@ -464,9 +681,6 @@ export default {
     async loadTeacherAssignments() {
       try {
         this.loadingAssignments = true
-        console.log('🔄 Loading teacher assignments...')
-        
-        // Test connectivity first if in development
         if (this.isDevelopment) {
           try {
             const debugResult = await examService.debugAuth()
@@ -475,21 +689,15 @@ export default {
             console.warn('⚠️ Debug endpoint failed:', debugError.message)
           }
         }
-
         const assignments = await examService.getTeacherAssignments()
-        console.log('✅ Teacher assignments loaded:', assignments)
-        
         this.teacherAssignments = assignments.map(assignment => ({
           ...assignment,
           displayName: `${assignment.subjectName} - ${assignment.gradeName}`
         }))
-        
         if (this.teacherAssignments.length === 0) {
           this.showInfo('No subject assignments found. Please contact your administrator.')
         }
       } catch (error) {
-        console.error('❌ Failed to load teacher assignments:', error)
-        
         if (error.message.includes('403') || error.message.includes('Forbidden')) {
           this.showError('Access denied. Please ensure you have Teacher role assigned.')
         } else if (error.message.includes('401') || error.message.includes('Unauthorized')) {
@@ -507,11 +715,8 @@ export default {
     async loadAcademicYears() {
       try {
         this.loadingYears = true
-        console.log('🔄 Loading academic years...')
         this.academicYears = await examService.getAcademicYears()
-        console.log('✅ Academic years loaded:', this.academicYears)
       } catch (error) {
-        console.error('❌ Failed to load academic years:', error)
         if (error.message.includes('Network error')) {
           this.showError('Cannot connect to server. Please check if the backend is running.')
         } else {
@@ -525,11 +730,8 @@ export default {
     async loadExamTypes() {
       try {
         this.loadingExamTypes = true
-        console.log('🔄 Loading exam types...')
         this.examTypes = await examService.getExamTypes()
-        console.log('✅ Exam types loaded:', this.examTypes)
       } catch (error) {
-        console.error('❌ Failed to load exam types:', error)
         if (error.message.includes('Network error')) {
           this.showError('Cannot connect to server. Please check if the backend is running.')
         } else {
@@ -550,9 +752,8 @@ export default {
         this.loadingScores = true
         this.students = []
         this.originalStudents = []
-        this.pendingChanges.clear()
+        this.pendingChanges = []
 
-        // Get all students for the grade
         const gradeStudents = await examService.getStudentsByGrade(this.selectedAssignment.gradeId)
 
         if (gradeStudents.length === 0) {
@@ -560,20 +761,17 @@ export default {
           return
         }
 
-        // Get existing scores for the grade
         const scores = await examService.getGradeScores(
           this.selectedAssignment.gradeId,
           this.selectedAcademicYear,
           this.selectedTerm
         )
 
-        // Filter scores for selected subject and exam type
         const relevantScores = scores.filter(score => 
           score.subjectId === this.selectedAssignment.subjectId &&
           score.examTypeId === this.selectedExamType
         )
 
-        // Combine student data with scores
         this.students = gradeStudents.map(student => {
           const existingScore = relevantScores.find(score => score.studentId === student.id)
           return {
@@ -584,23 +782,17 @@ export default {
             scoreId: existingScore ? existingScore.id : null,
             lastUpdated: existingScore ? existingScore.recordedAt : null,
             recordedBy: existingScore ? existingScore.recordedByName : null,
-            // Add comment fields
             comments: existingScore ? existingScore.comments : null,
             commentsUpdatedAt: existingScore ? existingScore.commentsUpdatedAt : null,
             commentsUpdatedBy: existingScore ? existingScore.commentsUpdatedByName : null
           }
         })
 
-        // Sort students by name
         this.students.sort((a, b) => a.studentName.localeCompare(b.studentName))
-
-        // Create a deep copy for tracking changes
         this.originalStudents = JSON.parse(JSON.stringify(this.students))
-
         this.showSuccess(`Loaded ${this.students.length} students`)
 
       } catch (error) {
-        console.error('Failed to load student scores:', error)
         this.showError('Failed to load student scores')
       } finally {
         this.loadingScores = false
@@ -610,141 +802,134 @@ export default {
     onAssignmentChange() {
       this.students = []
       this.originalStudents = []
-      this.pendingChanges.clear()
+      this.pendingChanges = []
     },
 
     onFiltersChange() {
-      // Clear students when any filter changes
       this.students = []
       this.originalStudents = []
-      this.pendingChanges.clear()
+      this.pendingChanges = []
     },
 
     scheduleAutoSave() {
-      // Clear existing timeout
       if (this.autoSaveTimeout) {
         clearTimeout(this.autoSaveTimeout)
       }
-      
-      // Schedule new auto-save
       this.autoSaveTimeout = setTimeout(async () => {
         if (this.hasUnsavedChanges && !this.saving) {
           try {
-            await this.saveAllChanges(true) // Pass flag to indicate auto-save
-            this.showSuccess('Changes auto-saved. ZESCO got nothing on you!', 3000)
+            await this.saveAllChanges(true)
+            this.showSuccess('Changes auto-saved. ZESCO got nothing on you!', 5000)
           } catch (error) {
             this.showError('Auto-save failed - please save manually')
           }
         }
-      }, 2000) // 2 second delay
+      }, 2000)
     },
 
     onRowEditSave(event) {
       const { newData, index } = event
-      
-      // Check if currently saving to prevent conflicts
       if (this.saving) {
         this.showInfo('Please wait for current save to complete')
         return
       }
-
       this.students[index] = { ...newData }
-      const student = this.students[index] 
+      const student = this.students[index]
       const originalStudent = this.originalStudents[index]
-
-      // Check if score or comments actually changed
       const scoreChanged = student.currentScore !== originalStudent.currentScore
       const commentsChanged = student.comments !== originalStudent.comments
 
       if (scoreChanged || commentsChanged) {
-        this.pendingChanges.set(student.studentId, {
+        const pendingChange = {
           studentId: student.studentId,
           subjectId: this.selectedAssignment.subjectId,
           examTypeId: this.selectedExamType,
           score: student.currentScore,
           academicYear: this.selectedAcademicYear,
           term: this.selectedTerm,
-          comments: student.comments
-        })
+          comments: student.comments || ''
+        }
+        this.pendingChanges = this.pendingChanges.filter(change => change.studentId !== student.studentId)
+        this.pendingChanges.push(pendingChange)
         this.scheduleAutoSave()
       } else {
-        this.pendingChanges.delete(student.studentId)
+        this.pendingChanges = this.pendingChanges.filter(change => change.studentId !== student.studentId)
       }
     },
 
     onRowEditCancel(event) {
       const { index } = event
-      
-      // Cancel any pending auto-save for this student
       const student = this.students[index]
-      this.pendingChanges.delete(student.studentId)
-      
-      // If no more pending changes, clear the auto-save timeout
-      if (this.pendingChanges.size === 0 && this.autoSaveTimeout) {
+      this.pendingChanges = this.pendingChanges.filter(change => change.studentId !== student.studentId)
+      if (this.pendingChanges.length === 0 && this.autoSaveTimeout) {
         clearTimeout(this.autoSaveTimeout)
         this.autoSaveTimeout = null
       }
-      
-      // Restore original value
       this.students[index] = { ...this.originalStudents[index] }
     },
 
-    // Enhanced method to handle manual save with user feedback
     async saveChangesManually() {
       if (!this.hasUnsavedChanges) {
         this.showInfo('No changes to save')
         return
       }
-
-      // Cancel auto-save since we're doing manual save
       if (this.autoSaveTimeout) {
         clearTimeout(this.autoSaveTimeout)
         this.autoSaveTimeout = null
       }
-
       await this.saveAllChanges(false)
     },
 
-    async saveAllChanges(isAutoSave = false) {
-      if (!this.hasUnsavedChanges || this.saving) return
-
+    async saveAllChanges() {
+      if (this.pendingChanges.length === 0) return;
+      if (!this.selectedAssignment) {
+        this.showError('Please select a subject and grade before saving scores.');
+        return;
+      }
+      if (!this.selectedExamType) {
+        this.showError('Please select an exam type before saving scores.');
+        return;
+      }
+      if (!this.selectedAcademicYear) {
+        this.showError('Please select an academic year before saving scores.');
+        return;
+      }
+      if (!this.selectedTerm) {
+        this.showError('Please select a term before saving scores.');
+        return;
+      }
       try {
-        this.saving = true
-        const changes = Array.from(this.pendingChanges.values())
-
-        console.log(`💾 ${isAutoSave ? 'Auto-saving' : 'Saving'} ${changes.length} changes`)
-
-        // Submit each score individually
-        const results = await Promise.all(
-          changes.map(change => examService.submitScore(change))
-        )
-
-        // Update the student records with the returned data instead of reloading
-        this.updateStudentsWithSavedData(results)
-        
-        this.pendingChanges.clear()
-        
-        // Update originalStudents to reflect the new saved state
-        this.originalStudents = JSON.parse(JSON.stringify(this.students))
-
-        if (!isAutoSave) {
-          this.showSuccess(`Successfully saved ${changes.length} score(s)`)
-        }
-
+        this.saving = true;
+        const promises = this.pendingChanges.map(async change => {
+          const scoreData = {
+            ...change,
+            studentId: change.studentId,
+            subjectId: this.selectedAssignment.subjectId,
+            examTypeId: this.selectedExamType,
+            academicYearId: this.selectedAcademicYear,
+            term: this.selectedTerm,
+            score: change.score,
+            gradeId: this.selectedAssignment.gradeId,
+            comments: change.comments || '',
+          };
+          return examService.submitScore(scoreData);
+        });
+        const results = await Promise.all(promises);
+        this.updateStudentsWithSavedData(results);
+        this.pendingChanges = [];
+        this.originalStudents = JSON.parse(JSON.stringify(this.students));
+        this.showSuccess(`Successfully saved ${results.length} score(s)`);
       } catch (error) {
-        console.error('Failed to save scores:', error)
-        this.showError('Failed to save scores. Please try again.')
+        this.showError('Failed to save scores. Please try again.');
       } finally {
-        this.saving = false
+        this.saving = false;
       }
     },
 
-    // New method to update students with saved data without reloading
     updateStudentsWithSavedData(savedScores) {
       savedScores.forEach(savedScore => {
         const studentIndex = this.students.findIndex(s => s.studentId === savedScore.studentId)
         if (studentIndex !== -1) {
-          // Update the student record with the saved data
           this.students[studentIndex] = {
             ...this.students[studentIndex],
             scoreId: savedScore.id,
@@ -757,10 +942,8 @@ export default {
       })
     },
 
-    // Add this to handle tab visibility (auto-save when tab becomes hidden)
     handleVisibilityChange() {
       if (document.hidden && this.hasUnsavedChanges && !this.saving) {
-        // User switched tabs/minimized - auto-save immediately
         this.saveAllChanges(true)
       }
     },
@@ -773,14 +956,12 @@ export default {
         rejectClass: 'p-button-secondary p-button-outlined',
         acceptClass: 'p-button-danger',
         accept: () => {
-          // Clear any pending auto-save
           if (this.autoSaveTimeout) {
             clearTimeout(this.autoSaveTimeout)
             this.autoSaveTimeout = null
           }
-          
           this.students = JSON.parse(JSON.stringify(this.originalStudents))
-          this.pendingChanges.clear()
+          this.pendingChanges = []
           this.showInfo('All changes have been reset')
         }
       })
@@ -792,46 +973,31 @@ export default {
           this.showError('Please select all required fields first')
           return
         }
-
         const blob = await examService.exportGradeBook(
           this.selectedAssignment.gradeId,
           this.selectedAssignment.subjectId,
           this.selectedAcademicYear,
           this.selectedTerm
         )
-        
         const url = window.URL.createObjectURL(blob)
         const link = document.createElement('a')
         link.href = url
         link.download = `scores_${this.selectedAssignment.subjectName}_${this.selectedAcademicYear}_T${this.selectedTerm}.xlsx`
         link.click()
         window.URL.revokeObjectURL(url)
-        
       } catch (error) {
-        console.error('Failed to export scores:', error)
         this.showError('Failed to export scores')
       }
     },
 
-    // Comment methods
     viewComment(student) {
       this.commentDialog.student = student
       this.commentDialog.visible = true
     },
 
-    // Utility methods
     getInitials(name) {
       if (!name) return '??'
       return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-    },
-
-    calculateGrade(score) {
-      if (score === null || score === undefined) return ''
-      if (score >= 90) return 'A'
-      if (score >= 80) return 'B'
-      if (score >= 70) return 'C'
-      if (score >= 60) return 'D'
-      return 'F'
     },
 
     getScoreSeverity(score) {
@@ -841,31 +1007,24 @@ export default {
       return 'danger'
     },
 
-    getGradeSeverity(grade) {
-      if (['A', 'B'].includes(grade)) return 'success'
-      if (grade === 'C') return 'info'
-      if (grade === 'D') return 'warning'
-      return 'danger'
+    getScoreSeverityClass(score) {
+      if (score >= 80) return 'bg-green-100 text-green-800';
+      if (score >= 70) return 'bg-blue-100 text-blue-800';
+      if (score >= 60) return 'bg-yellow-100 text-yellow-800';
+      return 'bg-red-100 text-red-800';
     },
 
     formatDate(dateString) {
       if (!dateString) return ''
-
       const utcDate = new Date(dateString)
-
-      // Manually add 2 hours for Zambia time
       const zambiaTime = new Date(utcDate.getTime() + (2 * 60 * 60 * 1000))
-
-      // Format in military time (24-hour format)
       const day = zambiaTime.getUTCDate()
       const month = zambiaTime.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' })
       const hours = zambiaTime.getUTCHours().toString().padStart(2, '0')
       const minutes = zambiaTime.getUTCMinutes().toString().padStart(2, '0')
-
       return `${month} ${day}, ${hours}:${minutes} hrs`
     },
 
-    // Toast methods
     showSuccess(message, duration=3000) {
       this.$toast.add({
         severity: 'success',
@@ -900,25 +1059,83 @@ export default {
         detail: message,
         life: 4000
       })
-    }
-  },
-
-  // Add computed property for development mode detection
-  computed: {
-    canLoadStudents() {
-      return this.selectedAssignment && 
-             this.selectedAcademicYear && 
-             this.selectedTerm && 
-             this.selectedExamType
     },
 
-    hasUnsavedChanges() {
-      return this.pendingChanges.size > 0
-    },
+    // --- Mobile card layout methods ---
+    onMobileScoreEdit(idx, forceSave = false) {
+      const student = this.students[idx]
+      const originalStudent = this.originalStudents[idx]
+      const scoreChanged = student.currentScore !== originalStudent.currentScore
+      const commentsChanged = student.comments !== originalStudent.comments
 
-    isDevelopment() {
-      return process.env.NODE_ENV === 'development'
+      if (scoreChanged || commentsChanged || forceSave) {
+        const pendingChange = {
+          studentId: student.studentId,
+          subjectId: this.selectedAssignment.subjectId,
+          examTypeId: this.selectedExamType,
+          score: student.currentScore,
+          academicYear: this.selectedAcademicYear,
+          term: this.selectedTerm,
+          comments: student.comments || ''
+        }
+        this.pendingChanges = this.pendingChanges.filter(change => change.studentId !== student.studentId)
+        this.pendingChanges.push(pendingChange)
+        this.scheduleAutoSave()
+      } else {
+        this.pendingChanges = this.pendingChanges.filter(change => change.studentId !== student.studentId)
+      }
+    },
+    resetMobileStudent(idx) {
+      this.students[idx] = { ...this.originalStudents[idx] }
+      this.pendingChanges = this.pendingChanges.filter(change => change.studentId !== this.students[idx].studentId)
     }
   }
 }
 </script>
+
+<style scoped>
+/* Extra mobile tweaks */
+@media (max-width: 768px) {
+  .score-entry .p-card {
+    padding: 0.5rem !important;
+  }
+  .score-entry .p-card-content {
+    padding: 0.5rem !important;
+  }
+  .score-entry .p-datatable {
+    font-size: 0.95rem;
+  }
+  .score-entry .p-datatable .p-datatable-thead > tr > th,
+  .score-entry .p-datatable .p-datatable-tbody > tr > td {
+    padding: 0.5rem 0.25rem;
+  }
+  .score-entry .p-dialog {
+    width: 95vw !important;
+    max-width: 95vw !important;
+  }
+  .score-entry .p-toast {
+    width: 95vw !important;
+    left: 2.5vw !important;
+  }
+  .score-entry .truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .student-card {
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    border: 1px solid #e5e7eb;
+    background: #fff;
+  }
+  .badge {
+    display: inline-block;
+    padding: 0.25em 0.75em;
+    border-radius: 9999px;
+    font-size: 0.95em;
+    font-weight: 600;
+    min-width: 2.5em;
+    text-align: center;
+  }
+}
+</style>

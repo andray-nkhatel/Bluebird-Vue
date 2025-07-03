@@ -1,5 +1,7 @@
 // src/services/api.service.js
+import { ensureNumber } from '@/service/numberUtils.js';
 import axios from 'axios';
+
 
 // Create axios instance
 const apiClient = axios.create({
@@ -549,37 +551,161 @@ export const examService = {
     return response.data;
   },
 
-  // Create or update exam score (Teachers only)
-  // async submitScore(scoreData) {
-  //   const response = await apiClient.post('/exams/scores', scoreData);
-  //   return response.data;
-  // },
 
-  async submitScore(scoreData) {
-    try {
-      console.log('📤 examService.submitScore called with:', scoreData)
-      
-      const payload = {
-        studentId: scoreData.studentId,
-        subjectId: scoreData.subjectId,
-        examTypeId: scoreData.examTypeId,
-        score: scoreData.score,
-        academicYear: scoreData.academicYear,
-        term: scoreData.term,
-        comments: scoreData.comments || null // Include comments in submission
-      }
-      
-      console.log('📦 API Payload being sent:', payload)
-  
-      const response = await apiClient.post('/exams/scores', payload)
-      console.log('✅ API Response received:', response.data)
-      return response.data
-    } catch (error) {
-      console.error('❌ Failed to submit score:', error)
-      console.error('❌ Error details:', error.response?.data)
-      throw error
+
+ // Replace your submitScore method with this enhanced debug version
+async submitScore(scoreData) {
+  try {
+    console.log('📤 examService.submitScore called with:', scoreData)
+    
+    // 1. Validate incoming data first
+    const validationErrors = this.validateScoreData(scoreData);
+    if (validationErrors.length > 0) {
+      console.error('❌ Validation errors before API call:', validationErrors);
+      throw new Error(`Validation failed: ${validationErrors.join(', ')}`);
     }
-  },
+    
+    // 2. Build payload with explicit type conversion and validation
+    const payload = {
+      studentId: ensureNumber(scoreData.studentId, 'studentId'),
+      subjectId: ensureNumber(scoreData.subjectId, 'subjectId'), 
+      examTypeId: ensureNumber(scoreData.examTypeId, 'examTypeId'),
+      score: ensureNumber(scoreData.score, 'score'),
+      academicYear: ensureNumber(scoreData.academicYear, 'academicYear'),
+      term: ensureNumber(scoreData.term, 'term')
+    }
+    
+    // Only include comments if they exist and are not empty
+    if (scoreData.comments && typeof scoreData.comments === 'string' && scoreData.comments.trim() !== '') {
+      payload.comments = scoreData.comments?.trim() || '';
+    }
+
+    //payload.comments = scoreData.comments?.trim() || '';
+
+    
+    // 3. Final payload validation
+    console.log('📦 API Payload being sent:', payload)
+    console.log('📊 Payload types:', {
+      studentId: typeof payload.studentId,
+      subjectId: typeof payload.subjectId,
+      examTypeId: typeof payload.examTypeId,
+      score: typeof payload.score,
+      academicYear: typeof payload.academicYear,
+      term: typeof payload.term,
+      comments: typeof payload.comments
+    });
+
+    const response = await apiClient.post('/exams/scores', payload)
+    console.log('✅ API Response received:', response.data)
+    return response.data
+    
+  } catch (error) {
+    console.error('❌ Failed to submit score:', error)
+
+    if (error.response?.data?.errors) {
+      console.group('🔍 Validation Errors');
+      Object.entries(error.response.data.errors).forEach(([field, messages]) => {
+        console.error(`${field}: ${messages.join(', ')}`);
+      });
+      console.groupEnd();
+    }
+    
+    
+    // ENHANCED ERROR LOGGING - This is the critical part
+    if (error.response) {
+      console.group('🚨 DETAILED ERROR ANALYSIS')
+      console.error('Status:', error.response.status)
+      console.error('Status Text:', error.response.statusText)
+      console.error('Headers:', error.response.headers)
+      console.error('Raw Response Data:', error.response.data)
+      console.error('Response Data Type:', typeof error.response.data)
+      console.error('Response Data as JSON:', JSON.stringify(error.response.data, null, 2))
+      console.error('Original Score Data:', scoreData)
+      console.error('Final Payload Sent:', payload)
+      console.groupEnd()
+      
+      // Try to extract and display validation errors in multiple formats
+      const responseData = error.response.data;
+      
+      if (responseData) {
+        // Format 1: Standard ASP.NET Core validation response
+        if (responseData.errors) {
+          console.error('🔍 ASP.NET Core Validation Errors:')
+          Object.keys(responseData.errors).forEach(field => {
+            console.error(`  ${field}: ${responseData.errors[field].join(', ')}`)
+          })
+        }
+        
+        // Format 2: Custom validation response
+        if (responseData.message) {
+          console.error('🔍 Server Message:', responseData.message)
+        }
+        
+        // Format 3: Simple string error
+        if (typeof responseData === 'string') {
+          console.error('🔍 String Error:', responseData)
+        }
+        
+        // Format 4: Array of errors
+        if (Array.isArray(responseData)) {
+          console.error('🔍 Error Array:', responseData)
+        }
+        
+        // Format 5: ModelState errors
+        if (responseData.modelState) {
+          console.error('🔍 ModelState Errors:', responseData.modelState)
+        }
+      }
+    } else if (error.request) {
+      console.error('❌ Network Error - No response received:', error.request)
+    } else {
+      console.error('❌ Request Setup Error:', error.message)
+    }
+    
+    throw error
+  }
+},
+
+
+
+debugScoreDataFlow(change, context) {
+  console.log('🔍 Debug Score Data Flow Input:', { change, context });
+  
+  // More robust field extraction
+  const scoreData = {
+    studentId: change.studentId,
+    subjectId: context.currentSubject?.id || context.currentSubject,
+    examTypeId: context.currentExamType?.id || context.currentExamType,
+    academicYearId: context.selectedAcademicYear?.id || context.selectedAcademicYear,
+    term: context.selectedTerm,
+    score: change.score,
+    gradeId: change.gradeId,
+    // Add any other fields your API expects
+  };
+
+  // Additional debugging to understand the structure
+  console.log('🔍 Context breakdown:', {
+    currentSubject: context.currentSubject,
+    currentExamType: context.currentExamType,
+    selectedAcademicYear: context.selectedAcademicYear,
+    selectedTerm: context.selectedTerm
+  });
+
+  // Validate required fields
+  const requiredFields = ['studentId', 'subjectId', 'examTypeId', 'academicYearId', 'term'];
+  const missingFields = requiredFields.filter(field => !scoreData[field]);
+  
+  if (missingFields.length > 0) {
+    console.warn('⚠️ Missing required fields:', missingFields);
+    console.warn('💡 This usually means the user hasn\'t selected all required options in the UI');
+  }
+
+  console.log('✅ Constructed Score Data:', scoreData);
+  
+  return scoreData; // Return plain object, NOT a Promise
+},
+
+
 
   // Update existing score
   async updateScore(scoreId, scoreData) {
@@ -887,6 +1013,8 @@ async createAcademicYear(formData){
     }
   },
 
+ 
+
   // ===== VALIDATION HELPERS =====
   
   // Validate score data before submission
@@ -898,8 +1026,8 @@ async createAcademicYear(formData){
     if (!scoreData.examTypeId) errors.push('Exam Type ID is required');
     if (scoreData.score === null || scoreData.score === undefined) {
       errors.push('Score is required');
-    } else if (scoreData.score < 0 || scoreData.score > 100) {
-      errors.push('Score must be between 0 and 100');
+    } else if (scoreData.score < 0 || scoreData.score > 150) {
+      errors.push('Score must be between 0 and 150');
     }
     if (!scoreData.academicYear) errors.push('Academic Year is required');
     if (!scoreData.term || scoreData.term < 1 || scoreData.term > 3) {

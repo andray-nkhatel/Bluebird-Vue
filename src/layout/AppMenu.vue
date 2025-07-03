@@ -69,7 +69,7 @@ const allMenuItems = [
                 label: 'Add Student', 
                 icon: 'pi pi-fw pi-user-plus', 
                 to: '/app/students/add',
-                roles: ['Admin']
+                roles: ['Admin','Staff']
             },
             { 
                 label: 'Bulk Import', 
@@ -81,7 +81,7 @@ const allMenuItems = [
                 label: 'Student Promotion', 
                 icon: 'pi pi-fw pi-arrow-up', 
                 to: '/app/students/promotion',
-                roles: ['Admin']
+                roles: ['Admin','Staff']
             },
         ]
     },
