@@ -99,42 +99,9 @@
         </div>
       </template>
     </Card>
-
-    <!-- Scores DataTable (Desktop) -->
-    <Card v-if="students.length > 0 && !isMobile">
-      <template #title>
-        <div class="flex flex-col md:flex-row justify-between items-center gap-2">
-          <div>
-            <span>Student Scores</span>
-            <Badge 
-              v-if="hasUnsavedChanges" 
-              value="Unsaved Changes" 
-              severity="warning" 
-              class="ml-2"
-            />
-          </div>
-          <div class="flex gap-2 w-full md:w-auto">
-            <Button
-              label="Reset Changes"
-              icon="pi pi-refresh"
-              severity="secondary"
-              size="small"
-              @click="resetChanges"
-              :disabled="!hasUnsavedChanges"
-              class="w-full md:w-auto"
-            />
-            <Button
-              label="Export"
-              icon="pi pi-download"
-              severity="help"
-              size="small"
-              @click="exportMarkSchedule"
-              :disabled="!canLoadStudents"
-              class="w-full md:w-auto"
-            />
-          </div>
-        </div>
-      </template>
+ <!-- Scores DataTable (Desktop) -->
+ <Card v-if="students.length > 0 && !isMobile">
+      <!-- ... (title unchanged) ... -->
       <template #content>
         <div class="overflow-x-auto">
           <DataTable
@@ -151,6 +118,8 @@
             class="p-datatable-sm min-w-[600px] md:min-w-0"
             @row-edit-save="onRowEditSave"
             @row-edit-cancel="onRowEditCancel"
+            @row-click="onRowClick"
+            style="cursor:pointer"
           >
             <Column field="studentName" header="Student Name" style="width: 25%">
               <template #body="slotProps">
@@ -194,7 +163,7 @@
                     text
                     rounded
                     class="ml-2"
-                    @click="viewComment(slotProps.data)"
+                    @click.stop="viewComment(slotProps.data)"
                     v-tooltip.top="'View full comment'"
                   />
                 </div>
@@ -233,6 +202,53 @@
       </template>
     </Card>
 
+    <!-- Multi-Subject Student Scores Dialog -->
+    <Dialog
+      v-model:visible="showStudentDialog"
+      :header="selectedStudent ? selectedStudent.studentName + ' - All Subject Scores' : 'Student Scores'"
+      :modal="true"
+      :closable="true"
+      :style="{ width: '600px' }"
+      @hide="onDialogCancel"
+    >
+      <div v-if="selectedStudent">
+        <div class="mb-4">
+          <strong>Exam Type:</strong> {{ getExamTypeName(selectedExamType) }}<br />
+          <strong>Term:</strong> {{ getTermName(selectedTerm) }}
+        </div>
+        <div class="flex flex-col gap-4">
+          <div v-for="subject in dialogSubjects" :key="subject.id" class="mb-2">
+            <label class="block mb-1 font-medium">{{ subject.name }}</label>
+            <InputNumber
+              v-model="dialogStudentScores[subject.id].score"
+              :min="0"
+              :max="150"
+              :maxFractionDigits="1"
+              class="w-full"
+              placeholder="Enter score"
+            />
+            <div v-if="selectedExamType === 3" class="mt-2">
+              <label class="block mb-1 font-medium">Comments</label>
+              <Textarea
+                v-model="dialogStudentScores[subject.id].comments"
+                :maxlength="100"
+                rows="2"
+                class="w-full"
+                placeholder="Enter comment."
+                :autoResize="true"
+              />
+              <div class="text-right text-xs text-gray-500 mt-1">
+                {{ 100 - (dialogStudentScores[subject.id].comments?.length || 0) }} characters left
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <Button label="Cancel" icon="pi pi-times" text @click="onDialogCancel" />
+        <Button label="Save" icon="pi pi-check" @click="onDialogSave" :disabled="!dialogHasChanges" />
+      </template>
+    </Dialog>
     <!-- Mobile Card Layout -->
     <div v-if="students.length > 0 && isMobile" class="flex flex-col gap-3" header="Student Scores" :toggleable="true" :collapsed="false">
       <Panel
@@ -276,23 +292,6 @@
           </div>
         </div>
         <div class="flex justify-end gap-2 mt-2">
-          <!-- <Button
-            icon="pi pi-check"
-            label="Save"
-            size="small"
-            class="p-button-success"
-            @click="onMobileScoreEdit(idx, true)"
-            :loading="saving"
-            :disabled="saving"
-          />
-          <Button
-            icon="pi pi-refresh"
-            label="Reset"
-            size="small"
-            class="p-button-secondary"
-            @click="resetMobileStudent(idx)"
-            :disabled="saving"
-          /> -->
           <Button
             v-if="selectedExamType === 3 && student.comments"
             icon="pi pi-eye"
@@ -334,25 +333,6 @@
         />
       </div>
     </div>
-
-    <!-- Empty State -->
-    <!-- <Card v-else-if="!loadingScores && selectedAssignment && canLoadStudents" class="mt-4">
-      <template #content>
-        <div class="text-center py-6">
-          <i class="pi pi-users text-6xl text-400 mb-3"></i>
-          <h3 class="text-lg md:text-xl text-600 mb-2">No Students Found</h3>
-          <p class="text-500 mb-4">
-            No students are enrolled in the selected grade.
-          </p>
-          <Button
-            label="Refresh"
-            icon="pi pi-refresh"
-            class="w-full md:w-auto"
-            @click="loadStudentScores"
-          />
-        </div>
-      </template>
-    </Card> -->
 
     <!-- Initial State -->
     <Card v-else-if="!selectedAssignment">
@@ -405,13 +385,14 @@
   </div>
 </template>
 
+
 <script>
 import { examService } from '@/service/api.service';
 import * as XLSX from 'xlsx';
 
 export default {
   name: 'ScoreEntry',
-  
+
   data() {
     return {
       // Selection data
@@ -454,6 +435,13 @@ export default {
         student: null
       },
 
+      // Multi-subject dialog state
+      showStudentDialog: false,
+      selectedStudent: null,
+      dialogSubjects: [],
+      dialogStudentScores: {}, // { [subjectId]: { score, comments, scoreId } }
+      dialogOriginalScores: {},
+
       // Mobile detection
       isMobile: false
     }
@@ -461,10 +449,10 @@ export default {
 
   computed: {
     canLoadStudents() {
-      return this.selectedAssignment && 
-             this.selectedAcademicYear && 
-             this.selectedTerm && 
-             this.selectedExamType
+      return this.selectedAssignment &&
+        this.selectedAcademicYear &&
+        this.selectedTerm &&
+        this.selectedExamType
     },
 
     showCommentsField() {
@@ -477,6 +465,15 @@ export default {
 
     isDevelopment() {
       return process.env.NODE_ENV === 'development'
+    },
+
+    dialogHasChanges() {
+      if (!this.dialogSubjects || !this.dialogOriginalScores) return false;
+      return this.dialogSubjects.some(subject => {
+        const orig = this.dialogOriginalScores[subject.id];
+        const curr = this.dialogStudentScores[subject.id];
+        return curr && orig && (curr.score !== orig.score || curr.comments !== orig.comments);
+      });
     }
   },
 
@@ -557,106 +554,96 @@ export default {
       this.showSuccess('Scores exported successfully!');
     },
 
-
-
-
-// ... inside your Vue component methods:
-async exportMarkSchedule() {
-  if (!this.selectedAssignment || !this.selectedAcademicYear || !this.selectedTerm || !this.selectedExamType) {
-    this.showWarn('Please select all required fields.');
-    return;
-  }
-
-  try {
-    // 1. Get all subjects for the selected grade
-    const gradeId = this.selectedAssignment.gradeId;
-    const academicYearId = this.selectedAcademicYear;
-    const term = this.selectedTerm;
-    const examTypeId = this.selectedExamType;
-
-    // Get all assignments for this grade (to get all subjects)
-    let assignments = this.teacherAssignments.filter(a => a.gradeId === gradeId);
-
-    // Get unique subjects for the grade
-    const subjects = [];
-    const subjectMap = {};
-    assignments.forEach(a => {
-      if (!subjectMap[a.subjectId]) {
-        subjects.push({ id: a.subjectId, name: a.subjectName });
-        subjectMap[a.subjectId] = true;
+    async exportMarkSchedule() {
+      if (!this.selectedAssignment || !this.selectedAcademicYear || !this.selectedTerm || !this.selectedExamType) {
+        this.showWarn('Please select all required fields.');
+        return;
       }
-    });
 
-    // 2. Get all students in the grade
-    const students = await examService.getStudentsByGrade(gradeId);
+      try {
+        // 1. Get all subjects for the selected grade
+        const gradeId = this.selectedAssignment.gradeId;
+        const academicYearId = this.selectedAcademicYear;
+        const term = this.selectedTerm;
+        const examTypeId = this.selectedExamType;
 
-    // 3. Get all scores for the grade, academic year, term
-    const allScores = await examService.getGradeScores(gradeId, academicYearId, term);
+        // Get all assignments for this grade (to get all subjects)
+        let assignments = this.teacherAssignments.filter(a => a.gradeId === gradeId);
 
-    // 4. Build a map: { studentId: { subjectId: score } }
-    const scoreMap = {};
-    allScores.forEach(score => {
-      if (score.examTypeId !== examTypeId) return;
-      if (!scoreMap[score.studentId]) scoreMap[score.studentId] = {};
-      scoreMap[score.studentId][score.subjectId] = score.score;
-    });
+        // Get unique subjects for the grade
+        const subjects = [];
+        const subjectMap = {};
+        assignments.forEach(a => {
+          if (!subjectMap[a.subjectId]) {
+            subjects.push({ id: a.subjectId, name: a.subjectName });
+            subjectMap[a.subjectId] = true;
+          }
+        });
 
-    // 5. Build export data: one row per student, columns: Student Name, Subject1, Subject2, ...
-    const exportData = students.map(student => {
-      const row = { 'Student Name': student.fullName };
-      subjects.forEach(subject => {
-        row[subject.name] = (scoreMap[student.id] && scoreMap[student.id][subject.id] != null)
-          ? scoreMap[student.id][subject.id]
-          : '';
-      });
-      return row;
-    });
+        // 2. Get all students in the grade
+        const students = await examService.getStudentsByGrade(gradeId);
 
-    // 6. Add context rows at the top
-    const gradeName = this.selectedAssignment.gradeName || '';
-    const examTypeName = this.examTypes.find(e => e.id === examTypeId)?.name || '';
-    const academicYearName = this.academicYears.find(y => y.id === academicYearId)?.name || '';
-    const termName = this.terms.find(t => t.id === term)?.name || '';
+        // 3. Get all scores for the grade, academic year, term
+        const allScores = await examService.getGradeScores(gradeId, academicYearId, term);
 
-    const contextRows = [
-      [`Grade:`, gradeName],
-      [`Exam Type:`, examTypeName],
-      [`Academic Year:`, academicYearName],
-      [`Term:`, termName],
-      [],
-    ];
+        // 4. Build a map: { studentId: { subjectId: score } }
+        const scoreMap = {};
+        allScores.forEach(score => {
+          if (score.examTypeId !== examTypeId) return;
+          if (!scoreMap[score.studentId]) scoreMap[score.studentId] = {};
+          scoreMap[score.studentId][score.subjectId] = score.score;
+        });
 
-    // 7. Convert to worksheet
-    const ws = XLSX.utils.json_to_sheet(exportData, { origin: contextRows.length });
-    XLSX.utils.sheet_add_aoa(ws, contextRows, { origin: 0 });
+        // 5. Build export data: one row per student, columns: Student Name, Subject1, Subject2, ...
+        const exportData = students.map(student => {
+          const row = { 'Student Name': student.fullName };
+          subjects.forEach(subject => {
+            row[subject.name] = (scoreMap[student.id] && scoreMap[student.id][subject.id] != null)
+              ? scoreMap[student.id][subject.id]
+              : '';
+          });
+          return row;
+        });
 
-    // 8. Create workbook and add worksheet
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Mark Schedule');
+        // 6. Add context rows at the top
+        const gradeName = this.selectedAssignment.gradeName || '';
+        const examTypeName = this.examTypes.find(e => e.id === examTypeId)?.name || '';
+        const academicYearName = this.academicYears.find(y => y.id === academicYearId)?.name || '';
+        const termName = this.terms.find(t => t.id === term)?.name || '';
 
-    // 9. Generate filename
-    const filename = `MarkSchedule_${gradeName}_${examTypeName}_${academicYearName}_${termName}.xlsx`
-      .replace(/\s+/g, '_')
-      .replace(/[^a-zA-Z0-9_\-\.]/g, '');
+        const contextRows = [
+          [`Grade:`, gradeName],
+          [`Exam Type:`, examTypeName],
+          [`Academic Year:`, academicYearName],
+          [`Term:`, termName],
+          [],
+        ];
 
-    // 10. Export to file
-    XLSX.writeFile(wb, filename);
+        // 7. Convert to worksheet
+        const ws = XLSX.utils.json_to_sheet(exportData, { origin: contextRows.length });
+        XLSX.utils.sheet_add_aoa(ws, contextRows, { origin: 0 });
 
-    this.showSuccess('Mark Schedule exported successfully!');
-  } catch (err) {
-    this.showError('Failed to export Mark Schedule.');
-    if (process.env.NODE_ENV === 'development') {
-      // eslint-disable-next-line no-console
-      console.error(err);
-    }
-  }
-},
+        // 8. Create workbook and add worksheet
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Mark Schedule');
 
+        // 9. Generate filename
+        const filename = `MarkSchedule_${gradeName}_${examTypeName}_${academicYearName}_${termName}.xlsx`
+          .replace(/\s+/g, '_')
+          .replace(/[^a-zA-Z0-9_\-\.]/g, '');
 
+        // 10. Export to file
+        XLSX.writeFile(wb, filename);
 
-   
-
-    
+        this.showSuccess('Mark Schedule exported successfully!');
+      } catch (err) {
+        this.showError('Failed to export Mark Schedule.');
+        if (process.env.NODE_ENV === 'development') {
+          // eslint-disable-next-line no-console
+          console.error(err);
+        }
+      }
+    },
 
     async initializeData() {
       try {
@@ -665,7 +652,7 @@ async exportMarkSchedule() {
           this.loadAcademicYears(),
           this.loadExamTypes()
         ])
-        
+
         if (this.academicYears.length > 0) {
           const currentYear = this.academicYears.find(y => y.isActive && !y.isClosed)
           this.selectedAcademicYear = currentYear ? currentYear.id : this.academicYears[0].id
@@ -767,7 +754,7 @@ async exportMarkSchedule() {
           this.selectedTerm
         )
 
-        const relevantScores = scores.filter(score => 
+        const relevantScores = scores.filter(score =>
           score.subjectId === this.selectedAssignment.subjectId &&
           score.examTypeId === this.selectedExamType
         )
@@ -904,7 +891,7 @@ async exportMarkSchedule() {
           const scoreData = {
             ...change,
             studentId: change.studentId,
-            subjectId: this.selectedAssignment.subjectId,
+            subjectId: change.subjectId, // Use the subjectId from the change (for multi-subject)
             examTypeId: this.selectedExamType,
             academicYearId: this.selectedAcademicYear,
             term: this.selectedTerm,
@@ -927,16 +914,21 @@ async exportMarkSchedule() {
     },
 
     updateStudentsWithSavedData(savedScores) {
+      // Only update the main students array for the currently selected subject
       savedScores.forEach(savedScore => {
-        const studentIndex = this.students.findIndex(s => s.studentId === savedScore.studentId)
-        if (studentIndex !== -1) {
-          this.students[studentIndex] = {
-            ...this.students[studentIndex],
-            scoreId: savedScore.id,
-            lastUpdated: savedScore.recordedAt,
-            recordedBy: savedScore.recordedByName,
-            commentsUpdatedAt: savedScore.commentsUpdatedAt,
-            commentsUpdatedBy: savedScore.commentsUpdatedByName
+        if (savedScore.subjectId === this.selectedAssignment.subjectId) {
+          const studentIndex = this.students.findIndex(s => s.studentId === savedScore.studentId)
+          if (studentIndex !== -1) {
+            this.students[studentIndex] = {
+              ...this.students[studentIndex],
+              scoreId: savedScore.id,
+              lastUpdated: savedScore.recordedAt,
+              recordedBy: savedScore.recordedByName,
+              commentsUpdatedAt: savedScore.commentsUpdatedAt,
+              commentsUpdatedBy: savedScore.commentsUpdatedByName,
+              currentScore: savedScore.score,
+              comments: savedScore.comments
+            }
           }
         }
       })
@@ -1025,7 +1017,7 @@ async exportMarkSchedule() {
       return `${month} ${day}, ${hours}:${minutes} hrs`
     },
 
-    showSuccess(message, duration=3000) {
+    showSuccess(message, duration = 3000) {
       this.$toast.add({
         severity: 'success',
         summary: 'Success',
@@ -1088,10 +1080,135 @@ async exportMarkSchedule() {
     resetMobileStudent(idx) {
       this.students[idx] = { ...this.originalStudents[idx] }
       this.pendingChanges = this.pendingChanges.filter(change => change.studentId !== this.students[idx].studentId)
+    },
+
+    // --- Multi-subject dialog logic ---
+    async onRowClick(event) {
+      const student = event.data;
+      this.selectedStudent = student;
+
+      // 1. Get all subjects for the grade
+      const gradeId = this.selectedAssignment.gradeId;
+      let subjects = [];
+      if (this.teacherAssignments && this.teacherAssignments.length > 0) {
+        const subjectMap = {};
+        this.teacherAssignments.forEach(a => {
+          if (a.gradeId === gradeId && !subjectMap[a.subjectId]) {
+            subjects.push({ id: a.subjectId, name: a.subjectName });
+            subjectMap[a.subjectId] = true;
+          }
+        });
+      }
+      this.dialogSubjects = subjects;
+
+      // 2. Get all scores for this student, examType, term, academicYear
+      const scores = await examService.getStudentScores(
+        student.studentId,
+        this.selectedAcademicYear,
+        this.selectedTerm
+      );
+      // scores: [{subjectId, examTypeId, score, comments, id}, ...]
+
+      // 3. Build dialogStudentScores: { [subjectId]: { score, comments, scoreId } }
+      this.dialogStudentScores = {};
+      subjects.forEach(subject => {
+        const s = scores.find(
+          sc =>
+            sc.subjectId === subject.id &&
+            sc.examTypeId === this.selectedExamType
+        );
+        this.dialogStudentScores[subject.id] = {
+          score: s ? s.score : null,
+          comments: s ? s.comments : '',
+          scoreId: s ? s.id : null
+        };
+      });
+
+      // 4. Save original for change detection
+      this.dialogOriginalScores = JSON.parse(JSON.stringify(this.dialogStudentScores));
+      this.showStudentDialog = true;
+    },
+
+    onDialogCancel() {
+      this.showStudentDialog = false;
+      this.selectedStudent = null;
+      this.dialogSubjects = [];
+      this.dialogStudentScores = {};
+      this.dialogOriginalScores = {};
+    },
+
+    async onDialogSave() {
+      if (!this.selectedStudent) return;
+      const studentId = this.selectedStudent.studentId;
+      const academicYear = this.selectedAcademicYear;
+      const term = this.selectedTerm;
+      const examTypeId = this.selectedExamType;
+      const gradeId = this.selectedAssignment.gradeId;
+
+      // For each subject, if changed, add to pendingChanges and update students array
+      for (const subject of this.dialogSubjects) {
+        const orig = this.dialogOriginalScores[subject.id];
+        const curr = this.dialogStudentScores[subject.id];
+        if (
+          curr.score !== orig.score ||
+          curr.comments !== orig.comments
+        ) {
+          // Update students array if this is the current subject
+          if (subject.id === this.selectedAssignment.subjectId) {
+            const idx = this.students.findIndex(s => s.studentId === studentId);
+            if (idx !== -1) {
+              this.students[idx].currentScore = curr.score;
+              if ('comments' in this.students[idx]) {
+                this.students[idx].comments = curr.comments;
+              }
+            }
+          }
+          // Add to pendingChanges (replace if exists)
+          this.pendingChanges = this.pendingChanges.filter(
+            ch =>
+              !(
+                ch.studentId === studentId &&
+                ch.subjectId === subject.id &&
+                ch.examTypeId === examTypeId &&
+                ch.academicYear === academicYear &&
+                ch.term === term
+              )
+          );
+          this.pendingChanges.push({
+            studentId,
+            subjectId: subject.id,
+            examTypeId,
+            score: curr.score,
+            academicYear,
+            term,
+            comments: curr.comments || '',
+            gradeId
+          });
+        }
+      }
+      this.scheduleAutoSave();
+      this.showStudentDialog = false;
+      this.selectedStudent = null;
+      this.dialogSubjects = [];
+      this.dialogStudentScores = {};
+      this.dialogOriginalScores = {};
+    },
+
+    getExamTypeName(typeId) {
+      const found = this.examTypes.find(e => e.id === typeId);
+      return found ? found.name : '';
+    },
+    getTermName(termId) {
+      const found = this.terms.find(t => t.id === termId);
+      return found ? found.name : '';
     }
   }
 }
 </script>
+
+
+
+
 
 <style scoped>
 /* Extra mobile tweaks */

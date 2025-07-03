@@ -164,11 +164,13 @@
                         placeholder="Select Term"
                         class="w-full"
                       />
+
                     </div>
                     
                     <div class="field">
-                      <label class="block text-sm font-medium mb-2">&nbsp;</label>
-                      <Button
+                      <label class="block text-sm font-medium mb-0">&nbsp;</label> 
+                      <!--<label for="class-term" class="block text-sm font-medium mb-0">Term</label>-->
+                       <Button
                         @click="generateClassReportCards"
                         :loading="generatingClass"
                         :disabled="!selectedGrade || !classAcademicYear || !selectedClassTerm"
@@ -178,7 +180,7 @@
                         Generate Class Report Cards
                       </Button>
 
-                      <Button
+                     <!-- <Button
                             @click="downloadClassReportCardsZip"
                             :loading="downloadingClassBundle"
                             :disabled="!selectedGrade || !classAcademicYear || !selectedClassTerm"
@@ -186,7 +188,7 @@
                             severity="info"
                       >
                             Download All as ZIP
-                      </Button>
+                      </Button> -->
 
                       <Button
                           @click="downloadClassReportCardsMergedPdfHandler"
@@ -405,7 +407,7 @@ import Toast from 'primevue/toast'
       );
       // response should be a Blob (PDF)
       const url = window.URL.createObjectURL(response);
-      const fileName = `ReportCards_Grade${selectedGrade.value}_${classAcademicYear.value}_Term${selectedClassTerm.value}.pdf`;
+      const fileName = `ReportCards_Grade${selectedGrade.fullName}_${classAcademicYear.value}_Term${selectedClassTerm.value}.pdf`;
       const link = document.createElement('a');
       link.href = url;
       link.download = fileName;
@@ -529,9 +531,9 @@ const downloadClassReportCardsZip = async () => {
         life: 3000
       })
       
-      // Reset form
-      selectedGrade.value = null
-      selectedClassTerm.value = null
+      // No Reset form
+      //selectedGrade.value = null
+      //selectedClassTerm.value = null
       
     } catch (error) {
       toast.add({
