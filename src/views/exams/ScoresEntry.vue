@@ -304,6 +304,16 @@
         @click="viewComment(student)"
         v-tooltip.top="'View full comment'"
       />
+      <Button
+        icon="pi pi-list"
+        label="All Subject Scores"
+        size="small"
+        text
+        rounded
+        class="ml-2"
+        @click="onRowClick({ data: student })"
+        v-tooltip.top="'View/edit all subject scores'"
+      />
     </div>
     <div v-if="student.lastUpdated" class="text-xs text-gray-400 mt-1">
       <i class="pi pi-clock mr-1"></i>
@@ -505,11 +515,11 @@ export default {
       this.isMobile = window.innerWidth < 768
     },
 
-    async saveSingleChange(change) {
+  async saveSingleChange(change) {
   const scoreData = {
     ...change,
     studentId: change.studentId,
-    subjectId: change.subjectId,
+    subjecId: change.subjectId,
     examTypeId: change.examTypeId,
     academicYearId: change.academicYear,
     term: change.term,
@@ -1070,7 +1080,7 @@ export default {
       })
     },
 
-    async onMobileScoreEdit(idx) {
+  async onMobileScoreEdit(idx) {
   const student = this.students[idx];
   const originalStudent = this.originalStudents[idx];
   const scoreChanged = student.currentScore !== originalStudent.currentScore;
