@@ -3,13 +3,13 @@
 # === Configuration ===
 PROJECT_NAME="Bluebird-Vue"    # <-- Replace with your project name
 BUILD_DIR="dist"               # Default Vue build output directory
-FTP_PASSWORD="chs@mil2025"
+FTP_PASSWORD="9dForjNhtFJB"
 
 # === FTP Settings ===
 FTP_HOST="ftp.chudleighhouseschool.com"     # <-- Replace with actual FTP host
-FTP_USER="chudleighhouse@bluebird.chudleighhouseschool.com"      # <-- Replace with FTP username
+FTP_USER="sandbox@bluebird.chudleighhouseschool.com"      # <-- Replace with FTP username
 FTP_PASS="${FTP_PASSWORD}"  # <-- Replace with FTP password
-REMOTE_DIR="/home1/chudleighhouse/bluebird.chudleighhouseschool.com/chudleighhouse"
+REMOTE_DIR="/home1/chudleighhouse/bluebird.chudleighhouseschool.com/sandbox"
 
 echo "=========================================="
 echo "Building and Publishing PrimeVue App"

@@ -31,12 +31,52 @@ const getters = {
   user: state => state.user, // updated: expose user object directly
   userName: state => state.user?.username || state.user?.userName || '', // support both
   userEmail: state => state.user?.email || '',
-  userRoles: state => state.roles.length ? state.roles : (state.user?.role ? [state.user.role] : []),
+  userRoles: state => {
+    // Handle new roles array format
+    if (state.user?.roles && Array.isArray(state.user.roles)) {
+      return state.user.roles;
+    }
+    // Backward compatibility for single role
+    if (state.user?.role) {
+      return [state.user.role];
+    }
+    return state.roles.length ? state.roles : [];
+  },
   userPermissions: state => state.permissions,
-  hasRole: state => role => state.roles.includes(role) || (state.user?.role === role),
+  hasRole: state => role => {
+    // Check roles array first
+    if (state.user?.roles && Array.isArray(state.user.roles)) {
+      return state.user.roles.includes(role);
+    }
+    // Backward compatibility for single role
+    if (state.user?.role) {
+      return state.user.role === role;
+    }
+    return state.roles.includes(role);
+  },
   hasPermission: state => permission => state.permissions.includes(permission),
-  hasAnyRole: state => roles => roles.some(role => state.roles.includes(role) || (state.user?.role === role)),
-  hasAllRoles: state => roles => roles.every(role => state.roles.includes(role) || (state.user?.role === role)),
+  hasAnyRole: state => roles => {
+    // Check roles array first
+    if (state.user?.roles && Array.isArray(state.user.roles)) {
+      return roles.some(role => state.user.roles.includes(role));
+    }
+    // Backward compatibility for single role
+    if (state.user?.role) {
+      return roles.includes(state.user.role);
+    }
+    return roles.some(role => state.roles.includes(role));
+  },
+  hasAllRoles: state => roles => {
+    // Check roles array first
+    if (state.user?.roles && Array.isArray(state.user.roles)) {
+      return roles.every(role => state.user.roles.includes(role));
+    }
+    // Backward compatibility for single role
+    if (state.user?.role) {
+      return roles.includes(state.user.role);
+    }
+    return roles.every(role => state.roles.includes(role));
+  },
   hasAnyPermission: state => permissions => permissions.some(perm => state.permissions.includes(perm)),
   tokenExpiration: state => {
     if (!state.token) return null;
@@ -65,8 +105,14 @@ const actions = {
         throw new Error('Invalid authentication response');
       }
 
-      // Optionally, extract roles and permissions from user object if present
-      const roles = user.role ? [user.role] : [];
+      // Convert single role to roles array for consistency
+      let roles = [];
+      if (user.roles && Array.isArray(user.roles)) {
+        roles = user.roles;
+      } else if (user.role) {
+        roles = [user.role];
+      }
+
       // If your API returns permissions, extract here; otherwise, keep as empty array
       const permissions = user.permissions || [];
 
@@ -104,11 +150,12 @@ const actions = {
   // Logout action
   async logout({ commit }) {
     try {
-      if (state.token) {
-        await apiClient.post('/auth/logout', {
-          refreshToken: state.refreshToken
-        });
-      }
+      // Don't try to call logout endpoint if it doesn't exist
+      // if (state.token) {
+      //   await apiClient.post('/auth/logout', {
+      //     refreshToken: state.refreshToken
+      //   });
+      // }
       commit('CLEAR_AUTH_DATA');
       return true;
     } catch (error) {

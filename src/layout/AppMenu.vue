@@ -142,6 +142,17 @@ const allMenuItems = [
             },
         ]
     },
+    {
+        label: 'Settings',
+        items: [
+            { 
+                label: 'Settings', 
+                icon: 'pi pi-fw pi-file-pdf', 
+                to: '/app/settings/system',
+                roles: ['Admin','Staff']
+            },
+        ]
+    },
 ];
 
 

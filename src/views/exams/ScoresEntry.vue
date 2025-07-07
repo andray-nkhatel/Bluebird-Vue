@@ -6,7 +6,7 @@
         <i class="pi pi-pencil"></i>
         Mark Entry
       </h2>
-      <div class="w-full md:w-auto mt-2 md:mt-0">
+      <div class="w-full md:w-auto mt-2 md:mt-0 flex flex-col md:flex-row gap-2">
         <Button
           label="Save All Changes"
           icon="pi pi-save"
@@ -14,6 +14,13 @@
           :disabled="!hasUnsavedChanges || loading"
           @click="saveChangesManually"
           :loading="saving"
+        />
+        <Button
+          label="Export Grade PDF"
+          icon="pi pi-file-pdf"
+          class="p-button-warning w-full md:w-auto"
+          @click="exportMarkSchedulePdf"
+          :disabled="!canLoadStudents"
         />
       </div>
     </div>
@@ -338,12 +345,19 @@
       :disabled="!hasUnsavedChanges"
     />
     <Button
-      label="Export"
+      label="Export Excel"
       icon="pi pi-download"
       class="p-button-help w-full"
       @click="exportMarkSchedule"
       :disabled="!canLoadStudents"
     />
+          <Button
+        label="Export Grade PDF"
+        icon="pi pi-file-pdf"
+        class="p-button-warning w-full"
+        @click="exportMarkSchedulePdf"
+        :disabled="!canLoadStudents"
+      />
   </div>
 </div>
     <!-- Initial State -->
@@ -399,7 +413,7 @@
 
 
 <script>
-import { examService } from '@/service/api.service';
+import { examService, markScheduleService } from '@/service/api.service';
 import * as XLSX from 'xlsx';
 
 export default {
@@ -669,6 +683,38 @@ export default {
           // eslint-disable-next-line no-console
           console.error(err);
         }
+      }
+    },
+
+    async exportMarkSchedulePdf() {
+      if (!this.selectedAssignment || !this.selectedAcademicYear || !this.selectedTerm || !this.selectedExamType) {
+        this.showWarn('Please select all required fields.');
+        return;
+      }
+
+      try {
+        const gradeId = this.selectedAssignment.gradeId;
+        const academicYearId = this.selectedAcademicYear;
+        const term = this.selectedTerm;
+        const examTypeName = this.examTypes.find(e => e.id === this.selectedExamType)?.name || '';
+
+        // Call the backend PDF endpoint for specific grade
+        const pdfBlob = await markScheduleService.getMarkSchedulePdfForGrade(gradeId, academicYearId, term, examTypeName);
+        
+        // Create download link
+        const url = window.URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `MarkSchedule_${this.selectedAssignment.gradeName}_Year${academicYearId}_Term${term}_${examTypeName}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        this.showSuccess('Mark Schedule PDF exported successfully!');
+      } catch (error) {
+        console.error('Error exporting PDF:', error);
+        this.showError('Failed to export Mark Schedule PDF. Please try again.');
       }
     },
 

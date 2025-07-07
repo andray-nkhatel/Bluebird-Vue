@@ -24,6 +24,7 @@ const router = createRouter({
         {
             path: '/app',
             component: AppLayout,
+            redirect: '/app/overview',
             children: [
                 {
                     path: 'overview',

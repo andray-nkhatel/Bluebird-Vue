@@ -49,16 +49,25 @@ const login = async () => {
     // Fallback: if not in store, try from response
     const userObj = user || response?.data?.user || {};
 
-    // Use role from user object for redirect logic
-    const userRole = userObj.role || '';
+    // Use roles from user object for redirect logic (handle both array and single role)
+    let userRoles = [];
+    if (userObj.roles && Array.isArray(userObj.roles)) {
+      userRoles = userObj.roles;
+    } else if (userObj.role) {
+      userRoles = [userObj.role];
+    }
+
     let redirectPath = '/';
 
-    if (userRole === 'Admin') {
+    // Check for Admin role first
+    if (userRoles.includes('Admin')) {
       redirectPath = '/app/profile';
-    } else if (userRole === 'Teacher') {
+    } else if (userRoles.includes('Teacher')) {
       redirectPath = '/app/scores/entry';
+    } else if (userRoles.includes('Staff')) {
+      redirectPath = '/app/overview';
     } else {
-      redirectPath = '/';
+      redirectPath = '/app/overview';
     }
 
     // If a redirect query param is present, honor it (optional)

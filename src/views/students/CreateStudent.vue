@@ -209,6 +209,40 @@
             </div>
           </div>
 
+          <!-- Optional Subjects Section -->
+          <div class="mt-4">
+            <h3 class="text-lg font-medium text-900 mb-3">Optional Subjects</h3>
+          </div>
+
+          <div class="flex flex-col gap-4">
+            <div class="flex-auto">
+              <label for="optionalSubjects" class="block font-semibold mb-2">Select Optional Subjects</label>
+              <MultiSelect
+                id="optionalSubjects"
+                v-model="form.optionalSubjects"
+                :options="optionalSubjects"
+                optionLabel="name"
+                optionValue="id"
+                placeholder="Select optional subjects (optional)"
+                class="w-full"
+                :loading="loadingOptionalSubjects"
+                :disabled="!form.gradeId"
+                filter
+                filterBy="name"
+                :maxSelectedLabels="3"
+                showClear
+              >
+                <template #option="slotProps">
+                  <div class="flex align-items-center">
+                    <span class="font-medium">{{ slotProps.option.name }}</span>
+                    <span class="text-sm text-500 ml-2">({{ slotProps.option.code }})</span>
+                  </div>
+                </template>
+              </MultiSelect>
+              <small class="text-500">Select optional subjects for this student. Only available subjects for the selected grade will be shown.</small>
+            </div>
+          </div>
+
           <!-- Form Actions -->
           <div class="mt-6">
             <div class="flex gap-2 justify-content-end">
@@ -243,9 +277,9 @@
 
 <script setup>
 import { useToast } from 'primevue/usetoast';
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { gradeService, studentService } from '../../service/api.service'; // Adjust path as needed
+import { gradeService, studentService, subjectService } from '../../service/api.service'; // Adjust path as needed
 
 // Emits
 const emit = defineEmits(['back', 'studentAdded', 'studentUpdated'])
@@ -258,7 +292,7 @@ const isEditMode = computed(() => !!route.params.id)
 const studentId = computed(() => route.params.id)
 
 function goToStudentPage() {
-router.push('/students'); // This navigates to the /student route
+router.push('/app/students'); // This navigates to the /student route
 }
 
 // Toast for notifications
@@ -276,7 +310,8 @@ const form = reactive({
   phoneNumber: '',
   guardianName: '',
   guardianPhone: '',
-  gradeId: null
+  gradeId: null,
+  optionalSubjects: []
 })
 
 // Form validation errors
@@ -286,11 +321,13 @@ const errors = reactive({})
 const loading = ref(false)
 const loadingGrades = ref(false)
 const loadingStudent = ref(false)
+const loadingOptionalSubjects = ref(false)
 
 // Options
 const genderOptions = ['Male', 'Female']
 
 const gradeOptions = ref([])
+const optionalSubjects = ref([])
 
 // Max date for date of birth (today)
 const maxDate = new Date()
@@ -362,6 +399,7 @@ const loadStudent = async () => {
     form.guardianName = student.guardianName || ''
     form.guardianPhone = student.guardianPhone || ''
     form.gradeId = student.gradeId || null
+    form.optionalSubjects = student.optionalSubjects || []
 
     // Debug: Log the form after population
     console.log('Form after populating with student data:', JSON.stringify(form, null, 2))
@@ -399,6 +437,68 @@ const loadGrades = async () => {
     loadingGrades.value = false
   }
 }
+
+// Load optional subjects for the selected grade
+const loadOptionalSubjects = async () => {
+  if (!form.gradeId) {
+    optionalSubjects.value = []
+    return
+  }
+  
+  loadingOptionalSubjects.value = true
+  try {
+    console.log('Loading optional subjects for grade:', form.gradeId)
+    
+    const subjects = await subjectService.getByGrade(form.gradeId)
+    // Filter to only show optional subjects
+    optionalSubjects.value = subjects.filter(subject => subject.isOptional === true)
+    
+    console.log('Optional subjects filtered:', optionalSubjects.value.length)
+    
+    // If no subjects found, show a helpful message
+    if (optionalSubjects.value.length === 0) {
+      toast.add({
+        severity: 'info',
+        summary: 'Info',
+        detail: 'No subjects found. Please ensure subjects are created and active.',
+        life: 5000
+      })
+    }
+    
+  } catch (error) {
+    console.error('Error loading optional subjects:', error)
+    console.error('Error details:', error.response?.data || error.message)
+    
+    // More specific error messages
+    let errorMessage = 'Failed to load optional subjects'
+    if (error.response?.status === 404) {
+      errorMessage = 'No subjects found'
+    } else if (error.response?.status === 403) {
+      errorMessage = 'Access denied. Please check your permissions'
+    } else if (error.message?.includes('Network error')) {
+      errorMessage = 'Network error. Please check your connection'
+    }
+    
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: errorMessage,
+      life: 5000
+    })
+  } finally {
+    loadingOptionalSubjects.value = false
+  }
+}
+
+// Watch for grade changes to load optional subjects
+watch(() => form.gradeId, async (newGradeId) => {
+  if (newGradeId) {
+    await loadOptionalSubjects()
+  } else {
+    optionalSubjects.value = []
+    form.optionalSubjects = []
+  }
+})
 
 // Handle form submission
 const handleSubmit = async () => {
@@ -443,6 +543,14 @@ const handleSubmit = async () => {
     if (isEditMode.value) {
       // Update existing student
       result = await studentService.update(studentId.value, studentData)
+      
+      // Handle optional subjects assignment for existing student
+      if (form.optionalSubjects && form.optionalSubjects.length > 0) {
+        await studentService.assignOptionalSubjects(result.id, form.optionalSubjects)
+      } else {
+        await studentService.removeOptionalSubjects(result.id)
+      }
+      
       toast.add({
         severity: 'success',
         summary: 'Success',
@@ -453,6 +561,12 @@ const handleSubmit = async () => {
     } else {
       // Create new student
       result = await studentService.create(studentData)
+      
+      // Handle optional subjects assignment for new student
+      if (form.optionalSubjects && form.optionalSubjects.length > 0) {
+        await studentService.assignOptionalSubjects(result.id, form.optionalSubjects)
+      }
+      
       toast.add({
         severity: 'success',
         summary: 'Success',
@@ -518,6 +632,8 @@ const resetForm = () => {
         form[key] = null
       } else if (key === 'gradeId') {
         form[key] = null
+      } else if (key === 'optionalSubjects') {
+        form[key] = []
       } else {
         form[key] = ''
       }
@@ -533,7 +649,7 @@ const handleCancel = () => {
       router.push('/students')
     }
   } else {
-    router.push('/students')
+    router.push('/api/students')
   }
 }
 

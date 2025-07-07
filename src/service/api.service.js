@@ -134,7 +134,16 @@ export const authService = {
     // Store token and user data
     if (response.data.token) {
       localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      
+      // Convert single role to roles array for consistency
+      const userData = { ...response.data.user };
+      if (userData.role && !userData.roles) {
+        userData.roles = [userData.role];
+      } else if (!userData.roles) {
+        userData.roles = [];
+      }
+      
+      localStorage.setItem('user', JSON.stringify(userData));
     }
     
     return response.data;
@@ -145,7 +154,16 @@ export const authService = {
     
     if (response.data.token) {
       localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      
+      // Convert single role to roles array for consistency
+      const userData = { ...response.data.user };
+      if (userData.role && !userData.roles) {
+        userData.roles = [userData.role];
+      } else if (!userData.roles) {
+        userData.roles = [];
+      }
+      
+      localStorage.setItem('user', JSON.stringify(userData));
     }
     
     return response.data;
@@ -159,6 +177,9 @@ export const authService = {
   logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    // Don't try to call logout endpoint if it doesn't exist
+    // window.location.href = '/auth/login';
+    // Instead, just redirect to login page
     window.location.href = '/auth/login';
   }
 };
@@ -197,10 +218,20 @@ export const studentService = {
     await apiClient.post(`/students/${id}/archive`);
   },
 
+  async assignOptionalSubjects(studentId, subjectIds) {
+    const response = await apiClient.post(`/students/${studentId}/assign-optional-subjects`, {
+      subjectIds: subjectIds
+    });
+    return response.data;
+  },
 
+  async removeOptionalSubjects(studentId) {
+    await apiClient.delete(`/students/${studentId}/remove-optional-subjects`);
+  },
 
   async promoteStudents(promotionData) {
-    await apiClient.post('/students/promote', promotionData);
+    const response = await apiClient.post('/students/promote', promotionData);
+    return response.data;
   },
 
   async importFromCsv(file) {
@@ -214,7 +245,7 @@ export const studentService = {
   },
 
   async downloadTemplate() {
-    const response = await apiClient.get('/students/import/template', {
+    const response = await apiClient.get('/students/template', {
       responseType: 'blob'
     });
     return response.data;
@@ -1094,6 +1125,25 @@ Object.keys(examService).forEach(key => {
   }
 });
 
+// In your api.service.js
+export const markScheduleService = {
+  async getMarkSchedulePdfForGrade(gradeId, academicYearId, term, examTypeName) {
+    const response = await apiClient.get(`/markschedule/pdf/grade/${gradeId}`, {
+      params: { academicYearId, term, examTypeName },
+      responseType: 'blob'
+    });
+    return response.data;
+  },
+
+  async getMarkSchedulePdfForAllGrades(academicYearId, term, examTypeName) {
+    const response = await apiClient.get('/markschedule/pdf', {
+      params: { academicYearId, term, examTypeName },
+      responseType: 'blob'
+    });
+    return response.data;
+  }
+};
+
 
 export const reportService = {
   async generateReportCard(studentId, academicYear, term) {
@@ -1146,64 +1196,65 @@ export const userService = {
 
   async create(user) {
     console.log('🚀 userService.create called with:', user);
-    
-    // Convert role string to enum number
+
+    // Ensure role is a number (1, 2, or 3)
     const roleMap = {
-      'Admin': 1,      // or whatever your enum values are
+      'Admin': 1,
       'Teacher': 2,
       'Staff': 3
     };
-    
-    // Create the payload in the format your backend expects
+    const roleValue = typeof user.role === 'string' ? roleMap[user.role] : user.role;
+
     const payload = {
       
-        Username: user.username,
-        FullName: user.fullName,
-        Email: user.email,
-        Role: roleMap[user.role] !== undefined ? roleMap[user.role] : user.role, // Convert to number
-        Password: user.password,
-        IsActive: user.isActive
+        username: user.username,
+        fullName: user.fullName,
+        email: user.email,
+        role: roleValue,
+        password: user.password
       
     };
-    
+
     try {
       const response = await apiClient.post('/users', payload);
       console.log('✅ Backend response:', response.data);
       return response.data;
     } catch (error) {
       console.error('❌ userService.create error:', error);
+      if (error.response && error.response.data) {
+        console.error('❌ Backend error details:', error.response.data);
+        alert('Backend error: ' + JSON.stringify(error.response.data, null, 2));
+      }
       throw error;
     }
   },
 
   async update(id, user) {
     console.log('🔄 userService.update called with:', { id, user });
-    
-    // Convert role string to enum number for updates too
     const roleMap = {
       'Admin': 1,
       'Teacher': 2,
       'Staff': 3,
-      
     };
-    
-    // For updates, you might need a different wrapper - check your backend
+    // Only one role per user
+    const roleValue = typeof user.role === 'string' ? roleMap[user.role] : user.role;
     const payload = {
-      // or just send the user data directly
-        Username: user.username,
-        FullName: user.fullName,
-        Email: user.email,
-        Role: user.role,
-        IsActive: user.isActive
-      
+      Id: user.id,
+      Username: user.username,
+      FullName: user.fullName,
+      Email: user.email,
+      Role: roleValue,
+      IsActive: user.isActive
     };
-    
     try {
       const response = await apiClient.put(`/users/${id}`, payload);
       console.log('✅ Update response:', response.data);
       return response.data;
     } catch (error) {
       console.error('❌ userService.update error:', error);
+      console.error('❌ Error response data:', error.response?.data);
+      console.error('❌ Error response status:', error.response?.status);
+      console.error('❌ Payload sent:', payload);
       throw error;
     }
   },
@@ -1256,7 +1307,47 @@ export const isAuthenticated = () => {
 // Utility function to check user role
 export const hasRole = (role) => {
   const user = getCurrentUser();
-  return user?.role === role;
+  if (!user) return false;
+  
+  // Handle multiple roles
+  if (user.roles && Array.isArray(user.roles)) {
+    return user.roles.includes(role);
+  }
+  
+  // Backward compatibility for single role
+  return user.role === role;
+};
+
+// Utility function to check if user has any of the specified roles
+export const hasAnyRole = (roles) => {
+  const user = getCurrentUser();
+  if (!user || !Array.isArray(roles)) return false;
+  
+  // Handle multiple roles
+  if (user.roles && Array.isArray(user.roles)) {
+    return user.roles.some(userRole => roles.includes(userRole));
+  }
+  
+  // Backward compatibility for single role
+  return roles.includes(user.role);
+};
+
+export const examAnalysisService = {
+  async getExamAnalysisPdf(academicYearId, term, examTypeName) {
+    const response = await apiClient.get('/examanalysis/pdf', {
+      params: { academicYearId, term, examTypeName },
+      responseType: 'blob'
+    });
+    return response.data;
+  },
+
+  async getExamAnalysisPdfForGrade(gradeId, academicYearId, term, examTypeName) {
+    const response = await apiClient.get(`/examanalysis/pdf/${gradeId}`, {
+      params: { academicYearId, term, examTypeName },
+      responseType: 'blob'
+    });
+    return response.data;
+  }
 };
 
 export default apiClient;

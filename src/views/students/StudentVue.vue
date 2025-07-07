@@ -29,8 +29,9 @@
       <DataTable 
         :value="filteredStudents" 
         :loading="loading"
-        :paginator="true" 
-        :rows="10"
+        :paginator="true"
+        :rowHover="true"
+        :rows="100"
         :rowsPerPageOptions="[5, 10, 20, 50]"
         :sortField="sortField"
         :sortOrder="sortOrder"

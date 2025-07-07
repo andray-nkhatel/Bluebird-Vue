@@ -109,8 +109,8 @@
             <Column field="role" header="Role" sortable>
               <template #body="{ data }">
                 <Tag 
-                  :value="data.role" 
-                  :severity="getRoleSeverity(data.role)"
+                  :value="roleValueToLabel(data.role)" 
+                  :severity="getRoleSeverity(roleValueToLabel(data.role))"
                   class="text-sm"
                 />
               </template>
@@ -340,15 +340,15 @@
   
           <div class="col-12 mt-2">
             <label for="role" class="block text-900 font-medium mb-2">Role</label>
-            <Dropdown 
+            <Dropdown
               id="role"
               class="w-full"
-              v-model="userForm.role" 
-              :options="roleOptions" 
+              v-model="userForm.role"
+              :options="roleOptions"
               optionLabel="label"
               optionValue="value"
-              placeholder="Select a Role"
-              :class="{ 'p-invalid': submitted && !userForm.role }" 
+              placeholder="Select Role"
+              :class="{ 'p-invalid': submitted && !userForm.role }"
             />
             <small v-show="submitted && !userForm.role" class="p-error">Role is required.</small>
           </div>
@@ -411,12 +411,12 @@
   
           <div class="col-6">
             <strong>Role:</strong>
-            <p>
+            <div class="flex flex-wrap gap-1 mt-1">
               <Tag 
-                :value="selectedUser.role" 
-                :severity="getRoleSeverity(selectedUser.role)"
+                :value="roleValueToLabel(selectedUser.role)"
+                :severity="getRoleSeverity(roleValueToLabel(selectedUser.role))"
               />
-            </p>
+            </div>
           </div>
   
           <div class="col-6">
@@ -463,43 +463,43 @@
   
   <script>
 import { userService } from '@/service/api.service';
-import { computed, onMounted, ref } from 'vue';
-// In your UserVue.vue component
+import MultiSelect from 'primevue/multiselect';
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
+import { computed, onMounted, ref } from 'vue';
 
-// Inside your setup() function
-
+export default {
+  name: 'User',
+  components: {
+    MultiSelect
+  },
+  setup() {
+    // Reactive data
+    const users = ref([])
+    const filteredUsers = ref([])
+    const loading = ref(false)
+    const searchTerm = ref('')
+    const selectedRole = ref(null)
+    const selectedStatus = ref(null)
+    const confirm = useConfirm();
+    const toast = useToast();
   
-  export default {
-    name: 'User',
-    setup() {
-      // Reactive data
-      const users = ref([])
-      const filteredUsers = ref([])
-      const loading = ref(false)
-      const searchTerm = ref('')
-      const selectedRole = ref(null)
-      const selectedStatus = ref(null)
-      const confirm = useConfirm();
-      const toast = useToast();
     
-      
-      // Dialog states
-      const showAddDialog = ref(false)
-      const showDetailsDialog = ref(false)
-      const submitted = ref(false)
-      const editingUser = ref(false)
-      const selectedUser = ref(null)
+    // Dialog states
+    const showAddDialog = ref(false)
+    const showDetailsDialog = ref(false)
+    const submitted = ref(false)
+    const editingUser = ref(false)
+    const selectedUser = ref(null)
 
-      const showPasswordResetDialog = ref(false)
-      const passwordResetSubmitted = ref(false)
-      const passwordResetLoading = ref(false)
-      const userToResetPassword = ref(null)
-      const showPassword = ref(false)
-      const showConfirmPassword = ref(false)
+    const showPasswordResetDialog = ref(false)
+    const passwordResetSubmitted = ref(false)
+    const passwordResetLoading = ref(false)
+    const userToResetPassword = ref(null)
+    const showPassword = ref(false)
+    const showConfirmPassword = ref(false)
 
-      // Form data (add to existing form data)
+    // Form data (add to existing form data)
 const passwordResetForm = ref({
   newPassword: '',
   confirmPassword: '',
@@ -693,12 +693,13 @@ const executePasswordReset = async () => {
           result = result.filter(user => 
             user.username.toLowerCase().includes(search) ||
             user.fullName.toLowerCase().includes(search) ||
-            user.email.toLowerCase().includes(search)
+            user.email.toLowerCase().includes(search) ||
+            (user.role && user.role.toLowerCase().includes(search))
           )
         }
         
         // Role filter
-        if (selectedRole.value !== null) {
+        if (selectedRole.value !== null && selectedRole.value !== '') {
           result = result.filter(user => user.role === selectedRole.value)
         }
         
@@ -716,10 +717,10 @@ const executePasswordReset = async () => {
         try {
           // Replace with your actual API call
           const response = await userService.getAll();
-          users.value = response
-          
-          // Mock data for demonstration
-         
+          users.value = response.map(u => ({
+            ...u,
+            // role is already a string
+          }))
           filteredUsers.value = [...users.value]
         } catch (error) {
           console.error('Error fetching users:', error)
@@ -824,41 +825,39 @@ const executePasswordReset = async () => {
       
       const saveUser = async () => {
     submitted.value = true
-    
-    // Validation - remove password validation for updates
     if (!userForm.value.username || !userForm.value.fullName ||
         !userForm.value.email || !userForm.value.role ||
         !isValidEmail(userForm.value.email)) {
         console.log('❌ Frontend validation failed');
         return
     }
-    
     // Only validate password for NEW users
     if (!editingUser.value && (!userForm.value.password || userForm.value.password.length < 6)) {
         alert('Password is required and must be at least 6 characters long');
         submitted.value = false;
         return;
     }
-    
-    // Base user data for updates (no password)
     const userData = {
         username: userForm.value.username.trim(),
         fullName: userForm.value.fullName.trim(),
         email: userForm.value.email.trim().toLowerCase(),
-        role: userForm.value.role,
-        isActive: userForm.value.isActive
+        role: userForm.value.role ? userForm.value.role.trim() : '',
     };
-    
-    // Only include password for NEW users
     if (!editingUser.value) {
         userData.password = userForm.value.password;
+    } else {
+        userData.isActive = userForm.value.isActive;
     }
-    
+    // Validate role value before sending
+    const allowedRoles = ['Admin', 'Teacher', 'Staff'];
+    if (!allowedRoles.includes(userData.role)) {
+        alert('Role must be one of: Admin, Teacher, Staff');
+        submitted.value = false;
+        return;
+    }
     try {
         let savedUser;
-        
         if (editingUser.value) {
-            // Update call - no password sentgit 
             savedUser = await userService.update(userForm.value.id, userData);
             const index = users.value.findIndex(u => u.id === userForm.value.id);
             if (index !== -1) {
@@ -871,25 +870,37 @@ const executePasswordReset = async () => {
                     life: 3000
                 });
         } else {
-            // Create call - password included
-            savedUser = await userService.create(userData);
+            // Send plain object, not wrapped
+            savedUser = await userService.create({
+              username: userForm.value.username.trim(),
+              fullName: userForm.value.fullName.trim(),
+              email: userForm.value.email.trim().toLowerCase(),
+              role: userForm.value.role ? userForm.value.role.trim() : '',
+              password: userForm.value.password
+            });
             users.value.push(savedUser);
-             // Show success toast
              toast.add({
                     severity: 'success',
                     summary: 'User Successfully Created',
                     detail: `User "${savedUser.fullName}" has been created successfully.`,
                     life: 3000
                 });
-                
         }
-        
         filteredUsers.value = computedFilteredUsers.value;
         hideDialog();
         console.log('✅ User saved successfully:', savedUser);
     } catch (error) {
         console.error('❌ Failed to save user:', error);
         const data = error.response?.data;
+        if (data) {
+            if (data.message) {
+                alert('Backend error: ' + data.message);
+            } else if (data.errors) {
+                alert('Validation errors: ' + JSON.stringify(data.errors));
+            } else {
+                alert('Unknown backend error: ' + JSON.stringify(data));
+            }
+        }
         submitted.value = false;
     }
 }
@@ -964,101 +975,107 @@ const executePasswordReset = async () => {
         const months = Math.floor(diffDays / 30)
         return `${months} month${months === 1 ? '' : 's'} ago`
       }
-
       const years = Math.floor(diffDays / 365)
       return `${years} year${years === 1 ? '' : 's'} ago`
-}
-  
-      const getRoleSeverity = (role) => {
-        const severityMap = {
-          admin: 'danger',
-          manager: 'warning',
-          user: 'info',
-          guest: 'secondary'
-        }
-        return severityMap[role?.toLowerCase()] || 'info'
+    }
+
+    const getRoleSeverity = (role) => {
+      const severityMap = {
+        admin: 'danger',
+        manager: 'warning',
+        user: 'info',
+        guest: 'secondary'
       }
-  
-      const getAvatarColor = (username) => {
-        const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8']
-        const index = username.charCodeAt(0) % colors.length
-        return colors[index]
-      }
-  
-      // Lifecycle
-      onMounted(() => {
-        fetchUsers()
-      })
-  
-      return {
-        users,
-        filteredUsers,
-        loading,
-        searchTerm,
-        selectedRole,
-        selectedStatus,
-        showAddDialog,
-        showDetailsDialog,
-        submitted,
-        editingUser,
-        selectedUser,
-        userForm,
-        roleOptions,
-        statusOptions,
-        onSearch,
-        onRoleFilter,
-        onStatusFilter,
-        clearFilters,
-        editUser,
-        viewUser,
-        editUserFromDetails,
-        deleteUser,
-        saveUser,
-        hideDialog,
-        isValidEmail,
-        formatDate,
-        formatRelativeDate,
-        getRoleSeverity,
-        getAvatarColor,
-        showPasswordResetDialog,
-        passwordResetSubmitted,
-        passwordResetLoading,
-        userToResetPassword,
-        showPassword,
-        showConfirmPassword,
-        passwordResetForm,
-        resetUserPassword,
-        hidePasswordResetDialog,
-        confirmPasswordReset,
-        executePasswordReset
-      }
+      return severityMap[role?.toLowerCase()] || 'info'
+    }
+
+    const getAvatarColor = (username) => {
+      const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8']
+      const index = username.charCodeAt(0) % colors.length
+      return colors[index]
+    }
+
+    // Add a helper to map role value to label
+    const roleValueToLabel = (value) => {
+      const found = roleOptions.value.find(opt => opt.value === value)
+      return found ? found.label : value
+    }
+
+    // Lifecycle
+    onMounted(() => {
+      fetchUsers()
+    })
+
+    return {
+      users,
+      filteredUsers,
+      loading,
+      searchTerm,
+      selectedRole,
+      selectedStatus,
+      showAddDialog,
+      showDetailsDialog,
+      submitted,
+      editingUser,
+      selectedUser,
+      userForm,
+      roleOptions,
+      statusOptions,
+      onSearch,
+      onRoleFilter,
+      onStatusFilter,
+      clearFilters,
+      editUser,
+      viewUser,
+      editUserFromDetails,
+      deleteUser,
+      saveUser,
+      hideDialog,
+      isValidEmail,
+      formatDate,
+      formatRelativeDate,
+      getRoleSeverity,
+      getAvatarColor,
+      showPasswordResetDialog,
+      passwordResetSubmitted,
+      passwordResetLoading,
+      userToResetPassword,
+      showPassword,
+      showConfirmPassword,
+      passwordResetForm,
+      resetUserPassword,
+      hidePasswordResetDialog,
+      confirmPasswordReset,
+      executePasswordReset,
+      roleValueToLabel
     }
   }
-  </script>
-  
-  <style scoped>
-  .user-management {
-    padding: 1rem;
-  }
-  
-  .p-datatable .p-datatable-tbody > tr > td {
-    padding: 0.75rem;
-  }
-  
-  .p-avatar {
-    color: white;
-    font-weight: bold;
-  }
-  
-  .text-primary {
-    color: var(--primary-color) !important;
-  }
-  
-  .no-underline {
-    text-decoration: none;
-  }
-  
-  .no-underline:hover {
-    text-decoration: underline;
-  }
-  </style>
+}
+</script>
+
+<style scoped>
+.user-management {
+  padding: 1rem;
+}
+
+.p-datatable .p-datatable-tbody > tr > td {
+  padding: 0.75rem;
+}
+
+.p-avatar {
+  color: white;
+  font-weight: bold;
+}
+
+.text-primary {
+  color: var(--primary-color) !important;
+}
+
+.no-underline {
+  text-decoration: none;
+}
+
+.no-underline:hover {
+  text-decoration: underline;
+}
+</style>
