@@ -1232,18 +1232,20 @@ export const userService = {
   async update(id, user) {
     console.log('🔄 userService.update called with:', { id, user });
     const roleMap = {
-      'Admin': 1,
-      'Teacher': 2,
-      'Staff': 3,
+      1: 'Admin',
+      2: 'Teacher',
+      3: 'Staff',
+      'Admin': 'Admin',
+      'Teacher': 'Teacher',
+      'Staff': 'Staff',
     };
-    // Only one role per user
-    const roleValue = typeof user.role === 'string' ? roleMap[user.role] : user.role;
+    // Always send role as a string
+    const roleValue = roleMap[user.role];
     const payload = {
-      Id: user.id,
       Username: user.username,
       FullName: user.fullName,
       Email: user.email,
-      Role: roleValue,
+      Role: roleValue, // string: "Admin", "Teacher", or "Staff"
       IsActive: user.isActive
     };
     try {
