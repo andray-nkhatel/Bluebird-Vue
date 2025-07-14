@@ -249,6 +249,18 @@ export const studentService = {
       responseType: 'blob'
     });
     return response.data;
+  },
+
+  async createMinimal(student) {
+    // Expects: { firstName, lastName, gradeId }
+    const response = await apiClient.post('/students/minimal', student);
+    return response.data;
+  },
+
+  async updateMinimal(id, student) {
+    // Expects: { firstName, lastName, gradeId, isActive }
+    const response = await apiClient.put(`/students/minimal/${id}`, student);
+    return response.data;
   }
 };
 export const gradeService = {
@@ -1145,46 +1157,192 @@ export const markScheduleService = {
 };
 
 
+// export const reportService = {
+//   async generateReportCard(studentId, academicYear, term) {
+//     const response = await apiClient.post(`/reportcards/generate/student/${studentId}?academicYear=${academicYear}&term=${term}`);
+//     return response.data;
+//   },
+
+//   async generateClassReportCards(gradeId, academicYear, term) {
+//     const response = await apiClient.post(`/reportcards/generate/class/${gradeId}?academicYear=${academicYear}&term=${term}`);
+//     return response.data;
+//   },
+
+//   async downloadReportCard(reportCardId) {
+//     const response = await apiClient.get(`/reportcards/${reportCardId}/download`, {
+//       responseType: 'blob'
+//     });
+//     return response.data;
+//   },
+
+//   async getStudentReportCards(studentId) {
+//     const response = await apiClient.get(`/reportcards/student/${studentId}`);
+//     return response.data;
+//   },
+
+// async downloadClassReportCardsZip(gradeId, academicYear, term) {
+//   const response = await apiClient.get(
+//     `/reportcards/download/class/${gradeId}?academicYear=${academicYear}&term=${term}`,
+//     { responseType: 'blob' }
+//   );
+//   return response.data; // This is the Blob
+// },
+
+// async downloadClassReportCardsMergedPdf(gradeId, academicYear, term) {
+//   const response = await apiClient.get(
+//     `/reportcards/download/class/${gradeId}/merged?academicYear=${academicYear}&term=${term}`,
+//     { responseType: 'blob' }
+//   );
+//   return response.data; // This is the Blob (PDF)
+// },
+
+//  async requestMergedPdf(gradeId, academicYear, term) {
+//   const response = await apiClient.post(
+//     `/reportcards/download/class/${gradeId}/merged/request?academicYear=${academicYear}&term=${term}`
+//   );
+// },
+// async checkMergedPdfStatus(jobId) {
+//   const response = await apiClient.get(
+//     `/reportcards/download/class/merged/status/${jobId}`
+//   );
+// },
+// async downloadMergedPdfFile(gradeId, academicYear, term) {
+//   const response = await apiClient.get(
+//     `/reportcards/download/class/merged/file/${gradeId}/${academicYear}/${term}`,
+//     { responseType: 'blob' }
+//   );
+// }
+
+// };
+
+
+
+
 export const reportService = {
-  async generateReportCard(studentId, academicYear, term) {
-    const response = await apiClient.post(`/reportcards/generate/student/${studentId}?academicYear=${academicYear}&term=${term}`);
-    return response.data;
+    async generateReportCard(studentId, academicYear, term) {
+        const response = await apiClient.post(
+            `/reportcards/generate/student/${studentId}`, 
+            null, 
+            { params: { academicYear, term } }
+        );
+        return response.data;
+    },
+
+    async generateClassReportCards(gradeId, academicYear, term) {
+        const response = await apiClient.post(
+            `/reportcards/generate/class/${gradeId}`, 
+            null, 
+            { params: { academicYear, term } }
+        );
+        return response.data;
+    },
+
+    async downloadReportCard(reportCardId) {
+        const response = await apiClient.get(
+            `/reportcards/${reportCardId}/download`, 
+            { responseType: 'blob' }
+        );
+        return this.handleBlobDownload(response, `ReportCard_${reportCardId}.pdf`);
+    },
+
+    async getStudentReportCards(studentId) {
+        const response = await apiClient.get(`/reportcards/student/${studentId}`);
+        return response.data;
+    },
+
+    async downloadClassReportCardsZip(gradeId, academicYear, term) {
+        const response = await apiClient.get(
+            `/reportcards/download/class/${gradeId}`, 
+            { 
+                responseType: 'blob',
+                params: { academicYear, term } 
+            }
+        );
+        return this.handleBlobDownload(
+            response, 
+            `ReportCards_Grade${gradeId}_${academicYear}_Term${term}.zip`
+        );
+    },
+
+    
+    async requestMergedPdf(gradeId, academicYear, term) {
+      try {
+          const response = await apiClient.post(
+              `/reportcards/download/class/${gradeId}/merged/request`,
+              null,
+              { params: { academicYear, term } }
+          );
+          return response.data; // Should contain { jobId: string }
+      } catch (error) {
+          throw new Error('Failed to start PDF generation: ' + (error.response?.data?.message || error.message));
+      }
+  },
+  
+  async checkMergedPdfStatus(jobId) {
+      try {
+          const response = await apiClient.get(`/reportcards/download/class/merged/status/${jobId}`);
+          return response.data; // Should contain { jobId, status, message }
+      } catch (error) {
+          throw new Error('Failed to check PDF status: ' + (error.response?.data?.message || error.message));
+      }
+  },
+  
+  async downloadMergedPdfFile(gradeId, academicYear, term) {
+      try {
+          const response = await apiClient.get(
+              `/reportcards/download/class/merged/file/${gradeId}/${academicYear}/${term}`,
+              { 
+                  responseType: 'blob',
+                  timeout: 30000 // 30 second timeout for download
+              }
+          );
+          return response.data;
+      } catch (error) {
+          throw new Error('Failed to download merged PDF: ' + (error.response?.data?.message || error.message));
+      }
   },
 
-  async generateClassReportCards(gradeId, academicYear, term) {
-    const response = await apiClient.post(`/reportcards/generate/class/${gradeId}?academicYear=${academicYear}&term=${term}`);
-    return response.data;
-  },
+    // Helper method to handle blob downloads
+    handleBlobDownload(response, fileName) {
+        const blob = new Blob([response.data], { 
+            type: response.headers['content-type'] 
+        });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        return blob;
+    },
 
-  async downloadReportCard(reportCardId) {
-    const response = await apiClient.get(`/reportcards/${reportCardId}/download`, {
-      responseType: 'blob'
-    });
-    return response.data;
-  },
+    // Get the view URL for a single report card (for iframe viewing)
+    getReportCardViewUrl(reportCardId) {
+        // Assumes the backend is served from the same origin or CORS is handled
+        return `${apiClient.defaults.baseURL}/reportcards/${reportCardId}/view`;
+    },
 
-  async getStudentReportCards(studentId) {
-    const response = await apiClient.get(`/reportcards/student/${studentId}`);
-    return response.data;
-  },
+    // Get view URLs for all report cards for a class (grade, academic year, term)
+    async getClassReportCardViewUrls(gradeId, academicYear, term) {
+        const response = await apiClient.get(
+            `/reportcards/class/${gradeId}/view-urls`,
+            { params: { academicYear, term } }
+        );
+        return response.data; // Array of { Id, AcademicYear, Term, GradeName, StudentName, ViewUrl }
+    },
 
-async downloadClassReportCardsZip(gradeId, academicYear, term) {
-  const response = await apiClient.get(
-    `/reportcards/download/class/${gradeId}?academicYear=${academicYear}&term=${term}`,
-    { responseType: 'blob' }
-  );
-  return response.data; // This is the Blob
-},
-
-async downloadClassReportCardsMergedPdf(gradeId, academicYear, term) {
-  const response = await apiClient.get(
-    `/reportcards/download/class/${gradeId}/merged?academicYear=${academicYear}&term=${term}`,
-    { responseType: 'blob' }
-  );
-  return response.data; // This is the Blob (PDF)
-}
-
+    // Fetch the PDF as a blob (for viewing, not download)
+    async fetchReportCardBlob(reportCardId) {
+        const response = await apiClient.get(
+            `/reportcards/${reportCardId}/download`,
+            { responseType: 'blob' }
+        );
+        return response.data; // Just return the blob, no download
+    }
 };
+
 
 
 // Updated userService with correct backend format
