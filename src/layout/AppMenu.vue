@@ -43,6 +43,12 @@ const allMenuItems = [
                 to: '/app/profile',
                 roles: ['Admin', 'Teacher', 'Staff']
             },
+             { 
+                label: 'Class Report Cards', 
+                icon: 'pi pi-fw pi-file', 
+                to: '/app/teacher-reportcard',
+                roles: ['Teacher']
+            }
         ]
     },
     {

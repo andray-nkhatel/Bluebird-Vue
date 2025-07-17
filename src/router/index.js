@@ -170,6 +170,14 @@ const router = createRouter({
                         requiresAuth: true,
                     },
                     component: () => import('@/views/settings/System.vue')
+                },
+                {
+                    path: 'teacher-reportcard',
+                    name: 'MyReportCards',
+                    meta: {
+                        requiresAuth: true,
+                    },
+                    component: () => import('@/views/teachers/TeacherReportCard.vue')
                 }
             ]
         }

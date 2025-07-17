@@ -7,6 +7,7 @@
         Mark Entry
       </h2>
       <div class="w-full md:w-auto mt-2 md:mt-0 flex flex-col md:flex-row gap-2">
+      <!--
         <Button
           label="Save All Changes"
           icon="pi pi-save"
@@ -14,7 +15,7 @@
           :disabled="!hasUnsavedChanges || loading"
           @click="saveChangesManually"
           :loading="saving"
-        />
+        /> -->
         <Button
           label="Export Grade PDF"
           icon="pi pi-file-pdf"
@@ -1282,6 +1283,10 @@ export default {
     getTermName(termId) {
       const found = this.terms.find(t => t.id === termId);
       return found ? found.name : '';
+    },
+    getAcademicYearNameById(id) {
+      const year = this.academicYears.find(y => y.id === id);
+      return year ? year.name : id;
     }
   }
 }

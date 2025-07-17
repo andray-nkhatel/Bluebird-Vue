@@ -109,9 +109,9 @@ const login = async () => {
         severity: 'error',
         summary: 'Login Failed',
         detail: errorMessage,
-        life: 5000,
+        life: 3000,
         closable: true,
-        sticky: true
+        sticky: false
       });
     }
     password.value = '';

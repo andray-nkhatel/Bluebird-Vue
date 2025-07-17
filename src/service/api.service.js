@@ -1266,40 +1266,23 @@ export const reportService = {
 
     
     async requestMergedPdf(gradeId, academicYear, term) {
-      try {
-          const response = await apiClient.post(
-              `/reportcards/download/class/${gradeId}/merged/request`,
-              null,
-              { params: { academicYear, term } }
-          );
-          return response.data; // Should contain { jobId: string }
-      } catch (error) {
-          throw new Error('Failed to start PDF generation: ' + (error.response?.data?.message || error.message));
-      }
+      const { data } = await api.post(
+        `/reportcards/download/class/${gradeId}/merged/request?academicYear=${academicYear}&term=${term}`
+      );
+      return data.jobId;
   },
   
   async checkMergedPdfStatus(jobId) {
-      try {
-          const response = await apiClient.get(`/reportcards/download/class/merged/status/${jobId}`);
-          return response.data; // Should contain { jobId, status, message }
-      } catch (error) {
-          throw new Error('Failed to check PDF status: ' + (error.response?.data?.message || error.message));
-      }
+    const { data } = await api.get(`/reportcards/download/class/merged/status/${jobId}`);
+    return data; // { jobId, status, message }
   },
   
   async downloadMergedPdfFile(gradeId, academicYear, term) {
-      try {
-          const response = await apiClient.get(
-              `/reportcards/download/class/merged/file/${gradeId}/${academicYear}/${term}`,
-              { 
-                  responseType: 'blob',
-                  timeout: 30000 // 30 second timeout for download
-              }
-          );
-          return response.data;
-      } catch (error) {
-          throw new Error('Failed to download merged PDF: ' + (error.response?.data?.message || error.message));
-      }
+    const response = await api.get(
+      `/reportcards/download/class/merged/file/${gradeId}/${academicYear}/${term}`,
+      { responseType: 'blob' }
+    );
+    return response.data;
   },
 
     // Helper method to handle blob downloads
@@ -1340,6 +1323,19 @@ export const reportService = {
             { responseType: 'blob' }
         );
         return response.data; // Just return the blob, no download
+    },
+
+    async getClassReportCardIds(gradeId, academicYear, term) {
+        const response = await apiClient.get(
+            `/reportcards/class/${gradeId}/view-urls`,
+            { params: { academicYear, term } }
+        );
+        // Map to expected format: { id, studentName, gradeName }
+        return response.data.map(rc => ({
+            id: rc.id,
+            studentName: rc.studentName,
+            gradeName: rc.gradeName
+        }));
     }
 };
 
