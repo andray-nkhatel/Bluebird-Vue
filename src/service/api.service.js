@@ -1250,19 +1250,32 @@ export const reportService = {
         return response.data;
     },
 
+
     async downloadClassReportCardsZip(gradeId, academicYear, term) {
-        const response = await apiClient.get(
-            `/reportcards/download/class/${gradeId}`, 
-            { 
-                responseType: 'blob',
-                params: { academicYear, term } 
-            }
-        );
-        return this.handleBlobDownload(
-            response, 
-            `ReportCards_Grade${gradeId}_${academicYear}_Term${term}.zip`
-        );
-    },
+      try {
+          const response = await apiClient.get(
+              `/reportcards/download/class/${gradeId}`,
+              {
+                  responseType: 'blob',
+                  params: { academicYear, term }
+              }
+          );
+          return this.handleBlobDownload(
+              response,
+              `ReportCards_Grade${gradeId}_${academicYear}_Term${term}.zip`
+          );
+      } catch (error) {
+          if (error.response && error.response.status === 404) {
+              // Show a user-friendly message
+              alert("No report cards found for this class, year, and term.");
+          } else {
+              // Handle other errors
+              alert("An error occurred while downloading the report cards.");
+          }
+          throw error;
+      }
+  },
+    
 
     
     async requestMergedPdf(gradeId, academicYear, term) {

@@ -48,6 +48,15 @@
                   <Dropdown id="class-view-term" v-model="classViewSelectedTerm" :options="terms" optionLabel="label" optionValue="value" placeholder="Select Term" class="w-full" />
                 </div>
                 <div class="field">
+                    <div class="mt-7"></div>
+                    <Button 
+                        @click="generateClassReportCards" 
+                        :disabled="!classViewSelectedGrade || !classViewAcademicYear || !classViewSelectedTerm"
+                    >
+                        Generate Cards
+                    </Button>
+                </div>
+                <div class="field">
                   <Button @click="loadClassViewReportCards" :loading="loadingClassViewBlobsTab" :disabled="!classViewSelectedGrade || !classViewAcademicYear || !classViewSelectedTerm" class="w-full mt-7" severity="secondary">
                     Load All Class Report Cards
                   </Button>
@@ -73,9 +82,9 @@
                 <div v-if="classViewReportCards.length > 0" class="text-right text-sm text-gray-600 mt-2">
                   Total: {{ classViewReportCards.length }} students report cards.
                 </div>
-                <div v-if="classViewReportCards.length > 0" class="mt-4 flex justify-end">
+                <!-- <div v-if="classViewReportCards.length > 0" class="mt-4 flex justify-end">
                   <Button
-                    @click="downloadClassReportCardsZipClient"
+                    @click="downloadClassReportCardsZip"
                     :loading="downloadingClassBundle"
                     :disabled="downloadingClassBundle"
                     severity="info"
@@ -86,7 +95,7 @@
                   </Button>
                 </div>
                 <ProgressBar v-if="isZipDownloaded" mode="indeterminate" class="mt-0.5" style="height: 2px"></ProgressBar>
-              </div>
+              </div> -->
               <div v-else-if="!loadingClassViewBlobsTab">
                 <span>No class report cards loaded yet.</span>
               </div>
@@ -101,22 +110,21 @@
     </Dialog>
     <Toast />
   </div>
+  </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { examService, gradeService, reportService, studentService, authService } from '@/service/api.service';
-import { useToast } from 'primevue/usetoast';
+import { authService, examService, gradeService, reportService, studentService } from '@/service/api.service';
 import Button from 'primevue/button';
 import Column from 'primevue/column';
 import DataTable from 'primevue/datatable';
+import Dialog from 'primevue/dialog';
 import Divider from 'primevue/divider';
 import Dropdown from 'primevue/dropdown';
-import TabPanel from 'primevue/tabpanel';
-import Toast from 'primevue/toast';
-import Dialog from 'primevue/dialog';
 import ProgressBar from 'primevue/progressbar';
-import { zipSync } from 'fflate';
+import Toast from 'primevue/toast';
+import { useToast } from 'primevue/usetoast';
+import { onMounted, ref } from 'vue';
 
 const toast = useToast();
 
@@ -134,9 +142,7 @@ const terms = ref([
   { label: 'Term 3', value: 3 }
 ]);
 
-const viewSelectedStudent = ref(null);
-const studentReportCards = ref([]);
-const loadingReportCards = ref(false);
+
 
 const classViewSelectedGrade = ref(null);
 const classViewAcademicYear = ref(null);
@@ -145,6 +151,7 @@ const classViewReportCards = ref([]);
 const loadingClassViewBlobsTab = ref(false);
 const downloadingClassBundle = ref(false);
 const isZipDownloaded = ref(false);
+const generatingClass = ref(false);
 
 const showPdfModal = ref(false);
 const pdfUrl = ref('');
@@ -202,6 +209,59 @@ const loadAcademicYears = async () => {
   }
 };
 
+const generateClassReportCards = async () => {
+    if (!classViewSelectedGrade.value || !classViewAcademicYear.value || !classViewSelectedTerm.value) {
+        toast.add({
+            severity: 'warn',
+            summary: 'Missing Selection',
+            detail: 'Please select a grade, academic year, and term before generating report cards.',
+            life: 4000
+        });
+        generatingClass.value = false;
+        return;
+    }
+    generatingClass.value = true;
+    try {
+        // Find the year name from the ID
+        const yearObj = academicYears.value.find(y => y.id === classViewAcademicYear.value);
+        const yearName = yearObj ? yearObj.name : classViewAcademicYear.value;
+        const response = await reportService.generateClassReportCards(
+            classViewSelectedGrade.value,
+            yearName, // pass the year string
+            classViewSelectedTerm.value
+        );
+        // Add student names to each report card before adding to recent list
+        const reportCardsWithStudentInfo = response.map((report) => {
+            const studentInfo = students.value.find((s) => s.id === report.studentId);
+            return {
+                ...report,
+                studentName: studentInfo?.fullName || 'Unknown Student',
+                gradeName: studentInfo?.gradeName || 'Unknown Grade'
+            };
+        });
+        recentReportCards.value.unshift(...reportCardsWithStudentInfo);
+        toast.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: `Generated ${response.length} report cards successfully`,
+            life: 3000
+        });
+        // No Reset form
+        //selectedGrade.value = null
+        //selectedClassTerm.value = null
+    } catch (error) {
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: error.message || 'Failed to generate class report cards',
+            life: 5000
+        });
+    } finally {
+        generatingClass.value = false;
+    }
+};
+
+
 const loadAssignmentsData = async () => {
   studentsLoading.value = true;
   gradesLoading.value = true;
@@ -256,24 +316,7 @@ const loadAssignmentsData = async () => {
   }
 };
 
-const loadStudentReportCards = async () => {
-  if (!viewSelectedStudent.value) return;
-  loadingReportCards.value = true;
-  try {
-    const response = await reportService.getStudentReportCards(viewSelectedStudent.value);
-    studentReportCards.value = response;
-  } catch (error) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: error.message || 'Failed to load report cards',
-      life: 5000
-    });
-    studentReportCards.value = [];
-  } finally {
-    loadingReportCards.value = false;
-  }
-};
+
 
 const loadClassViewReportCards = async () => {
   if (!classViewSelectedGrade.value || !classViewAcademicYear.value || !classViewSelectedTerm.value) return;
@@ -295,61 +338,6 @@ const loadClassViewReportCards = async () => {
   }
 };
 
-const downloadClassReportCardsZipClient = async () => {
-  if (!classViewReportCards.value.length) return;
-  downloadingClassBundle.value = true;
-  isZipDownloaded.value = !isZipDownloaded.value;
-  try {
-    const fetchPromises = classViewReportCards.value.map(async (rc) => {
-      try {
-        const blob = await reportService.fetchReportCardBlob(rc.id);
-        const arrayBuffer = await blob.arrayBuffer();
-        const safeName = rc.studentName.replace(/[^a-z0-9]/gi, '_');
-        const fileName = `${safeName}_${rc.gradeName || ''}_${rc.id}.pdf`;
-        return { fileName, data: new Uint8Array(arrayBuffer) };
-      } catch (err) {
-        return null;
-      }
-    });
-    const files = (await Promise.all(fetchPromises)).filter(Boolean);
-    const zipObj = {};
-    for (const file of files) {
-      zipObj[file.fileName] = file.data;
-    }
-    let className = 'Class';
-    if (classViewSelectedGrade.value) {
-      const gradeObj = assignedGrades.value.find(g => g.id === classViewSelectedGrade.value);
-      if (gradeObj && gradeObj.fullName) {
-        className = gradeObj.fullName.replace(/[^a-z0-9]/gi, '_');
-      }
-    }
-    const zipFileName = `${className}_Report_Cards.zip`;
-    const url = window.URL.createObjectURL(new Blob([zipSync(zipObj)], { type: 'application/zip' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = zipFileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
-    isZipDownloaded.value = !isZipDownloaded.value;
-    toast.add({
-      severity: 'success',
-      summary: 'Success',
-      detail: 'All class report cards downloaded as ZIP!',
-      life: 3000
-    });
-  } catch (error) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: error.message || 'Failed to create ZIP',
-      life: 5000
-    });
-  } finally {
-    downloadingClassBundle.value = false;
-  }
-};
 
 async function openPdfModal(reportCardId) {
   try {
@@ -393,6 +381,79 @@ onMounted(async () => {
   await loadAssignmentsData();
   await loadAcademicYears();
 });
+
+
+const downloadClassReportCardsZip = async () => {
+    if (!classViewSelectedGrade.value || !classViewAcademicYear.value || !classViewSelectedTerm.value) return;
+    downloadingClassBundle.value = true;
+    isZipDownloaded.value = true;
+    try {
+        // Ensure academicYear is the year string/number, not the ID
+        let academicYearValue = classViewAcademicYear.value;
+        // If your academicYears list is objects with {id, name}, convert to year string
+        if (typeof academicYearValue === 'object' && academicYearValue.name) {
+            academicYearValue = academicYearValue.name;
+        }
+        // If it's an ID, find the year string
+        if (typeof academicYearValue === 'number') {
+            const yearObj = academicYears.value.find(y => y.id === academicYearValue);
+            academicYearValue = yearObj ? yearObj.name : academicYearValue;
+        }
+
+        const response = await reportService.downloadClassReportCardsZip(
+            classViewSelectedGrade.value,
+            academicYearValue,
+            classViewSelectedTerm.value
+        );
+        // Download the ZIP
+        let className = 'Class';
+        const gradeObj = grades.value.find(g => g.id === classViewSelectedGrade.value);
+        if (gradeObj && gradeObj.fullName) {
+            className = gradeObj.fullName.replace(/[^a-z0-9]/gi, '_');
+        }
+        const zipFileName = `${className}_Report_Cards.zip`;
+        const url = window.URL.createObjectURL(response);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = zipFileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        isZipDownloaded.value = false;
+        toast.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: 'All class report cards downloaded as ZIP!',
+            life: 3000
+        });
+    } catch (error) {
+        // Handle 404 and other errors
+        if (error.response && error.response.status === 404) {
+            toast.add({
+                severity: 'warn',
+                summary: 'No Reports',
+                detail: 'No report cards found for this class, year, and term.',
+                life: 5000
+            });
+        } else {
+            toast.add({
+                severity: 'error',
+                summary: 'Error',
+                detail: error.message || 'Failed to download class report cards ZIP',
+                life: 5000
+            });
+        }
+    } finally {
+        downloadingClassBundle.value = false;
+    }
+};
+
+
+
+
+
+
 </script>
 
 <style scoped>
