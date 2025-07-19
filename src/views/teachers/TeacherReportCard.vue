@@ -66,8 +66,18 @@
                 <ProgressBar mode="indeterminate" style="height: 1px" />
                 <div class="text-center mt-2">Loading class report cards...</div>
               </div>
-              <div v-if="classViewReportCards.length > 0">
-                <DataTable :value="classViewReportCards" stripedRows   class="p-datatable-sm">
+              <!-- Search Bar -->
+              <div class="mb-3 flex flex-col md:flex-row md:items-center gap-2">
+                <input
+                  v-model="studentSearch"
+                  type="text"
+                  placeholder="Search student by name..."
+                  class="p-2 border border-gray-300 rounded w-full md:w-1/3"
+                />
+              </div>
+              <!-- Desktop Table View -->
+              <div v-if="!isMobile && filteredClassViewReportCards.length > 0">
+                <DataTable :value="filteredClassViewReportCards" stripedRows class="p-datatable-sm">
                   <Column field="studentName" sortable header="Student" />
                   <Column field="gradeName" header="Grade" />
                   <Column header="Actions" style="width: 180px">
@@ -79,23 +89,31 @@
                     </template>
                   </Column>
                 </DataTable>
-                <div v-if="classViewReportCards.length > 0" class="text-right text-sm text-gray-600 mt-2">
-                  Total: {{ classViewReportCards.length }} students report cards.
+                <div class="text-right text-sm text-gray-600 mt-2">
+                  Total: {{ filteredClassViewReportCards.length }} students report cards.
                 </div>
-                <!-- <div v-if="classViewReportCards.length > 0" class="mt-4 flex justify-end">
-                  <Button
-                    @click="downloadClassReportCardsZip"
-                    :loading="downloadingClassBundle"
-                    :disabled="downloadingClassBundle"
-                    severity="info"
-                    icon="pi pi-download"
-                    class="w-full"
-                  >
-                    Download All as ZIP
+              </div>
+
+              <!-- Mobile Card/List View -->
+              <div v-if="isMobile && filteredClassViewReportCards.length > 0" class="flex flex-col gap-4">
+                <div v-for="card in filteredClassViewReportCards" :key="card.id" class="rounded-lg shadow-md border border-gray-200 bg-white p-4 flex flex-col">
+                  <div class="mb-2">
+                    <span class="block text-xs text-gray-500 font-medium">Student</span>
+                    <span class="block text-base font-semibold text-gray-900">{{ card.studentName }}</span>
+                  </div>
+                  <div class="mb-2">
+                    <span class="block text-xs text-gray-500 font-medium">Grade</span>
+                    <span class="block text-base text-gray-800">{{ card.gradeName }}</span>
+                  </div>
+                  <Button @click="openPdfModal(card.id, card.studentName)" size="small" severity="secondary" outlined class="w-full mt-2">
+                    <i class="pi pi-eye mr-1"></i>
+                    View Report Card
                   </Button>
                 </div>
-                <ProgressBar v-if="isZipDownloaded" mode="indeterminate" class="mt-0.5" style="height: 2px"></ProgressBar>
-              </div> -->
+                <div class="text-right text-sm text-gray-600 mt-2">
+                  Total: {{ filteredClassViewReportCards.length }} students report cards.
+                </div>
+              </div>
               <div v-else-if="!loadingClassViewBlobsTab">
                 <span>No class report cards loaded yet.</span>
               </div>
@@ -110,7 +128,6 @@
     </Dialog>
     <Toast />
   </div>
-  </div>
 </template>
 
 <script setup>
@@ -124,7 +141,7 @@ import Dropdown from 'primevue/dropdown';
 import ProgressBar from 'primevue/progressbar';
 import Toast from 'primevue/toast';
 import { useToast } from 'primevue/usetoast';
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 const toast = useToast();
 
@@ -148,6 +165,7 @@ const classViewSelectedGrade = ref(null);
 const classViewAcademicYear = ref(null);
 const classViewSelectedTerm = ref(null);
 const classViewReportCards = ref([]);
+const recentReportCards = ref([]);
 const loadingClassViewBlobsTab = ref(false);
 const downloadingClassBundle = ref(false);
 const isZipDownloaded = ref(false);
@@ -155,6 +173,18 @@ const generatingClass = ref(false);
 
 const showPdfModal = ref(false);
 const pdfUrl = ref('');
+
+// Mobile detection
+const isMobile = ref(window.innerWidth < 768);
+function handleResize() {
+  isMobile.value = window.innerWidth < 768;
+}
+onMounted(() => {
+  window.addEventListener('resize', handleResize);
+});
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize);
+});
 
 const fetchUserProfile = async () => {
   try {
@@ -232,7 +262,7 @@ const generateClassReportCards = async () => {
         );
         // Add student names to each report card before adding to recent list
         const reportCardsWithStudentInfo = response.map((report) => {
-            const studentInfo = students.value.find((s) => s.id === report.studentId);
+            const studentInfo = assignedStudents.value.find((s) => s.id === report.studentId);
             return {
                 ...report,
                 studentName: studentInfo?.fullName || 'Unknown Student',
@@ -343,8 +373,14 @@ async function openPdfModal(reportCardId) {
   try {
     const blob = await reportService.fetchReportCardBlob(reportCardId);
     const url = window.URL.createObjectURL(blob);
-    pdfUrl.value = url;
-    showPdfModal.value = true;
+    if (isMobile.value) {
+      // On mobile, open PDF in a new tab
+      window.open(url, '_blank');
+    } else {
+      // On desktop, show in modal
+      pdfUrl.value = url;
+      showPdfModal.value = true;
+    }
   } catch (error) {
     toast.add({
       severity: 'error',
@@ -449,10 +485,14 @@ const downloadClassReportCardsZip = async () => {
     }
 };
 
-
-
-
-
+// Search bar for filtering students
+const studentSearch = ref('');
+const filteredClassViewReportCards = computed(() => {
+  if (!studentSearch.value) return classViewReportCards.value;
+  return classViewReportCards.value.filter(card =>
+    card.studentName && card.studentName.toLowerCase().includes(studentSearch.value.toLowerCase())
+  );
+});
 
 </script>
 

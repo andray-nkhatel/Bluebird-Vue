@@ -9,115 +9,119 @@
 >
   <div class="">
     <!-- Subject form fields -->
-    <div class="mb-3">
-      <label for="name">Subject Name</label>
-      <InputText 
-        id="subjectName" 
-        class="w-full"
-        v-model="subjectForm.name" 
-        placeholder="Enter subject name"
-      />
-    </div>
-    
-    <div class="mb-2">
-      <label for="code">Subject Code</label>
-      <InputText 
-        class="w-full"
-        id="code" 
-        v-model="subjectForm.code" 
-        placeholder="Enter subject code"
-      />
-    </div>
-    
-    <div class="mb-2">
-      <label for="description">Description</label>
-      <InputText
-        id="description" 
-        class="w-full"
-        v-model="subjectForm.description" 
-        placeholder="Enter subject description"
-      />
-    </div>
-
-    <div class="mb-2" v-if="isEditMode">
-      <div class="flex align-items-center">
-        <Checkbox 
-          id="isActive" 
-          v-model="subjectForm.isActive" 
-          :binary="true" 
+    <div class="mb-4">
+      <div class="mb-3">
+        <label for="name" class="font-semibold text-base block mb-1">Subject Name <span class="text-red-500">*</span></label>
+        <InputText 
+          id="subjectName" 
+          class="w-full"
+          v-model="subjectForm.name" 
+          :class="{'p-invalid': validationErrors.name}"
+          placeholder="Enter subject name"
         />
-        <label for="isActive" class="ml-2">Active</label>
+        <small v-if="validationErrors.name" class="p-error">{{ validationErrors.name }}</small>
+      </div>
+      <div class="mb-3">
+        <label for="code" class="font-semibold text-base block mb-1">Subject Code <span class="text-red-500">*</span></label>
+        <InputText 
+          class="w-full"
+          id="code" 
+          v-model="subjectForm.code" 
+          :class="{'p-invalid': validationErrors.code}"
+          placeholder="Enter subject code"
+        />
+        <small v-if="validationErrors.code" class="p-error">{{ validationErrors.code }}</small>
+      </div>
+      <div class="mb-3">
+        <label for="description" class="font-semibold text-base block mb-1">Description</label>
+        <InputText
+          id="description" 
+          class="w-full"
+          v-model="subjectForm.description" 
+          placeholder="Enter subject description"
+        />
+      </div>
+      <div class="mb-2" v-if="isEditMode">
+        <div class="flex align-items-center">
+          <Checkbox 
+            id="isActive" 
+            v-model="subjectForm.isActive" 
+            :binary="true" 
+          />
+          <label for="isActive" class="ml-2 font-semibold">Active</label>
+        </div>
       </div>
     </div>
   </div>
   
     <template #footer>
-    <Button 
-      label="Cancel" 
-      icon="pi pi-times" 
-      @click="cancelDialog" 
-      text 
-    />
-    <Button 
-      :label="isEditMode ? 'Update' : 'Save'" 
-      :icon="isEditMode ? 'pi pi-pencil' : 'pi pi-check'" 
-      @click="saveSubject" 
-      :loading="saving"
-    />
+    <div class="flex justify-end gap-2">
+      <Button 
+        label="Cancel" 
+        icon="pi pi-times" 
+        @click="cancelDialog" 
+        text 
+      />
+      <Button 
+        :label="isEditMode ? 'Update' : 'Save'" 
+        :icon="isEditMode ? 'pi pi-pencil' : 'pi pi-check'" 
+        @click="saveSubject" 
+        :loading="saving"
+      />
+    </div>
   </template>
 </Dialog>
 
 
     <div class="subject-list">
       <div class="card">
-        <div class="flex justify-content-between align-items-center mb-4">
-          <h2 class="text-2xl font-semibold text-900 m-0">Subjects</h2>
-          <div class="flex gap-2 ml-auto">
+        <!-- Responsive Header and Actions -->
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+          <h2 class="text-2xl font-semibold text-900 m-0 text-center sm:text-left">Subjects</h2>
+          <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto items-center sm:items-stretch">
             <Button 
               :label="includeInactive ? 'Hide Inactive' : 'Show Inactive'" 
               :icon="includeInactive ? 'pi pi-eye-slash' : 'pi pi-eye'"
               @click="toggleInactive"
               :outlined="!includeInactive"
+              class="w-full sm:w-auto"
             />
             <Button 
               label="Add Subject" 
               icon="pi pi-plus" 
               @click="openAddDialog"
+              class="w-full sm:w-auto"
             />
             <Button 
               label="Refresh" 
               icon="pi pi-refresh" 
               @click="loadSubjects"
               outlined
+              class="w-full sm:w-auto"
             />
           </div>
         </div>
-  
-        <!-- Statistics Cards -->
-        <div class="grid mb-4">
-          <div class="col-12 sm:col-6 md:col-3">
-            <div class="surface-100 border-round p-3 text-center">
-              <div class="text-2xl font-bold text-blue-600">{{ statistics.total }}</div>
-              <div class="text-sm text-600">Total Subjects</div>
-            </div>
+        <!-- Responsive Stats Row -->
+        <div class="stats-row flex gap-4 mb-4 overflow-x-auto px-1 sm:px-0">
+          <div class="stat-card surface-100 border-round p-3 text-center min-w-[160px] flex-shrink-0 hover:shadow-lg transition-all">
+            <i class="pi pi-book text-2xl text-blue-400 mb-2 block"></i>
+            <div class="text-2xl font-bold text-blue-600">{{ statistics.total }}</div>
+            <div class="text-sm text-600">Total Subjects</div>
           </div>
-          <div class="col-12 sm:col-6 md:col-3">
-            <div class="surface-100 border-round p-3 text-center">
-              <div class="text-2xl font-bold text-green-600">{{ statistics.active }}</div>
-              <div class="text-sm text-600">Active Subjects</div>
-            </div>
+          <div class="stat-card surface-100 border-round p-3 text-center min-w-[160px] flex-shrink-0 hover:shadow-lg transition-all">
+            <i class="pi pi-check-circle text-2xl text-green-400 mb-2 block"></i>
+            <div class="text-2xl font-bold text-green-600">{{ statistics.active }}</div>
+            <div class="text-sm text-600">Active Subjects</div>
           </div>
-          <div class="col-12 sm:col-6 md:col-3">
-            <div class="surface-100 border-round p-3 text-center">
-              <div class="text-2xl font-bold text-orange-600">{{ statistics.inactive }}</div>
-              <div class="text-sm text-600">Inactive Subjects</div>
-            </div>
+          <div class="stat-card surface-100 border-round p-3 text-center min-w-[160px] flex-shrink-0 hover:shadow-lg transition-all">
+            <i class="pi pi-ban text-2xl text-orange-400 mb-2 block"></i>
+            <div class="text-2xl font-bold text-orange-600">{{ statistics.inactive }}</div>
+            <div class="text-sm text-600">Inactive Subjects</div>
           </div>
-          <div class="col-12 sm:col-6 md:col-3">
-            <div class="surface-100 border-round p-3 text-center">
-              <div class="text-2xl font-bold text-purple-600">{{ statistics.withDescription }}</div>
-              <div class="text-sm text-600">With Description</div>
-            </div>
+          <div class="stat-card surface-100 border-round p-3 text-center min-w-[160px] flex-shrink-0 hover:shadow-lg transition-all">
+            <i class="pi pi-align-left text-2xl text-purple-400 mb-2 block"></i>
+            <div class="text-2xl font-bold text-purple-600">{{ statistics.withDescription }}</div>
+            <div class="text-sm text-600">With Description</div>
           </div>
         </div>
   
@@ -130,10 +134,14 @@
               class="col-12 sm:col-6 md:col-4 lg:col-3"
             >
               <div 
-                class="subject-card surface-card border-round p-4 h-full cursor-pointer transition-all transition-duration-200"
+                class="subject-card surface-card border-round p-4 h-full cursor-pointer transition-all transition-duration-200 group relative"
                 :class="{ 'opacity-60': !subject.isActive }"
                 @click="viewSubject(subject)"
+                tabindex="0"
               >
+                <div v-if="!subject.isActive" class="absolute top-0 left-0 w-full h-full bg-gray-200 bg-opacity-60 flex items-center justify-center z-10 rounded">
+                  <span class="text-xs text-danger font-bold">Inactive</span>
+                </div>
                 <div class="flex justify-content-between align-items-start mb-3">
                   <div class="flex align-items-center gap-2">
                     <Avatar 
@@ -147,7 +155,7 @@
                       class="text-xs"
                     />
                   </div>
-                  <div class="flex gap-1">
+                  <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                     <Button 
                       icon="pi pi-pencil" 
                       @click.stop="openEditDialog(subject)"
@@ -168,11 +176,11 @@
                   </div>
                 </div>
                 
-                <h4 class="font-medium text-900 mb-2">{{ subject.name }}</h4>
+                <h4 class="font-medium text-900 mb-2 truncate" :title="subject.name">{{ subject.name }}</h4>
                 <div class="mb-2">
-                  <Tag :value="subject.code" severity="info" class="text-xs" />
+                  <Tag :value="subject.code" severity="info" class="text-xs w-fit" />
                 </div>
-                <p class="text-sm text-600 line-height-3 mb-0">
+                <p class="text-sm text-600 line-height-3 mb-0 truncate" :title="subject.description">
                   {{ subject.description || 'No description available' }}
                 </p>
               </div>
@@ -224,7 +232,7 @@
             responsiveLayout="scroll"
             filterDisplay="menu"
             v-model:globalFilter="globalFilter"
-            class="p-datatable-sm"
+            class="p-datatable-sm sticky-header compact-table"
             :rowClass="getRowClass"
           >
             <template #header>
@@ -309,8 +317,9 @@
   
             <template #empty>
               <div class="text-center py-4">
-                <i class="pi pi-book text-4xl text-400"></i>
+                <i class="pi pi-book text-4xl text-400 mb-2"></i>
                 <p class="text-500 mt-2">No subjects found</p>
+                <Button label="Add Subject" icon="pi pi-plus" @click="openAddDialog" class="mt-2" />
               </div>
             </template>
           </DataTable>
@@ -478,8 +487,16 @@ const cancelDialog = () => {
 //   addSubjectDialogVisible.value = false
 // }
 
+const validationErrors = reactive({ name: '', code: '' })
+
+const validateForm = () => {
+  validationErrors.name = subjectForm.name.trim() ? '' : 'Subject name is required.'
+  validationErrors.code = subjectForm.code.trim() ? '' : 'Subject code is required.'
+  return !validationErrors.name && !validationErrors.code
+}
 
 const saveSubject = async () => {
+  if (!validateForm()) return
   try {
     saving.value = true
     
@@ -541,6 +558,16 @@ const saveSubject = async () => {
     // Filter by active status
     if (!includeInactive.value) {
       filtered = filtered.filter(subject => subject.isActive)
+    }
+  
+    // Filter by search term
+    if (globalFilter.value && globalFilter.value.trim() !== '') {
+      const term = globalFilter.value.trim().toLowerCase()
+      filtered = filtered.filter(subject =>
+        (subject.name && subject.name.toLowerCase().includes(term)) ||
+        (subject.code && subject.code.toLowerCase().includes(term)) ||
+        (subject.description && subject.description.toLowerCase().includes(term))
+      )
     }
   
     return filtered
@@ -712,5 +739,65 @@ const saveSubject = async () => {
   
   :deep(.p-avatar) {
     font-weight: bold;
+  }
+  
+  .sticky-header :deep(.p-datatable-thead) {
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 2;
+  }
+  .compact-table :deep(.p-datatable-tbody > tr > td) {
+    padding: 0.35rem 0.5rem;
+  }
+  .stat-card {
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+  .stat-card:hover {
+    box-shadow: 0 6px 18px rgba(59, 130, 246, 0.08);
+    transform: translateY(-2px) scale(1.03);
+  }
+  .truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .group:hover .group-hover\:opacity-100 {
+    opacity: 1 !important;
+  }
+  .stats-row {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f1f5f9;
+  }
+  .stats-row::-webkit-scrollbar {
+    height: 8px;
+  }
+  .stats-row::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+  .stats-row::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+  @media (max-width: 640px) {
+    .card {
+      padding: 0.75rem;
+    }
+    .stats-row {
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .stat-card {
+      min-width: 140px;
+      padding: 0.75rem 0.5rem;
+    }
+    .subject-list h2 {
+      font-size: 1.25rem;
+    }
   }
   </style>

@@ -4,11 +4,12 @@ import PrimeVue from 'primevue/config';
 import ConfirmationService from 'primevue/confirmationservice';
 import ToastService from 'primevue/toastservice';
 import { createApp } from 'vue';
+import Vue3Tour from 'vue3-tour';
+import 'vue3-tour/dist/vue3-tour.css';
 import App from './App.vue';
 import RbacDirectives from './directives/rbac';
 import router from './router';
 import store from './store';
-
 const CustomAura = {
     ...Aura,  // Keep all original Aura theme properties
   };
@@ -38,7 +39,7 @@ store.dispatch('auth/setupInterceptors');
 
 // Register RBAC directives
 app.use(RbacDirectives);
-
+app.use(Vue3Tour)
 app.use(router);
 app.use(PrimeVue, {
     theme: {

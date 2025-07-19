@@ -103,158 +103,123 @@ onMounted(() => {
 </script>
 
 <template>
+  <div class="relative">
+    <!-- Loading Overlay -->
+    <div v-if="loading && !profileData.id" class="absolute inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+      <ProgressSpinner style="width: 60px; height: 60px" strokeWidth="4" />
+    </div>
 
-        <!-- Header -->
+    <!-- Profile Header -->
+    <div class="flex flex-col items-center justify-center gap-3 py-8 mb-6 bg-gradient-to-r from-blue-50 to-green-50 rounded-xl shadow-sm w-full px-4">
+      <Avatar
+        :label="profileData.fullName?.charAt(0) || 'U'"
+        size="xxlarge"
+        class="text-white font-bold shadow-lg border-4 border-white mb-2"
+        :style="{ backgroundColor: profileData.role === 'Admin' ? '#ef4444' : profileData.role === 'Teacher' ? '#3b82f6' : '#10b981' }"
+      />
+      <div class="flex flex-col sm:flex-row items-center gap-2 mt-2 w-full justify-center text-center">
+        <h2 class="text-2xl sm:text-3xl font-bold text-900 m-0">{{ profileData.fullName }}</h2>
+        <Tag :class="roleColor" :icon="`pi ${roleIcon}`" class="ml-0 sm:ml-2 mt-1 sm:mt-0">{{ profileData.role }}</Tag>
+        <Tag :severity="profileData.isActive ? 'success' : 'danger'" :value="profileData.isActive ? 'Active' : 'Inactive'" class="ml-0 sm:ml-2 mt-1 sm:mt-0" />
+      </div>
+      <p class="text-600 mt-1 mb-0 text-sm sm:text-base">View your account information</p>
+      <Button 
+        icon="pi pi-refresh" 
+        outlined 
+        @click="refreshProfile"
+        :loading="loading"
+        v-tooltip.top="'Refresh Profile'"
+        class="mt-2 w-full sm:w-auto"
+      />
+    </div>
 
-        <Panel class="mb-4">
-         
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Profile Details Card -->
+      <Panel class="shadow-md">
+        <template #header>
+          <div class="flex items-center gap-2">
+            <i class="pi pi-user text-primary"></i>
+            <span class="font-semibold">Personal Details</span>
+          </div>
+        </template>
+        <div class="p-2">
+          <DataTable :value="profileTableRows" class="p-datatable-sm w-full">
+            <Column field="label" header="Field" style="width: 40%">
+              <template #body="{ data }">
+                <span class="flex items-center gap-2">
+                  <i v-if="data.label === 'Full Name'" class="pi pi-id-card text-blue-400"></i>
+                  <i v-else-if="data.label === 'Username'" class="pi pi-user text-green-400"></i>
+                  <i v-else-if="data.label === 'Email Address'" class="pi pi-envelope text-purple-400"></i>
+                  <i v-else-if="data.label === 'Role'" class="pi pi-shield text-orange-400"></i>
+                  <i v-else-if="data.label === 'Account Created'" class="pi pi-calendar-plus text-cyan-400"></i>
+                  <i v-else-if="data.label === 'Last Login'" class="pi pi-clock text-pink-400"></i>
+                  {{ data.label }}
+                </span>
+              </template>
+            </Column>
+            <Column field="value" header="Value"></Column>
+          </DataTable>
+        </div>
+      </Panel>
 
-            <div class="flex justify-content-between align-items-center mb-4">
-              <div>
-                <h2 class="text-2xl font-bold text-900 m-0">User Profile</h2>
-                <p class="text-600 mt-1 mb-0">View your account information</p>
-              </div>
-
-              <div class="flex gap-2 ml-auto">
-                <Button 
-                  icon="pi pi-refresh" 
-                  outlined 
-                  @click="refreshProfile"
-                  :loading="loading"
-                  v-tooltip.top="'Refresh Profile'"
-                />
-              </div>
+      <!-- Quick Stats Card -->
+      <Panel class="shadow-md">
+        <template #header>
+          <div class="flex items-center gap-2">
+            <i class="pi pi-info-circle text-primary"></i>
+            <span class="font-semibold">Account Information</span>
+          </div>
+        </template>
+        <div class="flex flex-col gap-4 p-2">
+          <div class="flex items-center justify-between p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition">
+            <div class="flex items-center gap-2">
+              <i class="pi pi-id-card text-primary"></i>
+              <span class="font-medium">User ID</span>
             </div>
-     
-
-        </Panel>
-
-        <div class="grid grid-cols-1 md:grid-cols-2">
-
-
-          
-          <Panel>
-              <template #header>
-                <div class="flex align-items-center gap-3">
-                  <Avatar 
-                    :label="profileData.fullName?.charAt(0) || 'U'" 
-                    size="xlarge" 
-                    class="text-white font-bold"
-                    :style="{ backgroundColor: profileData.role === 'Admin' ? '#ef4444' : profileData.role === 'Teacher' ? '#3b82f6' : '#10b981' }"
-                  />
-
-                
-
-                  <div>
-                    <h3 class="text-xl font-bold m-0">{{ profileData.fullName }}</h3>
-                    <div class="flex align-items-center gap-2 mt-1">
-                      <Tag 
-                        :class="roleColor"
-                        :icon="`pi ${roleIcon}`"
-                      >
-                        {{ profileData.role }}
-                      </Tag>
-                      <Tag 
-                        v-if="profileData.isActive" 
-                        severity="success" 
-                        value="Active"
-                      />
-                      <Tag 
-                        v-else 
-                        severity="danger" 
-                        value="Inactive"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </template>
-
-              <DataTable :value="profileTableRows" class="p-datatable-sm w-full">
-                <Column field="label" header="Field" style="width: 40%"></Column>
-                <Column field="value" header="Value"></Column>
-              </DataTable>
-            </Panel>
-
-            <!-- Quick Stats -->
-      
-            <Panel>
-              <template #header>
-                <h4 class="m-0">Account Information</h4>
-              </template>
-              
-              <template #default>
-                <div class="flex flex-column gap-3">
-                  <div class="flex align-items-center justify-content-between p-3 border-round" style="background: var(--surface-50)">
-                    <div class="flex align-items-center gap-2">
-                      <i class="pi pi-id-card text-primary"></i>
-                      <span class="font-medium">User ID</span>
-                    </div>
-                    <span class="font-bold">#{{ profileData.id }}</span>
-                  </div>
-                  
-                  <div class="flex align-items-center justify-content-between p-3 border-round" style="background: var(--surface-50)">
-                    <div class="flex align-items-center gap-2">
-                      <i class="pi pi-shield text-primary"></i>
-                      <!-- <span class=" text-wrap mr-2">Account Status: </span> -->
-                    </div>
-                    <Tag 
-                      :severity="profileData.isActive ? 'success' : 'danger'"
-                      :value="profileData.isActive ? 'Active' : 'Inactive'"
-                    />
-                  </div>
-                  
-                  <div class="flex align-items-center justify-content-between p-3 border-round" style="background: var(--surface-50)">
-                    <div class="flex align-items-center gap-2">
-                      <i :class="`pi ${roleIcon} text-primary`"></i>
-                      <span class="font-medium mr-2">Access Level:</span>
-                    </div>
-                    <span class="font-bold">{{ profileData.role }}</span>
-                  </div>
-                </div>
-              </template>
-            </Panel>
-
-
+            <span class="font-bold">#{{ profileData.id }}</span>
+          </div>
+          <div class="flex items-center justify-between p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition">
+            <div class="flex items-center gap-2">
+              <i class="pi pi-shield text-primary"></i>
+              <span class="font-medium">Account Status</span>
+            </div>
+            <Tag :severity="profileData.isActive ? 'success' : 'danger'" :value="profileData.isActive ? 'Active' : 'Inactive'" />
+          </div>
+          <div class="flex items-center justify-between p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition">
+            <div class="flex items-center gap-2">
+              <i :class="`pi ${roleIcon} text-primary`"></i>
+              <span class="font-medium">Access Level</span>
+            </div>
+            <span class="font-bold">{{ profileData.role }}</span>
+          </div>
         </div>
+      </Panel>
+    </div>
 
-
-        <!-- Loading State -->
-        <div v-if="loading && !profileData.id" class="flex justify-content-center py-8">
-          <ProgressSpinner style="width: 50px; height: 50px" strokeWidth="3" />
+    <!-- Session Information Card -->
+    <Panel class="mt-6 shadow-md">
+      <template #header>
+        <div class="flex items-center gap-2">
+          <i class="pi pi-clock text-primary"></i>
+          <span class="font-semibold">Session Information</span>
         </div>
-
-        <!-- Profile Content -->
-       
-         
-
-          
-
-            <!-- Additional Info Card -->
-            <Panel class="mt-3">
-              <template #header>
-                <h4 class="m-0">Session Information</h4>
-              </template>
-              
-              <template #default>
-                <div class="flex flex-column gap-3">
-                  <div class="text-center">
-                    <i class="pi pi-clock text-primary text-3xl mb-2"></i>
-                    <p class="text-600 text-sm m-0">Last Login</p>
-                    <p class="font-bold text-900 mt-1">{{ formattedLastLogin }}</p>
-                  </div>
-                  
-                  <Divider />
-                  
-                  <div class="text-center">
-                    <i class="pi pi-calendar text-primary text-3xl mb-2"></i>
-                    <p class="text-600 text-sm m-0">Member Since</p>
-                    <p class="font-bold text-900 mt-1">{{ formattedCreatedAt }}</p>
-                  </div>
-                </div>
-              </template>
-            </Panel>
-     
-  
+      </template>
+      <div class="flex flex-col md:flex-row gap-6 p-4 items-center justify-center">
+        <div class="flex-1 text-center">
+          <i class="pi pi-clock text-primary text-3xl mb-2"></i>
+          <p class="text-600 text-sm m-0">Last Login</p>
+          <p class="font-bold text-900 mt-1">{{ formattedLastLogin }}</p>
+        </div>
+        <Divider layout="vertical" class="hidden md:block" />
+        <div class="flex-1 text-center">
+          <i class="pi pi-calendar text-primary text-3xl mb-2"></i>
+          <p class="text-600 text-sm m-0">Member Since</p>
+          <p class="font-bold text-900 mt-1">{{ formattedCreatedAt }}</p>
+        </div>
+      </div>
+    </Panel>
+  </div>
 </template>
 
 <style scoped>

@@ -23,6 +23,14 @@ const props = defineProps({
     parentItemKey: {
         type: String,
         default: null
+    },
+    highlightLabel: {
+        type: String,
+        default: ''
+    },
+    highlightActive: {
+        type: Boolean,
+        default: false
     }
 });
 
@@ -69,7 +77,7 @@ function checkActiveRoute(item) {
 </script>
 
 <template>
-    <li :class="{ 'layout-root-menuitem': root, 'active-menuitem': isActiveMenu }">
+    <li :class="[{'layout-root-menuitem': root, 'active-menuitem': isActiveMenu}, (highlightActive && item.label === highlightLabel) ? 'new-feature-highlight active-highlight' : '']">
         <div v-if="root && item.visible !== false" class="layout-menuitem-root-text">{{ item.label }}</div>
         <a v-if="(!item.to || item.items) && item.visible !== false" :href="item.url" @click="itemClick($event, item, index)" :class="item.class" :target="item.target" tabindex="0">
             <i :class="item.icon" class="layout-menuitem-icon"></i>
@@ -83,10 +91,38 @@ function checkActiveRoute(item) {
         </router-link>
         <Transition v-if="item.items && item.visible !== false" name="layout-submenu">
             <ul v-show="root ? true : isActiveMenu" class="layout-submenu">
-                <app-menu-item v-for="(child, i) in item.items" :key="child" :index="i" :item="child" :parentItemKey="itemKey" :root="false"></app-menu-item>
+                <app-menu-item
+                  v-for="(child, i) in item.items"
+                  :key="child"
+                  :index="i"
+                  :item="child"
+                  :parentItemKey="itemKey"
+                  :root="false"
+                  :highlight-label="highlightLabel"
+                  :highlight-active="highlightActive"
+                />
             </ul>
         </Transition>
     </li>
 </template>
 
-<style lang="scss" scoped></style>
+<style lang="scss" scoped>
+.new-feature-highlight {
+  position: relative;
+  animation: shake-ring 0.5s cubic-bezier(.36,.07,.19,.97) both 0s 5;
+  box-shadow: 0 0 0 3px #ffe066, 0 0 8px 2px #ffe066;
+  border-radius: 8px;
+  z-index: 2;
+  transition: box-shadow 0.3s;
+}
+.active-highlight {
+  animation: shake-ring 0.5s cubic-bezier(.36,.07,.19,.97) both 0s 5;
+  box-shadow: 0 0 0 3px #ffe066, 0 0 8px 2px #ffe066;
+}
+@keyframes shake-ring {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
+}
+</style>

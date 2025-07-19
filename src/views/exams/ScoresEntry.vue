@@ -1,37 +1,33 @@
 <template>
-  <div class="score-entry">
+  <div class="score-entry bg-surface-0 p-4 md:p-8 rounded-xl shadow-md">
     <!-- Header -->
-    <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-2 md:gap-0">
-      <h2 class="text-xl md:text-2xl font-semibold text-900 m-0 flex items-center gap-2">
-        <i class="pi pi-pencil"></i>
-        Mark Entry
-      </h2>
-      <div class="w-full md:w-auto mt-2 md:mt-0 flex flex-col md:flex-row gap-2">
-      <!--
+    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 md:gap-0 border-b pb-4">
+      <div class="flex items-center gap-3">
+        <span class="inline-flex items-center justify-center bg-blue-100 text-blue-700 rounded-full w-10 h-10">
+          <i class="pi pi-pencil text-2xl"></i>
+        </span>
+        <h2 class="text-2xl md:text-3xl font-bold text-900 m-0">Mark Entry</h2>
+      </div>
+      <div class="flex flex-col md:flex-row gap-2 w-full md:w-auto">
         <Button
-          label="Save All Changes"
-          icon="pi pi-save"
-          class="p-button-primary w-full md:w-auto"
-          :disabled="!hasUnsavedChanges || loading"
-          @click="saveChangesManually"
-          :loading="saving"
-        /> -->
-        <Button
-          label="Export Grade PDF"
+          id="mark-schedule-btn"
+          label="Mark-Schedule"
           icon="pi pi-file-pdf"
-          class="p-button-warning w-full md:w-auto"
+          class="p-button-warning w-full md:w-auto shadow-sm"
           @click="exportMarkSchedulePdf"
           :disabled="!canLoadStudents"
+          v-tooltip.top="{ value: 'Done entering results for particular test in your class? - you can download the grade book', class: 'max-w-xs', showDelay: 200, hideDelay: 100 }"
+          aria-label="Download Markschedule"
         />
       </div>
     </div>
 
     <!-- Filters Card -->
-    <Card class="mb-4">
+    <Card class="mb-6 bg-surface-50 border-0 shadow-none rounded-lg">
       <template #content>
-        <div class="flex flex-col md:flex-row flex-wrap gap-3 md:gap-4">
-          <div class="flex-1 min-w-0">
-            <label for="assignment" class="block font-medium mb-2">Subject & Grade *</label>
+        <div class="flex flex-col md:flex-row flex-wrap gap-4 md:gap-6">
+          <div class="flex-1 min-w-[220px]">
+            <label for="assignment" class="block font-semibold mb-2 text-900">Subject & Grade *</label>
             <Select
               id="assignment"
               v-model="selectedAssignment"
@@ -50,8 +46,8 @@
               </template>
             </Select>
           </div>
-          <div class="flex-1 min-w-0">
-            <label for="academicYear" class="block font-medium mb-2">Academic Year *</label>
+          <div class="flex-1 min-w-[180px]">
+            <label for="academicYear" class="block font-semibold mb-2 text-900">Academic Year *</label>
             <Select
               id="academicYear"
               v-model="selectedAcademicYear"
@@ -64,8 +60,8 @@
               @change="onFiltersChange"
             />
           </div>
-          <div class="flex-1 min-w-0">
-            <label for="term" class="block font-medium mb-2">Term *</label>
+          <div class="flex-1 min-w-[140px]">
+            <label for="term" class="block font-semibold mb-2 text-900">Term *</label>
             <Select
               id="term"
               v-model="selectedTerm"
@@ -78,8 +74,8 @@
               @change="onFiltersChange"
             />
           </div>
-          <div class="flex-1 min-w-0">
-            <label for="examType" class="block font-medium mb-2">Exam Type *</label>
+          <div class="flex-1 min-w-[160px]">
+            <label for="examType" class="block font-semibold mb-2 text-900">Exam Type *</label>
             <Select
               id="examType"
               v-model="selectedExamType"
@@ -93,56 +89,66 @@
             />
           </div>
         </div>
-        <div class="flex flex-col md:flex-row justify-center items-center mt-4 gap-2">
-          <div class="w-full md:w-auto">
-            <Button
-              label="Load Students"
-              icon="pi pi-search"
-              class="w-full"
-              :disabled="!canLoadStudents"
-              @click="loadStudentScores"
-              :loading="loadingScores"
-            />
-          </div>
+        <div class="flex flex-col md:flex-row justify-center items-center mt-6 gap-2">
+          <Button
+            label="Load Students"
+            icon="pi pi-search"
+            class="w-full md:w-auto p-button-primary shadow-sm"
+            :disabled="!canLoadStudents"
+            @click="loadStudentScores"
+            :loading="loadingScores"
+          />
         </div>
       </template>
     </Card>
- <!-- Scores DataTable (Desktop) -->
- <Card v-if="students.length > 0 && !isMobile">
-      <!-- ... (title unchanged) ... -->
+
+    <!-- Scores DataTable (Desktop) -->
+    <Card v-if="students.length > 0 && !isMobile" class="shadow-lg border-0 rounded-xl">
       <template #content>
+        <!-- Search Bar -->
+        <div class="mb-3 flex flex-col md:flex-row md:items-center gap-2">
+          <input
+            v-model="studentSearch"
+            type="text"
+            placeholder="Search student by name..."
+            class="p-2 border border-gray-300 rounded w-full md:w-1/3"
+          />
+        </div>
         <div class="overflow-x-auto">
           <DataTable
             v-model:editingRows="editingRows"
-            :value="students"
+            :value="filteredStudents"
             :striped-rows="true"
             :row-hover="true"
-            :show-gridlines="true"
+            :show-gridlines="false"
             editMode="row"
             dataKey="studentId"
             :loading="loadingScores"
             responsiveLayout="scroll"
             :scrollable="true"
             scrollHeight="60vh"
-            class="p-datatable-sm min-w-[600px] md:min-w-0"
+            class="p-datatable-sm min-w-[700px] md:min-w-0 modern-table"
             @row-edit-save="onRowEditSave"
             @row-edit-cancel="onRowEditCancel"
             @row-click="onRowClick"
             style="cursor:pointer"
           >
-            <Column field="studentName" header="Student Name" style="width: 25%">
+            <Column field="studentName" header="Student Name" style="width: 28%">
               <template #body="slotProps">
-                <div class="flex align-items-center text-bold">
-                  <span class="font-medium text-bold">{{ slotProps.data.studentName }}</span>
+                <div class="flex items-center gap-2">
+                  <span class="inline-flex items-center justify-center bg-surface-200 text-blue-700 rounded-full w-8 h-8 font-bold">
+                    {{ getInitials(slotProps.data.studentName) }}
+                  </span>
+                  <span class="font-medium text-900">{{ slotProps.data.studentName }}</span>
                 </div>
               </template>
             </Column>
-            <Column field="currentScore" header="Current Score" style="width: 25%" bodyStyle="text-align:center;">
+            <Column field="currentScore" header="Current Score" style="width: 22%" bodyStyle="text-align:center;">
               <template #body="slotProps">
                 <Tag
                   v-if="slotProps.data.currentScore !== null && slotProps.data.currentScore !== undefined"
                   :value="slotProps.data.currentScore"
-                  class="align-items-center justify-content-center"
+                  class="align-items-center justify-content-center text-base font-semibold px-3 py-1"
                   :severity="getScoreSeverity(slotProps.data.currentScore)"
                 />
                 <span v-else class="text-400">No score</span>
@@ -159,11 +165,11 @@
                 />
               </template>
             </Column>
-            <Column v-if="selectedExamType === 3" field="comments" header="Comments" style="width: 25%" bodyStyle="text-align:center;">
+            <Column v-if="selectedExamType === 4" field="comments" header="Comments" style="width: 28%" bodyStyle="text-align:center;">
               <template #body="slotProps">
-                <div v-if="slotProps.data.comments" class="flex align-items-center">
-                  <i class="pi pi-comment text-blue-500 mr-2"></i>
-                  <span class="text-sm text-600 line-height-3 truncate max-w-[120px] md:max-w-[200px]">
+                <div v-if="slotProps.data.comments" class="flex items-center gap-2">
+                  <i class="pi pi-comment text-blue-500"></i>
+                  <span class="text-sm text-700 line-height-3 truncate max-w-[120px] md:max-w-[200px]">
                     {{ slotProps.data.comments }}
                   </span>
                   <Button
@@ -179,22 +185,28 @@
                 <span v-else class="text-400 text-sm">No comments</span>
               </template>
               <template #editor="slotProps">
-                <div>
-                  <Textarea
-                    v-model="slotProps.data.comments"
-                    :maxlength="100"
-                    rows="3"
-                    class="w-full mt-2"
-                    placeholder="Enter comment."
-                    :autoResize="true"
-                  />
-                  <div class="text-right text-sm text-gray-500 mt-1">
-                    {{ 100 - (slotProps.data.comments?.length || 0) }} characters left
+                <transition name="fade-slide">
+                  <div v-show="selectedExamType === 4">
+                    <label class="block text-xs font-semibold mb-1 text-900 flex items-center gap-1">
+                      Comments
+                      <i class="pi pi-info-circle text-yellow-600" v-tooltip.top="'Comments are only required for End-of-Term exams.'"></i>
+                    </label>
+                    <Textarea
+                      v-model="slotProps.data.comments"
+                      :maxlength="100"
+                      rows="3"
+                      class="w-full mt-2 comment-highlight"
+                      placeholder="Enter comment."
+                      :autoResize="true"
+                    />
+                    <div class="text-right text-xs text-gray-500 mt-1">
+                      {{ 100 - (slotProps.data.comments?.length || 0) }} characters left
+                    </div>
                   </div>
-                </div>
+                </transition>
               </template>
             </Column>
-            <Column :rowEditor="true" style="width: 25%" bodyStyle="text-align:center;">
+            <Column :rowEditor="true" style="width: 22%" bodyStyle="text-align:center;">
               <template #roweditoriniticon>
                 <i class="pi pi-pencil"></i>
               </template>
@@ -205,7 +217,7 @@
                 <i class="pi pi-times"></i>
               </template>
             </Column>
-            <template #footer> In total there are {{ students ? students.length : 0 }} students. </template>
+            <template #footer> <div class="text-right text-700 font-medium">In total there are {{ students ? students.length : 0 }} students.</div> </template>
           </DataTable>
         </div>
       </template>
@@ -217,17 +229,18 @@
       :header="selectedStudent ? selectedStudent.studentName + ' - All Subject Scores' : 'Student Scores'"
       :modal="true"
       :closable="true"
-      :style="{ width: '600px' }"
+      :style="{ width: '95vw', maxWidth: '600px' }"
+      class="rounded-xl shadow-lg"
       @hide="onDialogCancel"
     >
       <div v-if="selectedStudent">
-        <div class="mb-4">
+        <div class="mb-4 bg-surface-100 p-3 rounded-lg">
           <strong>Exam Type:</strong> {{ getExamTypeName(selectedExamType) }}<br />
           <strong>Term:</strong> {{ getTermName(selectedTerm) }}
         </div>
         <div class="flex flex-col gap-4">
           <div v-for="subject in dialogSubjects" :key="subject.id" class="mb-2">
-            <label class="block mb-1 font-medium">{{ subject.name }}</label>
+            <label class="block mb-1 font-semibold text-900">{{ subject.name }}</label>
             <InputNumber
               v-model="dialogStudentScores[subject.id].score"
               :min="0"
@@ -236,131 +249,168 @@
               class="w-full"
               placeholder="Enter score"
             />
-            <div v-if="selectedExamType === 3" class="mt-2">
-              <label class="block mb-1 font-medium">Comments</label>
-              <Textarea
-                v-model="dialogStudentScores[subject.id].comments"
-                :maxlength="100"
-                rows="2"
-                class="w-full"
-                placeholder="Enter comment."
-                :autoResize="true"
-              />
-              <div class="text-right text-xs text-gray-500 mt-1">
-                {{ 100 - (dialogStudentScores[subject.id].comments?.length || 0) }} characters left
-              </div>
+            <div v-if="selectedExamType === 4" class="mt-2">
+              <label class="block mb-1 font-semibold text-900 flex items-center gap-1">
+                Comments
+                <i class="pi pi-info-circle text-yellow-600" v-tooltip.top="'Comments are only required for End-of-Term exams.'"></i>
+              </label>
+              <transition name="fade-slide">
+                <div v-show="selectedExamType === 4">
+                  <Textarea
+                    v-model="dialogStudentScores[subject.id].comments"
+                    :maxlength="100"
+                    rows="2"
+                    class="w-full comment-highlight"
+                    placeholder="Enter comment."
+                    :autoResize="true"
+                  />
+                  <div class="text-right text-xs text-gray-500 mt-1">
+                    {{ 100 - (dialogStudentScores[subject.id].comments?.length || 0) }} characters left
+                  </div>
+                </div>
+              </transition>
             </div>
           </div>
         </div>
       </div>
       <template #footer>
-        <Button label="Cancel" icon="pi pi-times" text @click="onDialogCancel" />
-        <Button label="Save" icon="pi pi-check" @click="onDialogSave" :disabled="!dialogHasChanges" />
+        <div class="flex justify-end gap-2">
+          <Button label="Cancel" icon="pi pi-times" text @click="onDialogCancel" class="p-button-secondary" />
+          <Button label="Save" icon="pi pi-check" @click="onDialogSave" :disabled="!dialogHasChanges" class="p-button-primary" />
+        </div>
       </template>
-
-
     </Dialog>
+
     <!-- Mobile Card Layout -->
-<div v-if="students.length > 0 && isMobile" class="flex flex-col gap-3" header="Student Scores" :toggleable="true" :collapsed="false">
-  <Panel
-    v-for="(student, idx) in students"
-    :key="student.studentId"
-    :header="student.studentName"
-    :toggleable="true"
-    class="w-full"
-  >
-    <template #icons>
-      <span v-if="student.currentScore !== null" :class="['badge', getScoreSeverityClass(student.currentScore)]">
-        {{ student.currentScore }}
-      </span>
-      <span v-else class="text-gray-400 text-sm">No score</span>
-    </template>
-    <div class="mb-2">
-      <label class="block text-xs font-medium mb-1">Score</label>
-      <InputNumber
-        v-model="student.currentScore"
-        :min="0"
-        :max="150"
-        :maxFractionDigits="1"
-        class="w-full"
-        placeholder="Enter score"
-        @blur="onMobileScoreEdit(idx)"
-      />
-    </div>
-    <div v-if="selectedExamType === 3" class="mb-2">
-      <label class="block text-xs font-medium mb-1">Comments</label>
-      <Textarea
-        v-model="student.comments"
-        :maxlength="100"
-        rows="2"
-        class="w-full"
-        placeholder="Enter comment"
-        :autoResize="true"
-        @blur="onMobileScoreEdit(idx)"
-      />
-      <div class="text-right text-xs text-gray-400">
-        {{ 100 - (student.comments?.length || 0) }} left
+    <div v-if="students.length > 0 && isMobile" class="flex flex-col gap-4 mt-2" header="Student Scores" :toggleable="true" :collapsed="false">
+      <!-- Search Bar -->
+      <div class="mb-3 flex flex-col md:flex-row md:items-center gap-2">
+        <input
+          v-model="studentSearch"
+          type="text"
+          placeholder="Search student by name..."
+          class="p-2 border border-gray-300 rounded w-full md:w-1/3"
+        />
+      </div>
+      <Panel
+        v-for="(student, idx) in filteredStudents"
+        :key="student.studentId"
+        :header="student.studentName"
+        :toggleable="true"
+        class="w-full student-mobile-card border-0 shadow-md rounded-lg bg-surface-50"
+      >
+        <template #icons>
+          <span v-if="student.currentScore !== null" :class="['badge', getScoreSeverityClass(student.currentScore)]">
+            {{ student.currentScore }}
+          </span>
+          <span v-else class="text-gray-400 text-sm">No score</span>
+        </template>
+        <div class="mb-2">
+          <label class="block text-xs font-semibold mb-1 text-900">Score</label>
+          <InputNumber
+            v-model="student.currentScore"
+            :min="0"
+            :max="150"
+            :maxFractionDigits="1"
+            class="w-full"
+            placeholder="Enter score"
+            @blur="onMobileScoreEdit(idx)"
+            @change="onMobileScoreEdit(idx)"
+          />
+        </div>
+        <div v-if="selectedExamType === 4" class="mb-2">
+          <label class="block text-xs font-semibold mb-1 text-900 flex items-center gap-1">
+            Comments
+            <i class="pi pi-info-circle text-yellow-600" v-tooltip.top="'Comments are only required for End-of-Term exams.'"></i>
+          </label>
+          <transition name="fade-slide">
+            <div v-show="selectedExamType === 4">
+              <Textarea
+                v-model="student.comments"
+                :maxlength="100"
+                rows="2"
+                class="w-full comment-highlight"
+                placeholder="Enter comment"
+                :autoResize="true"
+                @blur="onMobileScoreEdit(idx)"
+                @change="onMobileScoreEdit(idx)"
+              />
+              <div class="text-right text-xs text-gray-400">
+                {{ 100 - (student.comments?.length || 0) }} left
+              </div>
+            </div>
+          </transition>
+        </div>
+        <div class="flex justify-between items-center gap-2 mt-2">
+          <div>
+            <Button
+              v-if="selectedExamType === 4 && student.comments"
+              icon="pi pi-eye"
+              size="small"
+              text
+              rounded
+              @click="viewComment(student)"
+              v-tooltip.top="'View full comment'"
+            />
+            <Button
+              icon="pi pi-list"
+              label="All Subject Scores"
+              size="small"
+              text
+              rounded
+              class="ml-2"
+              @click="onRowClick({ data: student })"
+              v-tooltip.top="'View/edit all subject scores'"
+            />
+          </div>
+          <div class="flex items-center gap-1">
+            <Button
+              icon="pi pi-save"
+              size="small"
+              class="p-button-success p-button-sm"
+              @click="onMobileScoreEdit(idx)"
+              :disabled="saving"
+              v-tooltip.top="'Save changes for this student'"
+            />
+            <span v-if="mobileSaveStatus[student.studentId] === 'saving'" class="text-xs text-blue-500 ml-1">Saving...</span>
+            <span v-else-if="mobileSaveStatus[student.studentId] === 'saved'" class="text-xs text-green-600 ml-1">Saved!</span>
+            <span v-else-if="mobileSaveStatus[student.studentId] === 'error'" class="text-xs text-red-500 ml-1">Error</span>
+          </div>
+        </div>
+        <div v-if="student.lastUpdated" class="text-xs text-gray-400 mt-1">
+          <i class="pi pi-clock mr-1"></i>
+          Last updated: {{ formatDate(student.lastUpdated) }}
+          <span v-if="student.recordedBy">by {{ student.recordedBy }}</span>
+        </div>
+      </Panel>
+      <div class="flex flex-col gap-2 mt-4">
+        <Button
+          label="Reset All"
+          icon="pi pi-refresh"
+          class="p-button-secondary w-full shadow-sm"
+          @click="resetChanges"
+          :disabled="!hasUnsavedChanges"
+        />
+        <Button
+          label="Mark-Schedule PDF"
+          icon="pi pi-download"
+          class="p-button-help w-full shadow-sm"
+          @click="exportMarkSchedule"
+          :disabled="!canLoadStudents"
+        />
+        <Button
+          id="mark-schedule-btn-mobile"
+          label="Mark-Schedule PDF"
+          icon="pi pi-file-pdf"
+          class="p-button-warning w-full shadow-sm"
+          @click="exportMarkSchedulePdf"
+          :disabled="!canLoadStudents"
+          v-tooltip.top="{ value: 'Done entering results for particular test in your class? - you can download the grade book', class: 'max-w-xs', showDelay: 200, hideDelay: 100 }"
+          aria-label="Download Markschedule"
+        />
       </div>
     </div>
-    <div class="flex justify-end gap-2 mt-2">
-      <Button
-        v-if="selectedExamType === 3 && student.comments"
-        icon="pi pi-eye"
-        size="small"
-        text
-        rounded
-        @click="viewComment(student)"
-        v-tooltip.top="'View full comment'"
-      />
-      <Button
-        icon="pi pi-list"
-        label="All Subject Scores"
-        size="small"
-        text
-        rounded
-        class="ml-2"
-        @click="onRowClick({ data: student })"
-        v-tooltip.top="'View/edit all subject scores'"
-      />
-    </div>
-    <div v-if="student.lastUpdated" class="text-xs text-gray-400 mt-1">
-      <i class="pi pi-clock mr-1"></i>
-      Last updated: {{ formatDate(student.lastUpdated) }}
-      <span v-if="student.recordedBy">by {{ student.recordedBy }}</span>
-    </div>
-  </Panel>
-  <div class="flex flex-col gap-2 mt-4">
-    <Button
-      label="Save All Changes"
-      icon="pi pi-save"
-      class="p-button-primary w-full"
-      :disabled="!hasUnsavedChanges || loading"
-      @click="saveChangesManually"
-      :loading="saving"
-    />
-    <Button
-      label="Reset All"
-      icon="pi pi-refresh"
-      class="p-button-secondary w-full"
-      @click="resetChanges"
-      :disabled="!hasUnsavedChanges"
-    />
-    <Button
-      label="Export Excel"
-      icon="pi pi-download"
-      class="p-button-help w-full"
-      @click="exportMarkSchedule"
-      :disabled="!canLoadStudents"
-    />
-          <Button
-        label="Export Grade PDF"
-        icon="pi pi-file-pdf"
-        class="p-button-warning w-full"
-        @click="exportMarkSchedulePdf"
-        :disabled="!canLoadStudents"
-      />
-  </div>
-</div>
+
     <!-- Initial State -->
     <Card v-else-if="!selectedAssignment">
       <template #content>
@@ -380,9 +430,10 @@
       :header="`Comments for ${commentDialog.student?.studentName}`"
       :style="{ width: '90vw', maxWidth: '600px' }"
       modal
+      class="rounded-xl shadow-lg"
     >
       <div class="mb-4">
-        <label class="block font-medium mb-2">Comments:</label>
+        <label class="block font-semibold mb-2 text-900">Comments:</label>
         <div class="p-3 border-1 surface-border border-round bg-surface-50">
           <p class="m-0 line-height-3" style="white-space: pre-wrap;">
             {{ commentDialog.student?.comments || 'No comments available' }}
@@ -402,7 +453,7 @@
           icon="pi pi-times" 
           @click="commentDialog.visible = false"
           autofocus 
-          class="w-full md:w-auto"
+          class="w-full md:w-auto p-button-secondary" 
         />
       </template>
     </Dialog>
@@ -412,13 +463,15 @@
   </div>
 </template>
 
-
 <script>
 import { examService, markScheduleService } from '@/service/api.service';
 import * as XLSX from 'xlsx';
 
 export default {
   name: 'ScoreEntry',
+
+  components: {
+  },
 
   data() {
     return {
@@ -443,6 +496,7 @@ export default {
       students: [],
       originalStudents: [],
       editingRows: [],
+      studentSearch: '',
 
       // Loading states
       loading: false,
@@ -470,7 +524,9 @@ export default {
       dialogOriginalScores: {},
 
       // Mobile detection
-      isMobile: false
+      isMobile: false,
+      // Per-student save status for mobile
+      mobileSaveStatus: {}, // { [studentId]: 'idle' | 'saving' | 'saved' | 'error' }
     }
   },
 
@@ -501,6 +557,13 @@ export default {
         const curr = this.dialogStudentScores[subject.id];
         return curr && orig && (curr.score !== orig.score || curr.comments !== orig.comments);
       });
+    },
+
+    filteredStudents() {
+      if (!this.studentSearch) return this.students;
+      return this.students.filter(s =>
+        s.studentName && s.studentName.toLowerCase().includes(this.studentSearch.toLowerCase())
+      );
     }
   },
 
@@ -530,20 +593,20 @@ export default {
       this.isMobile = window.innerWidth < 768
     },
 
-  async saveSingleChange(change) {
-  const scoreData = {
-    ...change,
-    studentId: change.studentId,
-    subjecId: change.subjectId,
-    examTypeId: change.examTypeId,
-    academicYearId: change.academicYear,
-    term: change.term,
-    score: change.score,
-    gradeId: this.selectedAssignment.gradeId,
-    comments: change.comments || '',
-  };
-  return await examService.submitScore(scoreData);
-},
+    async saveSingleChange(change) {
+      const scoreData = {
+        ...change,
+        studentId: change.studentId,
+        subjecId: change.subjectId,
+        examTypeId: change.examTypeId,
+        academicYearId: change.academicYear,
+        term: change.term,
+        score: change.score,
+        gradeId: this.selectedAssignment.gradeId,
+        comments: change.comments || '',
+      };
+      return await examService.submitScore(scoreData);
+    },
 
     exportScoresUI() {
       if (!this.students.length) {
@@ -697,10 +760,31 @@ export default {
         const gradeId = this.selectedAssignment.gradeId;
         const academicYearId = this.selectedAcademicYear;
         const term = this.selectedTerm;
-        const examTypeName = this.examTypes.find(e => e.id === this.selectedExamType)?.name || '';
+        const examTypeObj = this.examTypes.find(e => e.id === this.selectedExamType);
+        const examTypeName = examTypeObj ? examTypeObj.name : '';
+
+        // Log all parameters being sent
+        console.log('Export MarkSchedule PDF Params:', {
+          gradeId,
+          academicYearId,
+          term,
+          examTypeName
+        });
+
+        // Log the value of examTypeName
+        console.log('examTypeName being sent:', examTypeName);
 
         // Call the backend PDF endpoint for specific grade
         const pdfBlob = await markScheduleService.getMarkSchedulePdfForGrade(gradeId, academicYearId, term, examTypeName);
+        
+        // If the response is JSON (error), log it
+        if (pdfBlob.type === 'application/json') {
+          const errorText = await pdfBlob.text();
+          console.error('Backend error response:', errorText);
+          // Always show user-friendly message for 400 error
+          this.showError('No scores found for this grade, academic year, term, and exam type. Please ensure you have entered and saved scores before exporting.');
+          return;
+        }
         
         // Create download link
         const url = window.URL.createObjectURL(pdfBlob);
@@ -715,7 +799,10 @@ export default {
         this.showSuccess('Mark Schedule PDF exported successfully!');
       } catch (error) {
         console.error('Error exporting PDF:', error);
-        this.showError('Failed to export Mark Schedule PDF. Please try again.');
+        // Only show the generic error if a user-friendly message was not already shown
+        if (!(error && error.message && error.message.includes('No scores found for this grade'))) {
+          this.showError('Failed to export Mark Schedule PDF. Please try again.');
+        }
       }
     },
 
@@ -1127,42 +1214,54 @@ export default {
       })
     },
 
-  async onMobileScoreEdit(idx) {
-  const student = this.students[idx];
-  const originalStudent = this.originalStudents[idx];
-  const scoreChanged = student.currentScore !== originalStudent.currentScore;
-  const commentsChanged = student.comments !== originalStudent.comments;
+    async onMobileScoreEdit(idx) {
+      const student = this.students[idx];
+      const originalStudent = this.originalStudents[idx];
+      const scoreChanged = student.currentScore !== originalStudent.currentScore;
+      const commentsChanged = student.comments !== originalStudent.comments;
 
-  if (scoreChanged || commentsChanged) {
-    const pendingChange = {
-      studentId: student.studentId,
-      subjectId: this.selectedAssignment.subjectId,
-      examTypeId: this.selectedExamType,
-      score: student.currentScore,
-      academicYear: this.selectedAcademicYear,
-      term: this.selectedTerm,
-      comments: student.comments || ''
-    };
-    // Optionally update pendingChanges for consistency
-    this.pendingChanges = this.pendingChanges.filter(change => change.studentId !== student.studentId);
-    this.pendingChanges.push(pendingChange);
+      // Set saving status
+      this.mobileSaveStatus[student.studentId] = 'saving';
 
-    // Persist immediately
-    try {
-      this.saving = true;
-      const result = await this.$options.methods.saveSingleChange.call(this, pendingChange);
-      // Update originalStudents to reflect the saved value
-      this.originalStudents[idx] = { ...student };
-      // Remove from pendingChanges
-      this.pendingChanges = this.pendingChanges.filter(change => change.studentId !== student.studentId);
-      this.showSuccess('Score saved!');
-    } catch (e) {
-      this.showError('Failed to save score');
-    } finally {
-      this.saving = false;
-    }
-  }
-},
+      if (scoreChanged || commentsChanged) {
+        const pendingChange = {
+          studentId: student.studentId,
+          subjectId: this.selectedAssignment.subjectId,
+          examTypeId: this.selectedExamType,
+          score: student.currentScore,
+          academicYear: this.selectedAcademicYear,
+          term: this.selectedTerm,
+          comments: student.comments || ''
+        };
+        // Optionally update pendingChanges for consistency
+        this.pendingChanges = this.pendingChanges.filter(change => change.studentId !== student.studentId);
+        this.pendingChanges.push(pendingChange);
+
+        // Persist immediately
+        try {
+          this.saving = true;
+          const result = await this.$options.methods.saveSingleChange.call(this, pendingChange);
+          // Update originalStudents to reflect the saved value
+          this.originalStudents[idx] = { ...student };
+          // Remove from pendingChanges
+          this.pendingChanges = this.pendingChanges.filter(change => change.studentId !== student.studentId);
+          this.mobileSaveStatus[student.studentId] = 'saved';
+          setTimeout(() => {
+            if (this.mobileSaveStatus[student.studentId] === 'saved') {
+              this.mobileSaveStatus[student.studentId] = 'idle';
+            }
+          }, 1500);
+          this.showSuccess('Score saved!');
+        } catch (e) {
+          this.mobileSaveStatus[student.studentId] = 'error';
+          this.showError('Failed to save score');
+        } finally {
+          this.saving = false;
+        }
+      } else {
+        this.mobileSaveStatus[student.studentId] = 'idle';
+      }
+    },
 
     // --- Multi-subject dialog logic ---
     async onRowClick(event) {
@@ -1292,13 +1391,47 @@ export default {
 }
 </script>
 
-
-
-
-
 <style scoped>
-/* Extra mobile tweaks */
+/***** Modern Table Enhancements *****/
+.modern-table .p-datatable-tbody > tr:hover {
+  background: #f3f6fa !important;
+  transition: background 0.2s;
+}
+.modern-table .p-datatable-tbody > tr > td {
+  vertical-align: middle;
+  font-size: 1rem;
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
+}
+.modern-table .p-datatable-thead > tr > th {
+  font-size: 1.05rem;
+  font-weight: 600;
+  background: #f8fafc;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+/***** Mobile Card Enhancements *****/
+.student-mobile-card {
+  border-radius: 1rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  background: #f8fafc;
+  padding: 1.2rem 1rem 1rem 1rem;
+}
+
+/***** General UI Tweaks *****/
+.score-entry {
+  background: #f8fafc;
+  border-radius: 1.5rem;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  min-height: 90vh;
+}
+
+/***** Responsive Tweaks *****/
 @media (max-width: 768px) {
+  .score-entry {
+    padding: 0.5rem !important;
+    border-radius: 0.75rem;
+  }
   .score-entry .p-card {
     padding: 0.5rem !important;
   }
@@ -1325,11 +1458,12 @@ export default {
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .student-card {
+  .student-mobile-card {
     border-radius: 0.75rem;
     box-shadow: 0 1px 4px rgba(0,0,0,0.04);
     border: 1px solid #e5e7eb;
     background: #fff;
+    padding: 1rem 0.5rem 0.5rem 0.5rem;
   }
   .badge {
     display: inline-block;
@@ -1340,5 +1474,24 @@ export default {
     min-width: 2.5em;
     text-align: center;
   }
+}
+
+.comment-highlight {
+  background: #fffbe6 !important;
+  border: 1.5px solid #ffe58f !important;
+  border-radius: 0.5rem;
+  transition: background 0.3s, border 0.3s;
+}
+
+.fade-slide-enter-active, .fade-slide-leave-active {
+  transition: opacity 0.3s, transform 0.3s;
+}
+.fade-slide-enter-from, .fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+.fade-slide-enter-to, .fade-slide-leave-from {
+  opacity: 1;
+  transform: translateY(0);
 }
 </style>

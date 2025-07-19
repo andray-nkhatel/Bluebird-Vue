@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore } from 'vuex';
 import AppMenuItem from './AppMenuItem.vue';
@@ -242,6 +242,14 @@ const userDisplayInfo = computed(() => {
     email: store.getters['auth/userEmail'] || currentUser.value.email
   };
 });
+
+// Highlight effect for new feature
+const highlightCheckReportCard = ref(true);
+onMounted(() => {
+  setTimeout(() => {
+    highlightCheckReportCard.value = false;
+  }, 5000);
+});
 </script>
 
 <template>
@@ -260,7 +268,27 @@ const userDisplayInfo = computed(() => {
     <!-- Role-based menu -->
     <ul class="layout-menu">
       <template v-for="(item, i) in model" :key="i">
-        <app-menu-item v-if="!item.separator" :item="item" :index="i"></app-menu-item>
+        <template v-if="!item.separator">
+          <app-menu-item
+            :item="item"
+            :index="i"
+            v-bind="item.label === 'Dashboard' ? { highlightCheckReportCard } : {}"
+          >
+            <template #default="{ item: menuItem }">
+              <template v-for="subItem in menuItem.items">
+                <li
+                  v-if="subItem.label === 'Check Report Cards'"
+                  :class="['new-feature-highlight', { 'active-highlight': highlightCheckReportCard }]"
+                >
+                  <app-menu-item :item="subItem" />
+                </li>
+                <template v-else>
+                  <app-menu-item :item="subItem" />
+                </template>
+              </template>
+            </template>
+          </app-menu-item>
+        </template>
         <li v-if="item.separator" class="menu-separator"></li>
       </template>
     </ul>
@@ -314,5 +342,24 @@ const userDisplayInfo = computed(() => {
 
 .layout-menu {
   margin-top: 8px;
+}
+
+.new-feature-highlight {
+  position: relative;
+  animation: shake-ring 0.5s cubic-bezier(.36,.07,.19,.97) both 0s 5;
+  box-shadow: 0 0 0 3px #ffe066, 0 0 8px 2px #ffe066;
+  border-radius: 8px;
+  z-index: 2;
+  transition: box-shadow 0.3s;
+}
+.active-highlight {
+  animation: shake-ring 0.5s cubic-bezier(.36,.07,.19,.97) both 0s 5;
+  box-shadow: 0 0 0 3px #ffe066, 0 0 8px 2px #ffe066;
+}
+@keyframes shake-ring {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
 }
 </style>
