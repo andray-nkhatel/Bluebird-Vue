@@ -294,6 +294,7 @@ const mergeJobStatus = ref(null);
 const pollingInterval = ref(null);
 const canDownloadMergedPdf = ref(false);
 const downloadingMergedPdf = ref(false);
+const mergeJobStartTime = ref(null);
 
 // Add modal/iframe state
 const showPdfModal = ref(false);
@@ -715,8 +716,6 @@ const requestMergedPdfJob = async () => {
     try {
         // FIX: Ensure we're getting the correct academic year value
         let academicYearValue;
-        
-        // Check if classViewAcademicYear is an ID (number) - find the actual year
         if (typeof classViewAcademicYear.value === 'number') {
             const yearObj = academicYears.value.find(y => y.id === classViewAcademicYear.value);
             academicYearValue = yearObj ? parseInt(yearObj.name) : classViewAcademicYear.value;
@@ -732,23 +731,20 @@ const requestMergedPdfJob = async () => {
             type: typeof academicYearValue
         });
 
+        mergeJobStartTime.value = Date.now(); // Start timing
+
         const jobResponse = await reportService.requestMergedPdfJob(
             classViewSelectedGrade.value,
             academicYearValue,
             classViewSelectedTerm.value
         );
-        
-        // FIX: Better error handling for job response
-        if (!jobResponse || (!jobResponse.jobId && !jobResponse.data?.jobId)) {
+        if (!jobResponse || !jobResponse.jobId) {
             throw new Error('No job ID returned from server');
         }
-        
-        mergeJobId.value = jobResponse.jobId || jobResponse.data?.jobId;
+        mergeJobId.value = jobResponse.jobId;
         mergeJobStatus.value = 'Pending';
-        
         console.log('🔍 Job Started:', mergeJobId.value);
         pollMergeJobStatus();
-        
     } catch (error) {
         console.error('🚨 Merge Job Error:', error);
         toast.add({
@@ -766,32 +762,30 @@ const requestMergedPdfJob = async () => {
 
 const pollMergeJobStatus = () => {
     if (!mergeJobId.value) return;
-    
     let pollCount = 0;
     const maxPolls = 60; // 2 minutes max (60 * 2 seconds)
-    
     pollingInterval.value = setInterval(async () => {
         pollCount++;
-        
         try {
             console.log(`🔄 Polling job status (${pollCount}/${maxPolls}):`, mergeJobId.value);
-            
             const statusResponse = await reportService.getMergeJobStatus(mergeJobId.value);
             const status = statusResponse.status || statusResponse.data?.status;
-            
             console.log('📊 Job Status Response:', statusResponse);
-            
             mergeJobStatus.value = status;
-            
             if (status && status.toLowerCase() === 'completed') {
                 clearInterval(pollingInterval.value);
                 canDownloadMergedPdf.value = true;
                 downloadingMergedPdf.value = false;
+                // Calculate elapsed time
+                let elapsed = null;
+                if (mergeJobStartTime.value) {
+                    elapsed = Math.round((Date.now() - mergeJobStartTime.value) / 1000);
+                }
                 toast.add({
                     severity: 'success',
                     summary: 'Ready',
-                    detail: 'Merged PDF is ready for download!',
-                    life: 3000
+                    detail: `Merged PDF is ready for download!${elapsed !== null ? ` (Generated in ${elapsed} seconds)` : ''}`,
+                    life: 5000
                 });
             } else if (status && (status.toLowerCase() === 'failed' || status.toLowerCase() === 'error')) {
                 clearInterval(pollingInterval.value);
@@ -814,13 +808,11 @@ const pollMergeJobStatus = () => {
                     life: 5000
                 });
             }
-            
         } catch (error) {
             console.error('🚨 Polling Error:', error);
             clearInterval(pollingInterval.value);
             downloadingMergedPdf.value = false;
             canDownloadMergedPdf.value = false;
-            
             if (error.response?.status === 404) {
                 toast.add({
                     severity: 'error',
