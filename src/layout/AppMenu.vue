@@ -44,7 +44,7 @@ const allMenuItems = [
                 roles: ['Admin', 'Teacher', 'Staff']
             },
              { 
-                label: 'Class Report Cards', 
+                label: 'Check Report Cards', 
                 icon: 'pi pi-fw pi-file', 
                 to: '/app/teacher-reportcard',
                 roles: ['Teacher']

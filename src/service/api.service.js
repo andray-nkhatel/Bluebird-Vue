@@ -1278,25 +1278,28 @@ export const reportService = {
     
 
     
-    async requestMergedPdf(gradeId, academicYear, term) {
-      const { data } = await api.post(
-        `/reportcards/download/class/${gradeId}/merged/request?academicYear=${academicYear}&term=${term}`
-      );
-      return data.jobId;
-  },
+    async requestMergedPdfJob(gradeId, academicYear, term) {
+        // Send academicYear and term as query params, not in the body
+        const response = await apiClient.post(
+            `/reportcards/download/class/${gradeId}/merged/request?academicYear=${academicYear}&term=${term}`
+        );
+        return response.data
+    },
   
-  async checkMergedPdfStatus(jobId) {
-    const { data } = await api.get(`/reportcards/download/class/merged/status/${jobId}`);
-    return data; // { jobId, status, message }
-  },
+    async getMergeJobStatus(jobId) {
+        // GET to /reportcards/download/class/merged/status/{jobId}
+        const response = await apiClient.get(`/reportcards/download/class/merged/status/${jobId}`);
+        return response.data;
+    },
   
-  async downloadMergedPdfFile(gradeId, academicYear, term) {
-    const response = await api.get(
-      `/reportcards/download/class/merged/file/${gradeId}/${academicYear}/${term}`,
-      { responseType: 'blob' }
-    );
-    return response.data;
-  },
+    async downloadMergedPdfFile(gradeId, academicYear, term) {
+        // GET to /reportcards/download/class/merged/file/{gradeId}/{academicYear}/{term}
+        const response = await apiClient.get(
+            `/reportcards/download/class/merged/file/${gradeId}/${academicYear}/${term}`,
+            { responseType: 'blob' }
+        );
+        return response.data;
+    },
 
     // Helper method to handle blob downloads
     handleBlobDownload(response, fileName) {

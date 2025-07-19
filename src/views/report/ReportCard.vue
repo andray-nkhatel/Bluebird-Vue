@@ -152,17 +152,40 @@
                                         Total: {{ classViewReportCards.length }} students report cards.
                                     </div>
                                     <!-- Download ZIP Button for Class Report Cards -->
-                                    <div v-if="classViewReportCards.length > 0" class="mt-4 flex justify-end">
+                                    <div v-if="classViewReportCards.length > 0" class="mt-4 flex flex-col md:flex-row gap-2 justify-end">
                                         <Button
                                             @click="downloadClassReportCardsZip"
                                             :loading="downloadingClassBundle"
                                             :disabled="downloadingClassBundle"
                                             severity="info"
                                             icon="pi pi-download"
-                                            class="w-full"
+                                            class="w-full md:w-auto"
                                         >
                                             Download All as ZIP
                                         </Button>
+                                        <Button
+                                            @click="requestMergedPdfJob"
+                                            :loading="downloadingMergedPdf"
+                                            :disabled="downloadingMergedPdf || !classViewSelectedGrade || !classViewAcademicYear || !classViewSelectedTerm"
+                                            severity="info"
+                                            icon="pi pi-file-pdf"
+                                            class="w-full md:w-auto"
+                                        >
+                                            Generate & Download Merged PDF
+                                        </Button>
+                                        <Button
+                                            v-if="canDownloadMergedPdf"
+                                            @click="downloadMergedPdf"
+                                            severity="success"
+                                            icon="pi pi-download"
+                                            class="w-full md:w-auto"
+                                        >
+                                            Download Merged PDF
+                                        </Button>
+                                        <div v-if="downloadingMergedPdf || mergeJobStatus === 'Pending'" class="flex items-center gap-2 mt-2">
+                                            <ProgressBar mode="indeterminate" style="height: 2px; width: 100px" />
+                                            <span class="text-sm text-gray-500">Generating merged PDF...</span>
+                                        </div>
                                     </div>
                                     <ProgressBar v-if="isZipDownloaded"  mode="indeterminate" class="mt-0.5" style="height: 2px"></ProgressBar>
                                 </div>
@@ -672,6 +695,256 @@ const loadClassViewReportCards = async () => {
         loadingClassViewBlobsTab.value = false;
     }
 };
+
+// Utility to ensure academicYear is always an integer
+function getAcademicYearInt(val) {
+    if (typeof val === 'object' && val !== null) {
+        if (val.name) return parseInt(val.name, 10);
+        if (val.year) return parseInt(val.year, 10);
+        if (val.id) return parseInt(val.id, 10); // fallback
+    }
+    return parseInt(val, 10);
+}
+
+
+
+const requestMergedPdfJob = async () => {
+    if (!classViewSelectedGrade.value || !classViewAcademicYear.value || !classViewSelectedTerm.value) return;
+    downloadingMergedPdf.value = true;
+    canDownloadMergedPdf.value = false;
+    try {
+        // FIX: Ensure we're getting the correct academic year value
+        let academicYearValue;
+        
+        // Check if classViewAcademicYear is an ID (number) - find the actual year
+        if (typeof classViewAcademicYear.value === 'number') {
+            const yearObj = academicYears.value.find(y => y.id === classViewAcademicYear.value);
+            academicYearValue = yearObj ? parseInt(yearObj.name) : classViewAcademicYear.value;
+        } else if (typeof classViewAcademicYear.value === 'object' && classViewAcademicYear.value.name) {
+            academicYearValue = parseInt(classViewAcademicYear.value.name);
+        } else {
+            academicYearValue = parseInt(classViewAcademicYear.value);
+        }
+
+        console.log('🔍 Academic Year for Job:', {
+            original: classViewAcademicYear.value,
+            processed: academicYearValue,
+            type: typeof academicYearValue
+        });
+
+        const jobResponse = await reportService.requestMergedPdfJob(
+            classViewSelectedGrade.value,
+            academicYearValue,
+            classViewSelectedTerm.value
+        );
+        
+        // FIX: Better error handling for job response
+        if (!jobResponse || (!jobResponse.jobId && !jobResponse.data?.jobId)) {
+            throw new Error('No job ID returned from server');
+        }
+        
+        mergeJobId.value = jobResponse.jobId || jobResponse.data?.jobId;
+        mergeJobStatus.value = 'Pending';
+        
+        console.log('🔍 Job Started:', mergeJobId.value);
+        pollMergeJobStatus();
+        
+    } catch (error) {
+        console.error('🚨 Merge Job Error:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: error.response?.data?.message || error.message || 'Failed to request merged PDF job',
+            life: 5000
+        });
+        downloadingMergedPdf.value = false;
+    }
+};
+
+
+
+
+const pollMergeJobStatus = () => {
+    if (!mergeJobId.value) return;
+    
+    let pollCount = 0;
+    const maxPolls = 60; // 2 minutes max (60 * 2 seconds)
+    
+    pollingInterval.value = setInterval(async () => {
+        pollCount++;
+        
+        try {
+            console.log(`🔄 Polling job status (${pollCount}/${maxPolls}):`, mergeJobId.value);
+            
+            const statusResponse = await reportService.getMergeJobStatus(mergeJobId.value);
+            const status = statusResponse.status || statusResponse.data?.status;
+            
+            console.log('📊 Job Status Response:', statusResponse);
+            
+            mergeJobStatus.value = status;
+            
+            if (status && status.toLowerCase() === 'completed') {
+                clearInterval(pollingInterval.value);
+                canDownloadMergedPdf.value = true;
+                downloadingMergedPdf.value = false;
+                toast.add({
+                    severity: 'success',
+                    summary: 'Ready',
+                    detail: 'Merged PDF is ready for download!',
+                    life: 3000
+                });
+            } else if (status && (status.toLowerCase() === 'failed' || status.toLowerCase() === 'error')) {
+                clearInterval(pollingInterval.value);
+                downloadingMergedPdf.value = false;
+                canDownloadMergedPdf.value = false;
+                toast.add({
+                    severity: 'error',
+                    summary: 'Failed',
+                    detail: statusResponse.error || 'PDF generation failed on server',
+                    life: 5000
+                });
+            } else if (pollCount >= maxPolls) {
+                // Timeout after 2 minutes
+                clearInterval(pollingInterval.value);
+                downloadingMergedPdf.value = false;
+                toast.add({
+                    severity: 'warn',
+                    summary: 'Timeout',
+                    detail: 'PDF generation is taking longer than expected. Please try again.',
+                    life: 5000
+                });
+            }
+            
+        } catch (error) {
+            console.error('🚨 Polling Error:', error);
+            clearInterval(pollingInterval.value);
+            downloadingMergedPdf.value = false;
+            canDownloadMergedPdf.value = false;
+            
+            if (error.response?.status === 404) {
+                toast.add({
+                    severity: 'error',
+                    summary: 'Job Not Found',
+                    detail: 'The PDF generation job was not found. Please try again.',
+                    life: 5000
+                });
+            } else {
+                toast.add({
+                    severity: 'error',
+                    summary: 'Error',
+                    detail: error.message || 'Failed to check merge job status',
+                    life: 5000
+                });
+            }
+        }
+    }, 2000);
+};
+
+
+
+
+
+
+const downloadMergedPdf = async () => {
+    if (!classViewSelectedGrade.value || !classViewAcademicYear.value || !classViewSelectedTerm.value) return;
+    
+    try {
+        // Use the same academic year processing as in requestMergedPdfJob
+        let academicYearValue;
+        if (typeof classViewAcademicYear.value === 'number') {
+            const yearObj = academicYears.value.find(y => y.id === classViewAcademicYear.value);
+            academicYearValue = yearObj ? parseInt(yearObj.name) : classViewAcademicYear.value;
+        } else if (typeof classViewAcademicYear.value === 'object' && classViewAcademicYear.value.name) {
+            academicYearValue = parseInt(classViewAcademicYear.value.name);
+        } else {
+            academicYearValue = parseInt(classViewAcademicYear.value);
+        }
+
+        console.log('📥 Downloading PDF with:', {
+            grade: classViewSelectedGrade.value,
+            year: academicYearValue,
+            term: classViewSelectedTerm.value
+        });
+
+        const response = await reportService.downloadMergedPdfFile(
+            classViewSelectedGrade.value,
+            academicYearValue,
+            classViewSelectedTerm.value
+        );
+        
+        // Check if response is valid
+        if (!response || !(response instanceof Blob)) {
+            throw new Error('Invalid response - not a valid PDF file');
+        }
+
+        const gradeObj = grades.value.find(g => g.id === classViewSelectedGrade.value);
+        const className = gradeObj?.fullName?.replace(/[^a-z0-9]/gi, '_') || 'Class';
+        const fileName = `${className}_Merged_Report_Cards_${academicYearValue}_Term${classViewSelectedTerm.value}.pdf`;
+        
+        const url = window.URL.createObjectURL(response);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        toast.add({
+            severity: 'success',
+            summary: 'Downloaded',
+            detail: `Merged PDF downloaded: ${fileName}`,
+            life: 3000
+        });
+        
+        // Reset state
+        canDownloadMergedPdf.value = false;
+        mergeJobId.value = null;
+        mergeJobStatus.value = null;
+        
+    } catch (error) {
+        console.error('🚨 Download Error:', error);
+        
+        let errorMessage = 'Failed to download merged PDF';
+        if (error.response?.status === 404) {
+            errorMessage = 'Merged PDF not found. Please generate it again.';
+        } else if (error.response?.status === 500) {
+            errorMessage = 'Server error while generating PDF. Please try again.';
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+        
+        toast.add({
+            severity: 'error',
+            summary: 'Download Error',
+            detail: errorMessage,
+            life: 5000
+        });
+    }
+};
+
+const debugMergeState = () => {
+    console.log('🔍 Current Merge State:', {
+        mergeJobId: mergeJobId.value,
+        mergeJobStatus: mergeJobStatus.value,
+        canDownloadMergedPdf: canDownloadMergedPdf.value,
+        downloadingMergedPdf: downloadingMergedPdf.value,
+        selectedGrade: classViewSelectedGrade.value,
+        selectedYear: classViewAcademicYear.value,
+        selectedTerm: classViewSelectedTerm.value,
+        pollingActive: !!pollingInterval.value
+    });
+};
+
+onUnmounted(() => {
+    if (pollingInterval.value) {
+        clearInterval(pollingInterval.value);
+        console.log('🧹 Cleaned up polling interval');
+    }
+});
+
+
+
 </script>
 
 <style scoped>

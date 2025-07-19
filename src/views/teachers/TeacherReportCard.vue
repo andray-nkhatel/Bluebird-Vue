@@ -68,7 +68,7 @@
               </div>
               <div v-if="classViewReportCards.length > 0">
                 <DataTable :value="classViewReportCards" stripedRows   class="p-datatable-sm">
-                  <Column field="studentName" header="Student" />
+                  <Column field="studentName" sortable header="Student" />
                   <Column field="gradeName" header="Grade" />
                   <Column header="Actions" style="width: 180px">
                     <template #body="{ data }">
