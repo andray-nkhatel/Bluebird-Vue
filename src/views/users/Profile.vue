@@ -52,10 +52,10 @@ const roleIcon = computed(() => {
 
 const roleColor = computed(() => {
   switch (profileData.value.role) {
-    case 'Admin': return 'bg-red-100 text-red-800';
-    case 'Teacher': return 'bg-blue-100 text-blue-800';
-    case 'Staff': return 'bg-green-100 text-green-800';
-    default: return 'bg-gray-100 text-gray-800';
+    case 'Admin': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+    case 'Teacher': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+    case 'Staff': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+    default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
   }
 });
 
@@ -110,7 +110,7 @@ onMounted(() => {
     </div>
 
     <!-- Profile Header -->
-    <div class="flex flex-col items-center justify-center gap-3 py-8 mb-6 bg-gradient-to-r from-blue-50 to-green-50 rounded-xl shadow-sm w-full px-4">
+    <div class="flex flex-col items-center justify-center gap-3 py-8 mb-6 bg-slate-50 dark:bg-slate-800 rounded-xl shadow-md w-full px-4 text-gray-900 dark:text-gray-100">
       <Avatar
         :label="profileData.fullName?.charAt(0) || 'U'"
         size="xxlarge"
@@ -118,11 +118,11 @@ onMounted(() => {
         :style="{ backgroundColor: profileData.role === 'Admin' ? '#ef4444' : profileData.role === 'Teacher' ? '#3b82f6' : '#10b981' }"
       />
       <div class="flex flex-col sm:flex-row items-center gap-2 mt-2 w-full justify-center text-center">
-        <h2 class="text-2xl sm:text-3xl font-bold text-900 m-0">{{ profileData.fullName }}</h2>
+        <h2 class="text-2xl sm:text-3xl font-bold text-900 dark:text-gray-100 m-0">{{ profileData.fullName }}</h2>
         <Tag :class="roleColor" :icon="`pi ${roleIcon}`" class="ml-0 sm:ml-2 mt-1 sm:mt-0">{{ profileData.role }}</Tag>
         <Tag :severity="profileData.isActive ? 'success' : 'danger'" :value="profileData.isActive ? 'Active' : 'Inactive'" class="ml-0 sm:ml-2 mt-1 sm:mt-0" />
       </div>
-      <p class="text-600 mt-1 mb-0 text-sm sm:text-base">View your account information</p>
+      <p class="text-600 dark:text-gray-300 mt-1 mb-0 text-sm sm:text-base">View your account information</p>
       <Button 
         icon="pi pi-refresh" 
         outlined 
@@ -136,7 +136,7 @@ onMounted(() => {
     <!-- Main Content Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <!-- Profile Details Card -->
-      <Panel class="shadow-md">
+      <Panel class="shadow-md bg-slate-50 dark:bg-slate-800 text-gray-900 dark:text-gray-100">
         <template #header>
           <div class="flex items-center gap-2">
             <i class="pi pi-user text-primary"></i>
@@ -144,7 +144,7 @@ onMounted(() => {
           </div>
         </template>
         <div class="p-2">
-          <DataTable :value="profileTableRows" class="p-datatable-sm w-full">
+          <DataTable :value="profileTableRows" class="p-datatable-sm w-full text-gray-900 dark:text-gray-100">
             <Column field="label" header="Field" style="width: 40%">
               <template #body="{ data }">
                 <span class="flex items-center gap-2">
@@ -164,7 +164,7 @@ onMounted(() => {
       </Panel>
 
       <!-- Quick Stats Card -->
-      <Panel class="shadow-md">
+      <Panel class="shadow-md bg-slate-50 dark:bg-slate-800 text-gray-900 dark:text-gray-100">
         <template #header>
           <div class="flex items-center gap-2">
             <i class="pi pi-info-circle text-primary"></i>
@@ -172,21 +172,21 @@ onMounted(() => {
           </div>
         </template>
         <div class="flex flex-col gap-4 p-2">
-          <div class="flex items-center justify-between p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition">
+          <div class="flex items-center justify-between p-3 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 transition">
             <div class="flex items-center gap-2">
               <i class="pi pi-id-card text-primary"></i>
               <span class="font-medium">User ID</span>
             </div>
             <span class="font-bold">#{{ profileData.id }}</span>
           </div>
-          <div class="flex items-center justify-between p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition">
+          <div class="flex items-center justify-between p-3 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 transition">
             <div class="flex items-center gap-2">
               <i class="pi pi-shield text-primary"></i>
               <span class="font-medium">Account Status</span>
             </div>
             <Tag :severity="profileData.isActive ? 'success' : 'danger'" :value="profileData.isActive ? 'Active' : 'Inactive'" />
           </div>
-          <div class="flex items-center justify-between p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition">
+          <div class="flex items-center justify-between p-3 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 transition">
             <div class="flex items-center gap-2">
               <i :class="`pi ${roleIcon} text-primary`"></i>
               <span class="font-medium">Access Level</span>
@@ -198,7 +198,7 @@ onMounted(() => {
     </div>
 
     <!-- Session Information Card -->
-    <Panel class="mt-6 shadow-md">
+    <Panel class="mt-6 shadow-md bg-slate-50 dark:bg-slate-800 text-gray-900 dark:text-gray-100">
       <template #header>
         <div class="flex items-center gap-2">
           <i class="pi pi-clock text-primary"></i>
@@ -208,14 +208,14 @@ onMounted(() => {
       <div class="flex flex-col md:flex-row gap-6 p-4 items-center justify-center">
         <div class="flex-1 text-center">
           <i class="pi pi-clock text-primary text-3xl mb-2"></i>
-          <p class="text-600 text-sm m-0">Last Login</p>
-          <p class="font-bold text-900 mt-1">{{ formattedLastLogin }}</p>
+          <p class="text-600 dark:text-gray-300 text-sm m-0">Last Login</p>
+          <p class="font-bold text-900 dark:text-gray-100 mt-1">{{ formattedLastLogin }}</p>
         </div>
         <Divider layout="vertical" class="hidden md:block" />
         <div class="flex-1 text-center">
           <i class="pi pi-calendar text-primary text-3xl mb-2"></i>
-          <p class="text-600 text-sm m-0">Member Since</p>
-          <p class="font-bold text-900 mt-1">{{ formattedCreatedAt }}</p>
+          <p class="text-600 dark:text-gray-300 text-sm m-0">Member Since</p>
+          <p class="font-bold text-900 dark:text-gray-100 mt-1">{{ formattedCreatedAt }}</p>
         </div>
       </div>
     </Panel>
