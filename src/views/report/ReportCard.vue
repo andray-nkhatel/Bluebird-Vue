@@ -325,6 +325,8 @@ const loadingClassViewBlobs = ref(false);
 
 // For PDF debug: store the last blob for download
 const lastPdfBlob = ref(null);
+const pdfUrl = ref('');
+const showPdfModal = ref(false);
 
 // Add search bar above report cards table
 const reportCardSearchQuery = ref("");
