@@ -28,31 +28,39 @@
 
     <div class="field mt-3">
       <label class="block font-medium mb-2">Subjects *</label>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+      <div v-if="loadingTeachers" class="flex items-center justify-center min-h-[48px]">
+        <i class="pi pi-spin pi-spinner text-xl text-primary"></i>
+        <span class="ml-2">Loading subjects...</span>
+      </div>
+      <div v-else class="grid grid-cols-2 md:grid-cols-4 gap-2">
         <div v-for="subject in subjects" :key="subject.id" class="flex items-center">
-          <input type="checkbox" :id="'subject-' + subject.id" :value="subject.id" v-model="selectedSubjects" :disabled="!selectedTeacher" />
+          <input type="checkbox" :id="'subject-' + subject.id" :value="subject.id" v-model="selectedSubjects" :disabled="!selectedTeacher || loadingTeachers" />
           <label :for="'subject-' + subject.id" class="ml-2">{{ subject.name }}</label>
         </div>
       </div>
-      <small v-if="submitted && selectedSubjects.length === 0" class="p-error">
+      <small v-if="submitted && selectedSubjects.length === 0 && !loadingTeachers" class="p-error">
         At least one subject is required.
       </small>
     </div>
 
     <div class="field mt-3">
       <label class="block font-medium mb-2">Classes *</label>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+      <div v-if="loadingTeachers" class="flex items-center justify-center min-h-[48px]">
+        <i class="pi pi-spin pi-spinner text-xl text-primary"></i>
+        <span class="ml-2">Loading classes...</span>
+      </div>
+      <div v-else class="grid grid-cols-2 md:grid-cols-4 gap-2">
         <div v-for="grade in grades" :key="grade.id" class="flex items-center">
-          <input type="checkbox" :id="'grade-' + grade.id" :value="grade.id" v-model="selectedGrades" :disabled="!selectedTeacher" />
+          <input type="checkbox" :id="'grade-' + grade.id" :value="grade.id" v-model="selectedGrades" :disabled="!selectedTeacher || loadingTeachers" />
           <label :for="'grade-' + grade.id" class="ml-2">{{ grade.fullName }}</label>
         </div>
       </div>
-      <small v-if="submitted && selectedGrades.length === 0" class="p-error">
+      <small v-if="submitted && selectedGrades.length === 0 && !loadingTeachers" class="p-error">
         At least one class is required.
       </small>
     </div>
 
-    <div v-if="getAssignmentPreview().length > 0" class="field">
+    <div v-if="getAssignmentPreview().length > 0 && !loadingTeachers" class="field">
       <label class="block font-medium mb-2">Assignment Preview</label>
       <div class="border-1 border-200 border-round p-3 bg-50">
         <div v-for="(preview, idx) in getAssignmentPreview()" :key="idx" class="text-sm mb-1">
@@ -81,7 +89,7 @@
 </template>
 
 <script setup>
-import { subjectService } from '@/service/api.service'
+import { subjectService, userService } from '@/service/api.service'
 import { ref, watch } from 'vue'
 
 const props = defineProps({
@@ -107,28 +115,21 @@ watch(selectedTeacher, async (teacherId) => {
   selectedGrades.value = []
   existingAssignments.value = []
   if (!teacherId) return
-  // For each subject, get assignments and filter for this teacher
-  for (const subject of props.subjects) {
-    try {
-      const result = await subjectService.getSubjectAssignments(subject.id)
-      if (result.assignments) {
-        for (const a of result.assignments) {
-          if (a.teacherId === teacherId) {
-            existingAssignments.value.push({
-              subjectId: subject.id,
-              gradeId: a.gradeId,
-              assignmentId: a.assignmentId
-            })
-          }
-        }
-      }
-    } catch (e) {
-      // ignore
-    }
+  loadingTeachers.value = true
+  try {
+    // Fetch all assignments for this teacher in one call
+    const assignments = await userService.getTeacherAssignments(teacherId)
+    existingAssignments.value = assignments.map(a => ({
+      subjectId: a.subjectId,
+      gradeId: a.gradeId,
+      assignmentId: a.assignmentId
+    }))
+    // Pre-check boxes for existing assignments
+    selectedSubjects.value = Array.from(new Set(existingAssignments.value.map(a => a.subjectId)))
+    selectedGrades.value = Array.from(new Set(existingAssignments.value.map(a => a.gradeId)))
+  } finally {
+    loadingTeachers.value = false
   }
-  // Pre-check boxes for existing assignments
-  selectedSubjects.value = Array.from(new Set(existingAssignments.value.map(a => a.subjectId)))
-  selectedGrades.value = Array.from(new Set(existingAssignments.value.map(a => a.gradeId)))
 })
 
 function resetForm() {

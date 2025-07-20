@@ -19,6 +19,8 @@ let isEnabled = ref(false);
 // Add a ref to track if the last login attempt failed
 const lastLoginFailed = ref(false);
 
+const loginSuccess = ref(false); // New variable for possible future use, but not needed for immediate redirect
+
 const login = async () => {
   if (!username.value || !password.value) {
     toast.add({ 
@@ -32,17 +34,14 @@ const login = async () => {
   }
   
   loading.value = true;
-  
+  lastLoginFailed.value = false;
+
   try {
-    lastLoginFailed.value = false;
     // Dispatch login and get the response (which should have { token, user })
     const response = await store.dispatch('auth/login', {
       username: username.value,
-      // email: "",
       password: password.value
     });
-
-    isEnabled.value = true;
 
     // Extract user object from store (should be set by the store action)
     const user = store.getters['auth/user'];
@@ -76,14 +75,21 @@ const login = async () => {
       redirectPath = queryRedirect;
     }
 
-    setTimeout(() => {
-      router.push(redirectPath);
-    }, 2000);
+    toast.add({
+      severity: 'success',
+      summary: 'Login Successful',
+      detail: 'You have been logged in successfully.',
+      life: 1500,
+      closable: true,
+      sticky: false
+    });
+    
+    router.push(redirectPath); // Immediate redirect
+    password.value = '';
 
   } catch (error) {
     lastLoginFailed.value = true;
     console.error('Login error:', error);
-    isEnabled.value = false;
     if (error.response && error.response.status === 401) {
       toast.add({
         severity: 'error',
@@ -139,7 +145,7 @@ const registerNavigation = () => {
       >
         <Message v-if="isEnabled" class="mb-6" severity="success" size="large">Login successful!</Message>
         <div class="text-center mb-8">
-          <div class="text-surface-900 dark:text-surface-0 text-3xl font-medium mb-4">Bluebird 2.0</div>
+          <div class="text-surface-900 dark:text-surface-0 text-3xl font-medium mb-4 bluebird-brand">Bluebird 2.0</div>
           <span class="text-muted-color font-medium">Sign in to continue</span>
         </div>
         <form @submit.prevent="login">

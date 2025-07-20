@@ -205,7 +205,15 @@
         </div>
       </div>
 
-      
+      <div class="mb-4 flex align-items-center gap-2">
+        <label for="studentSearch" class="font-medium text-900">Search Student:</label>
+        <InputText
+          id="studentSearch"
+          v-model="studentSearch"
+          placeholder="Enter student name"
+          class="w-20rem"
+        />
+      </div>
 
       <!-- Grades Table -->
       <DataTable 
@@ -496,6 +504,7 @@ const sortOrder = ref(1)
 const selectedSection = ref(null)
 const showDetailsDialog = ref(false)
 const selectedGrade = ref(null)
+const studentSearch = ref('')
 
 // Stream colors for visual variety
 const streamColors = ['info', 'success', 'warn', 'danger', 'secondary']
@@ -649,6 +658,17 @@ const filteredGrades = computed(() => {
   // Filter by section
   if (selectedSection.value) {
     filtered = filtered.filter(grade => grade.section === selectedSection.value)
+  }
+
+  // Filter by student name
+  if (studentSearch.value.trim()) {
+    const search = studentSearch.value.trim().toLowerCase()
+    filtered = filtered.filter(grade =>
+      Array.isArray(grade.students) &&
+      grade.students.some(student =>
+        (student.fullName || '').toLowerCase().includes(search)
+      )
+    )
   }
 
   return filtered

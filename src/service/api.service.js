@@ -1352,6 +1352,16 @@ export const reportService = {
             studentName: rc.studentName,
             gradeName: rc.gradeName
         }));
+    },
+
+    async sendClassReportCardsEmail(gradeId, academicYear, term) {
+        // POST to /reportcards/send/class/{gradeId}/email?academicYear=...&term=...
+        const response = await apiClient.post(
+            `/reportcards/send/class/${gradeId}/email`,
+            null,
+            { params: { academicYear, term } }
+        );
+        return response.data;
     }
 };
 
@@ -1455,6 +1465,11 @@ export const userService = {
   // async resetPassword(id, newPassword) {
   //   await apiClient.post(`/users/${id}/reset-password`, { newPassword });
   // }
+
+  async getTeacherAssignments(teacherId) {
+    const response = await apiClient.get(`/users/${teacherId}/assignments`);
+    return response.data;
+  }
 };
 
 
