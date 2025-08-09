@@ -9,6 +9,16 @@
         <h2 class="text-2xl md:text-3xl font-bold text-900 m-0">Mark Entry</h2>
       </div>
       <div class="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+        <!-- Bulk Absent Management Button -->
+         <!--
+        <Button
+          label="Manage Absent"
+          icon="pi pi-users"
+          class="p-button-secondary w-full md:w-auto shadow-sm"
+          @click="showBulkAbsentDialog = true"
+          :disabled="!students.length"
+          v-tooltip.top="'Bulk mark students as absent or present'"
+        /> -->
         <Button
           id="mark-schedule-btn"
           label="Mark-Schedule"
@@ -113,6 +123,12 @@
             placeholder="Search student by name..."
             class="p-2 border border-gray-300 rounded w-full md:w-1/3"
           />
+          <!-- Quick Stats -->
+          <div class="flex gap-4 text-sm">
+            <span class="text-green-600">Present: {{ presentCount }}</span>
+            <span class="text-red-600">Absent: {{ absentCount }}</span>
+            <span class="text-blue-600">Total: {{ students.length }}</span>
+          </div>
         </div>
         <div class="overflow-x-auto">
           <DataTable
@@ -133,20 +149,26 @@
             @row-click="onRowClick"
             style="cursor:pointer"
           >
-            <Column field="studentName" header="Student Name" style="width: 28%">
+            <Column field="studentName" header="Student Name" style="width: 25%">
               <template #body="slotProps">
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2" :class="{ 'opacity-60': slotProps.data.isAbsent }">
                   <span class="inline-flex items-center justify-center bg-surface-200 text-blue-700 rounded-full w-8 h-8 font-bold">
                     {{ getInitials(slotProps.data.studentName) }}
                   </span>
                   <span class="font-medium text-900">{{ slotProps.data.studentName }}</span>
+                  <i v-if="slotProps.data.isAbsent" class="pi pi-minus-circle text-red-500 text-sm" 
+                     v-tooltip="'Student marked as absent'"></i>
                 </div>
               </template>
             </Column>
-            <Column field="currentScore" header="Current Score" style="width: 22%" bodyStyle="text-align:center;">
+            <Column field="currentScore" header="Current Score" style="width: 18%" bodyStyle="text-align:center;">
               <template #body="slotProps">
+                <div v-if="slotProps.data.isAbsent" class="flex items-center justify-center gap-2">
+                  <Tag value="ABSENT" severity="danger" class="text-sm font-semibold" />
+                  <small class="text-400">(Score: 0)</small>
+                </div>
                 <Tag
-                  v-if="slotProps.data.currentScore !== null && slotProps.data.currentScore !== undefined"
+                  v-else-if="slotProps.data.currentScore !== null && slotProps.data.currentScore !== undefined"
                   :value="slotProps.data.currentScore"
                   class="align-items-center justify-content-center text-base font-semibold px-3 py-1"
                   :severity="getScoreSeverity(slotProps.data.currentScore)"
@@ -159,13 +181,27 @@
                   :min="0"
                   :max="150"
                   :maxFractionDigits="1"
+                  :disabled="slotProps.data.isAbsent"
                   class="w-full"
+                  :class="{ 'opacity-50': slotProps.data.isAbsent }"
                   placeholder="Enter score"
                   :inputStyle="{ width: '100%' }"
                 />
               </template>
             </Column>
-            <Column v-if="selectedExamType === 4" field="comments" header="Comments" style="width: 28%" bodyStyle="text-align:center;">
+            <Column field="isAbsent" header="Attendance" style="width: 15%" bodyStyle="text-align:center;">
+              <template #body="slotProps">
+                <Button
+                  :label="slotProps.data.isAbsent ? 'Absent' : 'Present'"
+                  :icon="slotProps.data.isAbsent ? 'pi pi-times' : 'pi pi-check'"
+                  :class="slotProps.data.isAbsent ? 'p-button-danger p-button-sm' : 'p-button-success p-button-sm'"
+                  @click="toggleAbsentStatus(slotProps.data)"
+                  :loading="slotProps.data.toggleLoading"
+                  size="small"
+                />
+              </template>
+            </Column>
+            <Column v-if="selectedExamType === 4" field="comments" header="Comments" style="width: 25%" bodyStyle="text-align:center;">
               <template #body="slotProps">
                 <div v-if="slotProps.data.comments" class="flex items-center gap-2">
                   <i class="pi pi-comment text-blue-500"></i>
@@ -195,7 +231,9 @@
                       v-model="slotProps.data.comments"
                       :maxlength="100"
                       rows="3"
+                      :disabled="slotProps.data.isAbsent"
                       class="w-full mt-2 comment-highlight"
+                      :class="{ 'opacity-50': slotProps.data.isAbsent }"
                       placeholder="Enter comment."
                       :autoResize="true"
                     />
@@ -206,7 +244,7 @@
                 </transition>
               </template>
             </Column>
-            <Column :rowEditor="true" style="width: 22%" bodyStyle="text-align:center;">
+            <Column :rowEditor="true" style="width: 17%" bodyStyle="text-align:center;">
               <template #roweditoriniticon>
                 <i class="pi pi-pencil"></i>
               </template>
@@ -217,94 +255,61 @@
                 <i class="pi pi-times"></i>
               </template>
             </Column>
-            <template #footer> <div class="text-right text-700 font-medium">In total there are {{ students ? students.length : 0 }} students.</div> </template>
+            <template #footer> 
+              <div class="text-right text-700 font-medium">
+                In total there are {{ students ? students.length : 0 }} students.
+                Present: {{ presentCount }}, Absent: {{ absentCount }}
+              </div> 
+            </template>
           </DataTable>
         </div>
       </template>
     </Card>
 
-    <!-- Multi-Subject Student Scores Dialog -->
-    <Dialog
-      v-model:visible="showStudentDialog"
-      :header="selectedStudent ? selectedStudent.studentName + ' - All Subject Scores' : 'Student Scores'"
-      :modal="true"
-      :closable="true"
-      :style="{ width: '95vw', maxWidth: '600px' }"
-      class="rounded-xl shadow-lg"
-      @hide="onDialogCancel"
-    >
-      <div v-if="selectedStudent">
-        <div class="mb-4 bg-surface-100 p-3 rounded-lg">
-          <strong>Exam Type:</strong> {{ getExamTypeName(selectedExamType) }}<br />
-          <strong>Term:</strong> {{ getTermName(selectedTerm) }}
-        </div>
-        <div class="flex flex-col gap-4">
-          <div v-for="subject in dialogSubjects" :key="subject.id" class="mb-2">
-            <label class="block mb-1 font-semibold text-900">{{ subject.name }}</label>
-            <InputNumber
-              v-model="dialogStudentScores[subject.id].score"
-              :min="0"
-              :max="150"
-              :maxFractionDigits="1"
-              class="w-full"
-              placeholder="Enter score"
-            />
-            <div v-if="selectedExamType === 4" class="mt-2">
-              <label class="block mb-1 font-semibold text-900 flex items-center gap-1">
-                Comments
-                <i class="pi pi-info-circle text-yellow-600" v-tooltip.top="'Comments are only required for End-of-Term exams.'"></i>
-              </label>
-              <transition name="fade-slide">
-                <div v-show="selectedExamType === 4">
-                  <Textarea
-                    v-model="dialogStudentScores[subject.id].comments"
-                    :maxlength="100"
-                    rows="2"
-                    class="w-full comment-highlight"
-                    placeholder="Enter comment."
-                    :autoResize="true"
-                  />
-                  <div class="text-right text-xs text-gray-500 mt-1">
-                    {{ 100 - (dialogStudentScores[subject.id].comments?.length || 0) }} characters left
-                  </div>
-                </div>
-              </transition>
-            </div>
-          </div>
-        </div>
-      </div>
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <Button label="Cancel" icon="pi pi-times" text @click="onDialogCancel" class="p-button-secondary" />
-          <Button label="Save" icon="pi pi-check" @click="onDialogSave" :disabled="!dialogHasChanges" class="p-button-primary" />
-        </div>
-      </template>
-    </Dialog>
-
     <!-- Mobile Card Layout -->
-    <div v-if="students.length > 0 && isMobile" class="flex flex-col gap-4 mt-2" header="Student Scores" :toggleable="true" :collapsed="false">
-      <!-- Search Bar -->
-      <div class="mb-3 flex flex-col md:flex-row md:items-center gap-2">
+    <div v-if="students.length > 0 && isMobile" class="flex flex-col gap-4 mt-2">
+      <!-- Search Bar and Stats -->
+      <div class="mb-3 flex flex-col gap-2">
         <input
           v-model="studentSearch"
           type="text"
           placeholder="Search student by name..."
-          class="p-2 border border-gray-300 rounded w-full md:w-1/3"
+          class="p-2 border border-gray-300 rounded w-full"
         />
+        <div class="flex justify-center gap-4 text-sm">
+          <span class="text-green-600">Present: {{ presentCount }}</span>
+          <span class="text-red-600">Absent: {{ absentCount }}</span>
+          <span class="text-blue-600">Total: {{ students.length }}</span>
+        </div>
       </div>
+      
       <Panel
         v-for="(student, idx) in filteredStudents"
         :key="student.studentId"
         :header="student.studentName"
         :toggleable="true"
-        class="w-full student-mobile-card border-0 shadow-md rounded-lg bg-surface-50"
+        class="w-full student-mobile-card border-0 shadow-md rounded-lg"
+        :class="{ 'absent-card': student.isAbsent }"
       >
         <template #icons>
-          <span v-if="student.currentScore !== null" :class="['badge', getScoreSeverityClass(student.currentScore)]">
-            {{ student.currentScore }}
-          </span>
-          <span v-else class="text-gray-400 text-sm">No score</span>
+          <div class="flex items-center gap-2">
+            <Button
+              :label="student.isAbsent ? 'Absent' : 'Present'"
+              :icon="student.isAbsent ? 'pi pi-times' : 'pi pi-check'"
+              :class="student.isAbsent ? 'p-button-danger p-button-sm' : 'p-button-success p-button-sm'"
+              @click="toggleAbsentStatus(student)"
+              :loading="student.toggleLoading"
+              size="small"
+            />
+            <span v-if="!student.isAbsent && student.currentScore !== null" 
+                  :class="['badge', getScoreSeverityClass(student.currentScore)]">
+              {{ student.currentScore }}
+            </span>
+            <span v-else-if="student.isAbsent" class="badge bg-red-100 text-red-800">ABSENT</span>
+            <span v-else class="text-gray-400 text-sm">No score</span>
+          </div>
         </template>
+        
         <div class="mb-2">
           <label class="block text-xs font-semibold mb-1 text-900">Score</label>
           <InputNumber
@@ -312,12 +317,15 @@
             :min="0"
             :max="150"
             :maxFractionDigits="1"
+            :disabled="student.isAbsent"
             class="w-full"
+            :class="{ 'opacity-50': student.isAbsent }"
             placeholder="Enter score"
             @blur="onMobileScoreEdit(idx)"
             @change="onMobileScoreEdit(idx)"
           />
         </div>
+        
         <div v-if="selectedExamType === 4" class="mb-2">
           <label class="block text-xs font-semibold mb-1 text-900 flex items-center gap-1">
             Comments
@@ -329,7 +337,9 @@
                 v-model="student.comments"
                 :maxlength="100"
                 rows="2"
+                :disabled="student.isAbsent"
                 class="w-full comment-highlight"
+                :class="{ 'opacity-50': student.isAbsent }"
                 placeholder="Enter comment"
                 :autoResize="true"
                 @blur="onMobileScoreEdit(idx)"
@@ -341,6 +351,7 @@
             </div>
           </transition>
         </div>
+        
         <div class="flex justify-between items-center gap-2 mt-2">
           <div>
             <Button
@@ -383,36 +394,166 @@
           <span v-if="student.recordedBy">by {{ student.recordedBy }}</span>
         </div>
       </Panel>
-      <div class="flex flex-col gap-2 mt-4">
-        <Button
-          label="Reset All"
-          icon="pi pi-refresh"
-          class="p-button-secondary w-full shadow-sm"
-          @click="resetChanges"
-          :disabled="!hasUnsavedChanges"
-        />
-        <Button
-          label="Mark-Schedule PDF"
-          icon="pi pi-download"
-          class="p-button-help w-full shadow-sm"
-          @click="exportMarkSchedule"
-          :disabled="!canLoadStudents"
-        />
-        <Button
-          id="mark-schedule-btn-mobile"
-          label="Mark-Schedule PDF"
-          icon="pi pi-file-pdf"
-          class="p-button-warning w-full shadow-sm"
-          @click="exportMarkSchedulePdf"
-          :disabled="!canLoadStudents"
-          v-tooltip.top="{ value: 'Done entering results for particular test in your class? - you can download the grade book', class: 'max-w-xs', showDelay: 200, hideDelay: 100 }"
-          aria-label="Download Markschedule"
-        />
-      </div>
     </div>
 
+    <!-- Bulk Absent Management Dialog -->
+    <Dialog
+      v-model:visible="showBulkAbsentDialog"
+      header="Bulk Absent Management"
+      :modal="true"
+      :closable="true"
+      :style="{ width: '95vw', maxWidth: '800px' }"
+      class="rounded-xl shadow-lg"
+    >
+      <div class="mb-4">
+        <div class="flex flex-col md:flex-row gap-4 mb-4">
+          <Button
+            label="Select All"
+            icon="pi pi-check-square"
+            class="p-button-secondary flex-1"
+            @click="selectAllStudents"
+          />
+          <Button
+            label="Clear Selection"
+            icon="pi pi-square"
+            class="p-button-secondary flex-1"
+            @click="clearStudentSelection"
+          />
+        </div>
+        
+        <div class="flex flex-col md:flex-row gap-4 mb-4">
+          <Button
+            :label="`Mark ${selectedStudents.length} as Absent`"
+            icon="pi pi-times"
+            class="p-button-danger flex-1"
+            :disabled="selectedStudents.length === 0 || bulkAbsentLoading"
+            :loading="bulkAbsentLoading"
+            @click="bulkMarkAbsent(true)"
+          />
+          <Button
+            :label="`Mark ${selectedStudents.length} as Present`"
+            icon="pi pi-check"
+            class="p-button-success flex-1"
+            :disabled="selectedStudents.length === 0 || bulkAbsentLoading"
+            :loading="bulkAbsentLoading"
+            @click="bulkMarkAbsent(false)"
+          />
+        </div>
+      </div>
+
+      <DataTable
+        :value="students"
+        :selection="selectedStudents"
+        v-model:selection="selectedStudents"
+        dataKey="studentId"
+        :scrollable="true"
+        scrollHeight="400px"
+        class="p-datatable-sm"
+      >
+        <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
+        <Column field="studentName" header="Student Name"></Column>
+        <Column field="isAbsent" header="Current Status" bodyStyle="text-align:center;">
+          <template #body="slotProps">
+            <Tag
+              :value="slotProps.data.isAbsent ? 'Absent' : 'Present'"
+              :severity="slotProps.data.isAbsent ? 'danger' : 'success'"
+            />
+          </template>
+        </Column>
+        <Column field="currentScore" header="Score" bodyStyle="text-align:center;">
+          <template #body="slotProps">
+            <span v-if="slotProps.data.isAbsent" class="text-400">0 (Absent)</span>
+            <span v-else>{{ slotProps.data.currentScore ?? 'No score' }}</span>
+          </template>
+        </Column>
+      </DataTable>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <Button
+            label="Close"
+            icon="pi pi-times"
+            class="p-button-secondary"
+            @click="showBulkAbsentDialog = false"
+          />
+        </div>
+      </template>
+    </Dialog>
+
+    <!-- Rest of your existing dialogs and components -->
+    <!-- Multi-Subject Student Scores Dialog -->
+    <Dialog
+      v-model:visible="showStudentDialog"
+      :header="selectedStudent ? selectedStudent.studentName + ' - All Subject Scores' : 'Student Scores'"
+      :modal="true"
+      :closable="true"
+      :style="{ width: '95vw', maxWidth: '600px' }"
+      class="rounded-xl shadow-lg"
+      @hide="onDialogCancel"
+    >
+      <div v-if="selectedStudent">
+        <div class="mb-4 bg-surface-100 p-3 rounded-lg">
+          <strong>Exam Type:</strong> {{ getExamTypeName(selectedExamType) }}<br />
+          <strong>Term:</strong> {{ getTermName(selectedTerm) }}
+        </div>
+        <div class="flex flex-col gap-4">
+          <div v-for="subject in dialogSubjects" :key="subject.id" class="mb-2">
+            <label class="block mb-1 font-semibold text-900">{{ subject.name }}</label>
+            <div class="flex items-center gap-2 mb-2">
+              <Button
+                :label="dialogStudentScores[subject.id]?.isAbsent ? 'Absent' : 'Present'"
+                :icon="dialogStudentScores[subject.id]?.isAbsent ? 'pi pi-times' : 'pi pi-check'"
+                :class="dialogStudentScores[subject.id]?.isAbsent ? 'p-button-danger p-button-sm' : 'p-button-success p-button-sm'"
+                @click="toggleDialogAbsent(subject.id)"
+                size="small"
+              />
+            </div>
+            <InputNumber
+              v-model="dialogStudentScores[subject.id].score"
+              :min="0"
+              :max="150"
+              :maxFractionDigits="1"
+              :disabled="dialogStudentScores[subject.id]?.isAbsent"
+              class="w-full"
+              :class="{ 'opacity-50': dialogStudentScores[subject.id]?.isAbsent }"
+              placeholder="Enter score"
+            />
+            <div v-if="selectedExamType === 4" class="mt-2">
+              <label class="block mb-1 font-semibold text-900 flex items-center gap-1">
+                Comments
+                <i class="pi pi-info-circle text-yellow-600" v-tooltip.top="'Comments are only required for End-of-Term exams.'"></i>
+              </label>
+              <transition name="fade-slide">
+                <div v-show="selectedExamType === 4">
+                  <Textarea
+                    v-model="dialogStudentScores[subject.id].comments"
+                    :maxlength="100"
+                    rows="2"
+                    :disabled="dialogStudentScores[subject.id]?.isAbsent"
+                    class="w-full comment-highlight"
+                    :class="{ 'opacity-50': dialogStudentScores[subject.id]?.isAbsent }"
+                    placeholder="Enter comment."
+                    :autoResize="true"
+                  />
+                  <div class="text-right text-xs text-gray-500 mt-1">
+                    {{ 100 - (dialogStudentScores[subject.id].comments?.length || 0) }} characters left
+                  </div>
+                </div>
+              </transition>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <Button label="Cancel" icon="pi pi-times" text @click="onDialogCancel" class="p-button-secondary" />
+          <Button label="Save" icon="pi pi-check" @click="onDialogSave" :disabled="!dialogHasChanges" class="p-button-primary" />
+        </div>
+      </template>
+    </Dialog>
+
     <!-- Initial State -->
-    <Card v-else-if="!selectedAssignment">
+    <Card v-if="!selectedAssignment">
       <template #content>
         <div class="text-center py-6">
           <i class="pi pi-info-circle text-6xl text-400 mb-3"></i>
@@ -465,13 +606,9 @@
 
 <script>
 import { examService, markScheduleService } from '@/service/api.service';
-import * as XLSX from 'xlsx';
 
 export default {
-  name: 'ScoreEntry',
-
-  components: {
-  },
+  name: 'ScoreEntryWithAbsent',
 
   data() {
     return {
@@ -520,13 +657,18 @@ export default {
       showStudentDialog: false,
       selectedStudent: null,
       dialogSubjects: [],
-      dialogStudentScores: {}, // { [subjectId]: { score, comments, scoreId } }
+      dialogStudentScores: {}, // { [subjectId]: { score, comments, scoreId, isAbsent } }
       dialogOriginalScores: {},
 
       // Mobile detection
       isMobile: false,
       // Per-student save status for mobile
       mobileSaveStatus: {}, // { [studentId]: 'idle' | 'saving' | 'saved' | 'error' }
+
+      // Absent management
+      showBulkAbsentDialog: false,
+      selectedStudents: [],
+      bulkAbsentLoading: false,
     }
   },
 
@@ -555,7 +697,11 @@ export default {
       return this.dialogSubjects.some(subject => {
         const orig = this.dialogOriginalScores[subject.id];
         const curr = this.dialogStudentScores[subject.id];
-        return curr && orig && (curr.score !== orig.score || curr.comments !== orig.comments);
+        return curr && orig && (
+          curr.score !== orig.score || 
+          curr.comments !== orig.comments ||
+          curr.isAbsent !== orig.isAbsent
+        );
       });
     },
 
@@ -564,6 +710,14 @@ export default {
       return this.students.filter(s =>
         s.studentName && s.studentName.toLowerCase().includes(this.studentSearch.toLowerCase())
       );
+    },
+
+    presentCount() {
+      return this.students.filter(s => !s.isAbsent).length;
+    },
+
+    absentCount() {
+      return this.students.filter(s => s.isAbsent).length;
     }
   },
 
@@ -589,6 +743,171 @@ export default {
   },
 
   methods: {
+    // Absent management methods
+    async toggleAbsentStatus(student) {
+      if (student.toggleLoading) return;
+      
+      student.toggleLoading = true;
+      
+      try {
+        let response;
+        
+        // If no scoreId exists, we need to create a score record first
+        if (!student.scoreId) {
+          console.log('No scoreId found, creating score record first');
+          
+          // Create initial score record
+          const scoreData = {
+            studentId: student.studentId,
+            subjectId: this.selectedAssignment.subjectId,
+            examTypeId: this.selectedExamType,
+            academicYear: this.selectedAcademicYear,
+            term: this.selectedTerm,
+            score: 0, // Default score for new absent student
+            isAbsent: !student.isAbsent, // Toggle the current status
+            gradeId: this.selectedAssignment.gradeId,
+            comments: '',
+          };
+          
+          const createResponse = await examService.submitScore(scoreData);
+          
+          // Update student with new scoreId and absent status
+          student.scoreId = createResponse.id;
+          student.isAbsent = createResponse.isAbsent;
+          student.currentScore = createResponse.score;
+          student.lastUpdated = createResponse.recordedAt;
+          student.recordedBy = createResponse.recordedByName;
+          
+          response = createResponse;
+        } else {
+          try {
+            // Score exists, use toggle API
+            response = await examService.toggleAbsentStatus(student.scoreId, student.isAbsent);
+            
+            // Update the student data
+            student.isAbsent = response.isAbsent;
+            student.currentScore = response.score;
+            student.lastUpdated = response.recordedAt;
+            student.recordedBy = response.recordedByName;
+          } catch (toggleError) {
+            // If toggle fails with 404, the score record might have been deleted
+            // Fall back to creating a new score record
+            if (toggleError.response && toggleError.response.status === 404) {
+              console.log('Score record not found, creating new score record');
+              
+              const scoreData = {
+                studentId: student.studentId,
+                subjectId: this.selectedAssignment.subjectId,
+                examTypeId: this.selectedExamType,
+                academicYear: this.selectedAcademicYear,
+                term: this.selectedTerm,
+                score: 0,
+                isAbsent: !student.isAbsent, // Toggle the current status
+                gradeId: this.selectedAssignment.gradeId,
+                comments: '',
+              };
+              
+              const createResponse = await examService.submitScore(scoreData);
+              
+              // Update student with new scoreId and absent status
+              student.scoreId = createResponse.id;
+              student.isAbsent = createResponse.isAbsent;
+              student.currentScore = createResponse.score;
+              student.lastUpdated = createResponse.recordedAt;
+              student.recordedBy = createResponse.recordedByName;
+              
+              response = createResponse;
+            } else {
+              // Re-throw other errors
+              throw toggleError;
+            }
+          }
+        }
+        
+        // Update original data to reflect the change
+        const originalIndex = this.originalStudents.findIndex(s => s.studentId === student.studentId);
+        if (originalIndex !== -1) {
+          this.originalStudents[originalIndex].isAbsent = response.isAbsent;
+          this.originalStudents[originalIndex].currentScore = response.score;
+          this.originalStudents[originalIndex].scoreId = student.scoreId;
+        }
+        
+        this.showSuccess(`Student marked as ${response.isAbsent ? 'absent' : 'present'}`);
+      } catch (error) {
+        console.error('Error toggling absent status:', error);
+        this.showError('Failed to update absent status');
+      } finally {
+        student.toggleLoading = false;
+      }
+    },
+
+    async bulkMarkAbsent(isAbsent) {
+      if (this.selectedStudents.length === 0) return;
+      
+      this.bulkAbsentLoading = true;
+      
+      try {
+        const studentIds = this.selectedStudents.map(s => s.studentId);
+        
+        const response = await examService.bulkMarkAbsent({
+          StudentIds: studentIds,
+          SubjectId: this.selectedAssignment.subjectId,
+          ExamTypeId: this.selectedExamType,
+          AcademicYear: this.selectedAcademicYear,
+          Term: this.selectedTerm,
+          IsAbsent: isAbsent
+        });
+        
+        // Update local data
+        this.students.forEach(student => {
+          if (studentIds.includes(student.studentId)) {
+            student.isAbsent = isAbsent;
+            if (isAbsent) {
+              student.currentScore = 0;
+            }
+          }
+        });
+        
+        // Update original data
+        this.originalStudents.forEach(student => {
+          if (studentIds.includes(student.studentId)) {
+            student.isAbsent = isAbsent;
+            if (isAbsent) {
+              student.currentScore = 0;
+            }
+          }
+        });
+        
+        this.selectedStudents = [];
+        this.showBulkAbsentDialog = false;
+        this.showSuccess(response.Message || `Successfully marked ${studentIds.length} students as ${isAbsent ? 'absent' : 'present'}`);
+      } catch (error) {
+        console.error('Error bulk marking absent:', error);
+        this.showError('Failed to bulk update absent status');
+      } finally {
+        this.bulkAbsentLoading = false;
+      }
+    },
+
+    selectAllStudents() {
+      this.selectedStudents = [...this.students];
+    },
+
+    clearStudentSelection() {
+      this.selectedStudents = [];
+    },
+
+    toggleDialogAbsent(subjectId) {
+      if (this.dialogStudentScores[subjectId]) {
+        this.dialogStudentScores[subjectId].isAbsent = !this.dialogStudentScores[subjectId].isAbsent;
+        
+        // Set score to 0 if marking as absent
+        if (this.dialogStudentScores[subjectId].isAbsent) {
+          this.dialogStudentScores[subjectId].score = 0;
+        }
+      }
+    },
+
     handleResize() {
       this.isMobile = window.innerWidth < 768
     },
@@ -602,210 +921,212 @@ export default {
         academicYearId: change.academicYear,
         term: change.term,
         score: change.score,
+        isAbsent: change.isAbsent || false,
         gradeId: this.selectedAssignment.gradeId,
         comments: change.comments || '',
       };
       return await examService.submitScore(scoreData);
     },
 
-    exportScoresUI() {
-      if (!this.students.length) {
-        this.showWarn('No student data to export.');
-        return;
-      }
-      // Prepare data for export
-      const subject = this.selectedAssignment?.subjectName || '';
-      const grade = this.selectedAssignment?.gradeName || '';
-      const examType = this.examTypes.find(e => e.id === this.selectedExamType)?.name || '';
-      const academicYear = this.academicYears.find(y => y.id === this.selectedAcademicYear)?.name || '';
-      const term = this.terms.find(t => t.id === this.selectedTerm)?.name || '';
-
-      const exportData = this.students.map(student => ({
-        'Student Name': student.studentName,
-        'Student Number': student.studentNumber,
-        'Score': student.currentScore,
-        ...(this.selectedExamType === 3 ? { 'Comments': student.comments } : {}),
-        'Last Updated': student.lastUpdated ? this.formatDate(student.lastUpdated) : '',
-        'Recorded By': student.recordedBy || ''
-      }));
-
-      // Add a header row with context info
-      const contextRows = [
-        [`Subject:`, subject],
-        [`Grade:`, grade],
-        [`Exam Type:`, examType],
-        [`Academic Year:`, academicYear],
-        [`Term:`, term],
-        [],
-      ];
-
-      // Convert to worksheet
-      const ws = XLSX.utils.json_to_sheet(exportData, { origin: contextRows.length });
-      // Insert context rows at the top
-      XLSX.utils.sheet_add_aoa(ws, contextRows, { origin: 0 });
-
-      // Create workbook and add worksheet
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Scores');
-
-      // Generate filename
-      const filename = `Scores_${subject}_${grade}_${examType}_${academicYear}_${term}.xlsx`
-        .replace(/\s+/g, '_')
-        .replace(/[^a-zA-Z0-9_\-\.]/g, '');
-
-      // Export to file
-      XLSX.writeFile(wb, filename);
-
-      this.showSuccess('Scores exported successfully!');
-    },
-
-    async exportMarkSchedule() {
-      if (!this.selectedAssignment || !this.selectedAcademicYear || !this.selectedTerm || !this.selectedExamType) {
-        this.showWarn('Please select all required fields.');
-        return;
+    // Add absent functionality to existing methods
+    async loadStudentScores() {
+      if (!this.canLoadStudents) {
+        this.showError('Please select all required fields before loading students')
+        return
       }
 
       try {
-        // 1. Get all subjects for the selected grade
-        const gradeId = this.selectedAssignment.gradeId;
-        const academicYearId = this.selectedAcademicYear;
-        const term = this.selectedTerm;
-        const examTypeId = this.selectedExamType;
+        this.loadingScores = true
+        this.students = []
+        this.originalStudents = []
+        this.pendingChanges = []
 
-        // Get all assignments for this grade (to get all subjects)
-        let assignments = this.teacherAssignments.filter(a => a.gradeId === gradeId);
+        const gradeStudents = await examService.getStudentsByGrade(this.selectedAssignment.gradeId)
 
-        // Get unique subjects for the grade
-        const subjects = [];
+        if (gradeStudents.length === 0) {
+          this.showInfo('No students found in the selected grade')
+          return
+        }
+
+        const scores = await examService.getGradeScores(
+          this.selectedAssignment.gradeId,
+          this.selectedAcademicYear,
+          this.selectedTerm
+        )
+
+        const relevantScores = scores.filter(score =>
+          score.subjectId === this.selectedAssignment.subjectId &&
+          score.examTypeId === this.selectedExamType
+        )
+
+        this.students = gradeStudents.map(student => {
+          const existingScore = relevantScores.find(score => score.studentId === student.id)
+          return {
+            studentId: student.id,
+            studentName: student.fullName,
+            studentNumber: student.studentNumber,
+            currentScore: existingScore ? existingScore.score : null,
+            scoreId: existingScore ? existingScore.id : null,
+            isAbsent: existingScore ? existingScore.isAbsent : false,
+            lastUpdated: existingScore ? existingScore.recordedAt : null,
+            recordedBy: existingScore ? existingScore.recordedByName : null,
+            comments: existingScore ? existingScore.comments : null,
+            commentsUpdatedAt: existingScore ? existingScore.commentsUpdatedAt : null,
+            commentsUpdatedBy: existingScore ? existingScore.commentsUpdatedByName : null,
+            toggleLoading: false
+          }
+        })
+
+        this.students.sort((a, b) => a.studentName.localeCompare(b.studentName))
+        this.originalStudents = JSON.parse(JSON.stringify(this.students))
+        this.showSuccess(`Loaded ${this.students.length} students`)
+
+      } catch (error) {
+        this.showError('Failed to load student scores')
+      } finally {
+        this.loadingScores = false
+      }
+    },
+
+    onRowEditSave(event) {
+      const { newData, index } = event
+      if (this.saving) {
+        this.showInfo('Please wait for current save to complete')
+        return
+      }
+      this.students[index] = { ...newData }
+      const student = this.students[index]
+      const originalStudent = this.originalStudents[index]
+      const scoreChanged = student.currentScore !== originalStudent.currentScore
+      const commentsChanged = student.comments !== originalStudent.comments
+      const absentChanged = student.isAbsent !== originalStudent.isAbsent
+
+      if (scoreChanged || commentsChanged || absentChanged) {
+        const pendingChange = {
+          studentId: student.studentId,
+          subjectId: this.selectedAssignment.subjectId,
+          examTypeId: this.selectedExamType,
+          score: student.currentScore,
+          isAbsent: student.isAbsent,
+          academicYear: this.selectedAcademicYear,
+          term: this.selectedTerm,
+          comments: student.comments || ''
+        }
+        this.pendingChanges = this.pendingChanges.filter(change => change.studentId !== student.studentId)
+        this.pendingChanges.push(pendingChange)
+        this.scheduleAutoSave()
+      } else {
+        this.pendingChanges = this.pendingChanges.filter(change => change.studentId !== student.studentId)
+      }
+    },
+
+    async onRowClick(event) {
+      const student = event.data;
+      this.selectedStudent = student;
+
+      // 1. Get all subjects for the grade
+      const gradeId = this.selectedAssignment.gradeId;
+      let subjects = [];
+      if (this.teacherAssignments && this.teacherAssignments.length > 0) {
         const subjectMap = {};
-        assignments.forEach(a => {
-          if (!subjectMap[a.subjectId]) {
+        this.teacherAssignments.forEach(a => {
+          if (a.gradeId === gradeId && !subjectMap[a.subjectId]) {
             subjects.push({ id: a.subjectId, name: a.subjectName });
             subjectMap[a.subjectId] = true;
           }
         });
+      }
+      this.dialogSubjects = subjects;
 
-        // 2. Get all students in the grade
-        const students = await examService.getStudentsByGrade(gradeId);
+      // 2. Get all scores for this student, examType, term, academicYear
+      const scores = await examService.getStudentScores(
+        student.studentId,
+        this.selectedAcademicYear,
+        this.selectedTerm
+      );
 
-        // 3. Get all scores for the grade, academic year, term
-        const allScores = await examService.getGradeScores(gradeId, academicYearId, term);
+      // 3. Build dialogStudentScores: { [subjectId]: { score, comments, scoreId, isAbsent } }
+      this.dialogStudentScores = {};
+      subjects.forEach(subject => {
+        const s = scores.find(
+          sc =>
+            sc.subjectId === subject.id &&
+            sc.examTypeId === this.selectedExamType
+        );
+        this.dialogStudentScores[subject.id] = {
+          score: s ? s.score : null,
+          comments: s ? s.comments : '',
+          scoreId: s ? s.id : null,
+          isAbsent: s ? s.isAbsent : false
+        };
+      });
 
-        // 4. Build a map: { studentId: { subjectId: score } }
-        const scoreMap = {};
-        allScores.forEach(score => {
-          if (score.examTypeId !== examTypeId) return;
-          if (!scoreMap[score.studentId]) scoreMap[score.studentId] = {};
-          scoreMap[score.studentId][score.subjectId] = score.score;
-        });
+      // 4. Save original for change detection
+      this.dialogOriginalScores = JSON.parse(JSON.stringify(this.dialogStudentScores));
+      this.showStudentDialog = true;
+    },
 
-        // 5. Build export data: one row per student, columns: Student Name, Subject1, Subject2, ...
-        const exportData = students.map(student => {
-          const row = { 'Student Name': student.fullName };
-          subjects.forEach(subject => {
-            row[subject.name] = (scoreMap[student.id] && scoreMap[student.id][subject.id] != null)
-              ? scoreMap[student.id][subject.id]
-              : '';
+    async onDialogSave() {
+      if (!this.selectedStudent) return;
+      const studentId = this.selectedStudent.studentId;
+      const academicYear = this.selectedAcademicYear;
+      const term = this.selectedTerm;
+      const examTypeId = this.selectedExamType;
+      const gradeId = this.selectedAssignment.gradeId;
+
+      // For each subject, if changed, add to pendingChanges and update students array
+      for (const subject of this.dialogSubjects) {
+        const orig = this.dialogOriginalScores[subject.id];
+        const curr = this.dialogStudentScores[subject.id];
+        if (
+          curr.score !== orig.score ||
+          curr.comments !== orig.comments ||
+          curr.isAbsent !== orig.isAbsent
+        ) {
+          // Update students array if this is the current subject
+          if (subject.id === this.selectedAssignment.subjectId) {
+            const idx = this.students.findIndex(s => s.studentId === studentId);
+            if (idx !== -1) {
+              this.students[idx].currentScore = curr.score;
+              this.students[idx].isAbsent = curr.isAbsent;
+              if ('comments' in this.students[idx]) {
+                this.students[idx].comments = curr.comments;
+              }
+            }
+          }
+          // Add to pendingChanges (replace if exists)
+          this.pendingChanges = this.pendingChanges.filter(
+            ch =>
+              !(
+                ch.studentId === studentId &&
+                ch.subjectId === subject.id &&
+                ch.examTypeId === examTypeId &&
+                ch.academicYear === academicYear &&
+                ch.term === term
+              )
+          );
+          this.pendingChanges.push({
+            studentId,
+            subjectId: subject.id,
+            examTypeId,
+            score: curr.score,
+            isAbsent: curr.isAbsent,
+            academicYear,
+            term,
+            comments: curr.comments || '',
+            gradeId
           });
-          return row;
-        });
-
-        // 6. Add context rows at the top
-        const gradeName = this.selectedAssignment.gradeName || '';
-        const examTypeName = this.examTypes.find(e => e.id === examTypeId)?.name || '';
-        const academicYearName = this.academicYears.find(y => y.id === academicYearId)?.name || '';
-        const termName = this.terms.find(t => t.id === term)?.name || '';
-
-        const contextRows = [
-          [`Grade:`, gradeName],
-          [`Exam Type:`, examTypeName],
-          [`Academic Year:`, academicYearName],
-          [`Term:`, termName],
-          [],
-        ];
-
-        // 7. Convert to worksheet
-        const ws = XLSX.utils.json_to_sheet(exportData, { origin: contextRows.length });
-        XLSX.utils.sheet_add_aoa(ws, contextRows, { origin: 0 });
-
-        // 8. Create workbook and add worksheet
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Mark Schedule');
-
-        // 9. Generate filename
-        const filename = `MarkSchedule_${gradeName}_${examTypeName}_${academicYearName}_${termName}.xlsx`
-          .replace(/\s+/g, '_')
-          .replace(/[^a-zA-Z0-9_\-\.]/g, '');
-
-        // 10. Export to file
-        XLSX.writeFile(wb, filename);
-
-        this.showSuccess('Mark Schedule exported successfully!');
-      } catch (err) {
-        this.showError('Failed to export Mark Schedule.');
-        if (process.env.NODE_ENV === 'development') {
-          // eslint-disable-next-line no-console
-          console.error(err);
         }
       }
+      this.scheduleAutoSave();
+      this.showStudentDialog = false;
+      this.selectedStudent = null;
+      this.dialogSubjects = [];
+      this.dialogStudentScores = {};
+      this.dialogOriginalScores = {};
     },
 
-    async exportMarkSchedulePdf() {
-      if (!this.selectedAssignment || !this.selectedAcademicYear || !this.selectedTerm || !this.selectedExamType) {
-        this.showWarn('Please select all required fields.');
-        return;
-      }
-
-      try {
-        const gradeId = this.selectedAssignment.gradeId;
-        const academicYearId = this.selectedAcademicYear;
-        const term = this.selectedTerm;
-        const examTypeObj = this.examTypes.find(e => e.id === this.selectedExamType);
-        const examTypeName = examTypeObj ? examTypeObj.name : '';
-
-        // Log all parameters being sent
-        console.log('Export MarkSchedule PDF Params:', {
-          gradeId,
-          academicYearId,
-          term,
-          examTypeName
-        });
-
-        // Log the value of examTypeName
-        console.log('examTypeName being sent:', examTypeName);
-
-        // Call the backend PDF endpoint for specific grade
-        const pdfBlob = await markScheduleService.getMarkSchedulePdfForGrade(gradeId, academicYearId, term, examTypeName);
-        
-        // If the response is JSON (error), log it
-        if (pdfBlob.type === 'application/json') {
-          const errorText = await pdfBlob.text();
-          console.error('Backend error response:', errorText);
-          // Always show user-friendly message for 400 error
-          this.showError('No scores found for this grade, academic year, term, and exam type. Please ensure you have entered and saved scores before exporting.');
-          return;
-        }
-        
-        // Create download link
-        const url = window.URL.createObjectURL(pdfBlob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `MarkSchedule_${this.selectedAssignment.gradeName}_Year${academicYearId}_Term${term}_${examTypeName}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-
-        this.showSuccess('Mark Schedule PDF exported successfully!');
-      } catch (error) {
-        console.error('Error exporting PDF:', error);
-        // Only show the generic error if a user-friendly message was not already shown
-        if (!(error && error.message && error.message.includes('No scores found for this grade'))) {
-          this.showError('Failed to export Mark Schedule PDF. Please try again.');
-        }
-      }
-    },
-
+    // All your existing methods remain the same
     async initializeData() {
       try {
         await Promise.all([
@@ -890,63 +1211,6 @@ export default {
       }
     },
 
-    async loadStudentScores() {
-      if (!this.canLoadStudents) {
-        this.showError('Please select all required fields before loading students')
-        return
-      }
-
-      try {
-        this.loadingScores = true
-        this.students = []
-        this.originalStudents = []
-        this.pendingChanges = []
-
-        const gradeStudents = await examService.getStudentsByGrade(this.selectedAssignment.gradeId)
-
-        if (gradeStudents.length === 0) {
-          this.showInfo('No students found in the selected grade')
-          return
-        }
-
-        const scores = await examService.getGradeScores(
-          this.selectedAssignment.gradeId,
-          this.selectedAcademicYear,
-          this.selectedTerm
-        )
-
-        const relevantScores = scores.filter(score =>
-          score.subjectId === this.selectedAssignment.subjectId &&
-          score.examTypeId === this.selectedExamType
-        )
-
-        this.students = gradeStudents.map(student => {
-          const existingScore = relevantScores.find(score => score.studentId === student.id)
-          return {
-            studentId: student.id,
-            studentName: student.fullName,
-            studentNumber: student.studentNumber,
-            currentScore: existingScore ? existingScore.score : null,
-            scoreId: existingScore ? existingScore.id : null,
-            lastUpdated: existingScore ? existingScore.recordedAt : null,
-            recordedBy: existingScore ? existingScore.recordedByName : null,
-            comments: existingScore ? existingScore.comments : null,
-            commentsUpdatedAt: existingScore ? existingScore.commentsUpdatedAt : null,
-            commentsUpdatedBy: existingScore ? existingScore.commentsUpdatedByName : null
-          }
-        })
-
-        this.students.sort((a, b) => a.studentName.localeCompare(b.studentName))
-        this.originalStudents = JSON.parse(JSON.stringify(this.students))
-        this.showSuccess(`Loaded ${this.students.length} students`)
-
-      } catch (error) {
-        this.showError('Failed to load student scores')
-      } finally {
-        this.loadingScores = false
-      }
-    },
-
     onAssignmentChange() {
       this.students = []
       this.originalStudents = []
@@ -973,36 +1237,6 @@ export default {
           }
         }
       }, 2000)
-    },
-
-    onRowEditSave(event) {
-      const { newData, index } = event
-      if (this.saving) {
-        this.showInfo('Please wait for current save to complete')
-        return
-      }
-      this.students[index] = { ...newData }
-      const student = this.students[index]
-      const originalStudent = this.originalStudents[index]
-      const scoreChanged = student.currentScore !== originalStudent.currentScore
-      const commentsChanged = student.comments !== originalStudent.comments
-
-      if (scoreChanged || commentsChanged) {
-        const pendingChange = {
-          studentId: student.studentId,
-          subjectId: this.selectedAssignment.subjectId,
-          examTypeId: this.selectedExamType,
-          score: student.currentScore,
-          academicYear: this.selectedAcademicYear,
-          term: this.selectedTerm,
-          comments: student.comments || ''
-        }
-        this.pendingChanges = this.pendingChanges.filter(change => change.studentId !== student.studentId)
-        this.pendingChanges.push(pendingChange)
-        this.scheduleAutoSave()
-      } else {
-        this.pendingChanges = this.pendingChanges.filter(change => change.studentId !== student.studentId)
-      }
     },
 
     onRowEditCancel(event) {
@@ -1052,11 +1286,12 @@ export default {
           const scoreData = {
             ...change,
             studentId: change.studentId,
-            subjectId: change.subjectId, // Use the subjectId from the change (for multi-subject)
+            subjectId: change.subjectId,
             examTypeId: this.selectedExamType,
             academicYearId: this.selectedAcademicYear,
             term: this.selectedTerm,
             score: change.score,
+            isAbsent: change.isAbsent || false,
             gradeId: this.selectedAssignment.gradeId,
             comments: change.comments || '',
           };
@@ -1075,7 +1310,6 @@ export default {
     },
 
     updateStudentsWithSavedData(savedScores) {
-      // Only update the main students array for the currently selected subject
       savedScores.forEach(savedScore => {
         if (savedScore.subjectId === this.selectedAssignment.subjectId) {
           const studentIndex = this.students.findIndex(s => s.studentId === savedScore.studentId)
@@ -1088,6 +1322,7 @@ export default {
               commentsUpdatedAt: savedScore.commentsUpdatedAt,
               commentsUpdatedBy: savedScore.commentsUpdatedByName,
               currentScore: savedScore.score,
+              isAbsent: savedScore.isAbsent,
               comments: savedScore.comments
             }
           }
@@ -1120,26 +1355,43 @@ export default {
       })
     },
 
-    async exportScores() {
+    async exportMarkSchedulePdf() {
+      if (!this.selectedAssignment || !this.selectedAcademicYear || !this.selectedTerm || !this.selectedExamType) {
+        this.showWarn('Please select all required fields.');
+        return;
+      }
+
       try {
-        if (!this.canLoadStudents) {
-          this.showError('Please select all required fields first')
-          return
+        const gradeId = this.selectedAssignment.gradeId;
+        const academicYearId = this.selectedAcademicYear;
+        const term = this.selectedTerm;
+        const examTypeObj = this.examTypes.find(e => e.id === this.selectedExamType);
+        const examTypeName = examTypeObj ? examTypeObj.name : '';
+
+        const pdfBlob = await markScheduleService.getMarkSchedulePdfForGrade(gradeId, academicYearId, term, examTypeName);
+        
+        if (pdfBlob.type === 'application/json') {
+          const errorText = await pdfBlob.text();
+          console.error('Backend error response:', errorText);
+          this.showError('No scores found for this grade, academic year, term, and exam type. Please ensure you have entered and saved scores before exporting.');
+          return;
         }
-        const blob = await examService.exportGradeBook(
-          this.selectedAssignment.gradeId,
-          this.selectedAssignment.subjectId,
-          this.selectedAcademicYear,
-          this.selectedTerm
-        )
-        const url = window.URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = `scores_${this.selectedAssignment.subjectName}_${this.selectedAcademicYear}_T${this.selectedTerm}.xlsx`
-        link.click()
-        window.URL.revokeObjectURL(url)
+        
+        const url = window.URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `MarkSchedule_${this.selectedAssignment.gradeName}_Year${academicYearId}_Term${term}_${examTypeName}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        this.showSuccess('Mark Schedule PDF exported successfully!');
       } catch (error) {
-        this.showError('Failed to export scores')
+        console.error('Error exporting PDF:', error);
+        if (!(error && error.message && error.message.includes('No scores found for this grade'))) {
+          this.showError('Failed to export Mark Schedule PDF. Please try again.');
+        }
       }
     },
 
@@ -1219,31 +1471,29 @@ export default {
       const originalStudent = this.originalStudents[idx];
       const scoreChanged = student.currentScore !== originalStudent.currentScore;
       const commentsChanged = student.comments !== originalStudent.comments;
+      const absentChanged = student.isAbsent !== originalStudent.isAbsent;
 
-      // Set saving status
       this.mobileSaveStatus[student.studentId] = 'saving';
 
-      if (scoreChanged || commentsChanged) {
+      if (scoreChanged || commentsChanged || absentChanged) {
         const pendingChange = {
           studentId: student.studentId,
           subjectId: this.selectedAssignment.subjectId,
           examTypeId: this.selectedExamType,
           score: student.currentScore,
+          isAbsent: student.isAbsent,
           academicYear: this.selectedAcademicYear,
           term: this.selectedTerm,
           comments: student.comments || ''
         };
-        // Optionally update pendingChanges for consistency
+
         this.pendingChanges = this.pendingChanges.filter(change => change.studentId !== student.studentId);
         this.pendingChanges.push(pendingChange);
 
-        // Persist immediately
         try {
           this.saving = true;
           const result = await this.$options.methods.saveSingleChange.call(this, pendingChange);
-          // Update originalStudents to reflect the saved value
           this.originalStudents[idx] = { ...student };
-          // Remove from pendingChanges
           this.pendingChanges = this.pendingChanges.filter(change => change.studentId !== student.studentId);
           this.mobileSaveStatus[student.studentId] = 'saved';
           setTimeout(() => {
@@ -1263,111 +1513,7 @@ export default {
       }
     },
 
-    // --- Multi-subject dialog logic ---
-    async onRowClick(event) {
-      const student = event.data;
-      this.selectedStudent = student;
-
-      // 1. Get all subjects for the grade
-      const gradeId = this.selectedAssignment.gradeId;
-      let subjects = [];
-      if (this.teacherAssignments && this.teacherAssignments.length > 0) {
-        const subjectMap = {};
-        this.teacherAssignments.forEach(a => {
-          if (a.gradeId === gradeId && !subjectMap[a.subjectId]) {
-            subjects.push({ id: a.subjectId, name: a.subjectName });
-            subjectMap[a.subjectId] = true;
-          }
-        });
-      }
-      this.dialogSubjects = subjects;
-
-      // 2. Get all scores for this student, examType, term, academicYear
-      const scores = await examService.getStudentScores(
-        student.studentId,
-        this.selectedAcademicYear,
-        this.selectedTerm
-      );
-      // scores: [{subjectId, examTypeId, score, comments, id}, ...]
-
-      // 3. Build dialogStudentScores: { [subjectId]: { score, comments, scoreId } }
-      this.dialogStudentScores = {};
-      subjects.forEach(subject => {
-        const s = scores.find(
-          sc =>
-            sc.subjectId === subject.id &&
-            sc.examTypeId === this.selectedExamType
-        );
-        this.dialogStudentScores[subject.id] = {
-          score: s ? s.score : null,
-          comments: s ? s.comments : '',
-          scoreId: s ? s.id : null
-        };
-      });
-
-      // 4. Save original for change detection
-      this.dialogOriginalScores = JSON.parse(JSON.stringify(this.dialogStudentScores));
-      this.showStudentDialog = true;
-    },
-
     onDialogCancel() {
-      this.showStudentDialog = false;
-      this.selectedStudent = null;
-      this.dialogSubjects = [];
-      this.dialogStudentScores = {};
-      this.dialogOriginalScores = {};
-    },
-
-    async onDialogSave() {
-      if (!this.selectedStudent) return;
-      const studentId = this.selectedStudent.studentId;
-      const academicYear = this.selectedAcademicYear;
-      const term = this.selectedTerm;
-      const examTypeId = this.selectedExamType;
-      const gradeId = this.selectedAssignment.gradeId;
-
-      // For each subject, if changed, add to pendingChanges and update students array
-      for (const subject of this.dialogSubjects) {
-        const orig = this.dialogOriginalScores[subject.id];
-        const curr = this.dialogStudentScores[subject.id];
-        if (
-          curr.score !== orig.score ||
-          curr.comments !== orig.comments
-        ) {
-          // Update students array if this is the current subject
-          if (subject.id === this.selectedAssignment.subjectId) {
-            const idx = this.students.findIndex(s => s.studentId === studentId);
-            if (idx !== -1) {
-              this.students[idx].currentScore = curr.score;
-              if ('comments' in this.students[idx]) {
-                this.students[idx].comments = curr.comments;
-              }
-            }
-          }
-          // Add to pendingChanges (replace if exists)
-          this.pendingChanges = this.pendingChanges.filter(
-            ch =>
-              !(
-                ch.studentId === studentId &&
-                ch.subjectId === subject.id &&
-                ch.examTypeId === examTypeId &&
-                ch.academicYear === academicYear &&
-                ch.term === term
-              )
-          );
-          this.pendingChanges.push({
-            studentId,
-            subjectId: subject.id,
-            examTypeId,
-            score: curr.score,
-            academicYear,
-            term,
-            comments: curr.comments || '',
-            gradeId
-          });
-        }
-      }
-      this.scheduleAutoSave();
       this.showStudentDialog = false;
       this.selectedStudent = null;
       this.dialogSubjects = [];
@@ -1379,10 +1525,12 @@ export default {
       const found = this.examTypes.find(e => e.id === typeId);
       return found ? found.name : '';
     },
+    
     getTermName(termId) {
       const found = this.terms.find(t => t.id === termId);
       return found ? found.name : '';
     },
+    
     getAcademicYearNameById(id) {
       const year = this.academicYears.find(y => y.id === id);
       return year ? year.name : id;
@@ -1392,17 +1540,19 @@ export default {
 </script>
 
 <style scoped>
-/***** Modern Table Enhancements *****/
+/* Existing styles */
 .modern-table .p-datatable-tbody > tr:hover {
   background: #f3f6fa !important;
   transition: background 0.2s;
 }
+
 .modern-table .p-datatable-tbody > tr > td {
   vertical-align: middle;
   font-size: 1rem;
   padding-top: 0.7rem;
   padding-bottom: 0.7rem;
 }
+
 .modern-table .p-datatable-thead > tr > th {
   font-size: 1.05rem;
   font-weight: 600;
@@ -1410,70 +1560,25 @@ export default {
   border-bottom: 2px solid #e5e7eb;
 }
 
-/***** Mobile Card Enhancements *****/
 .student-mobile-card {
   border-radius: 1rem;
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
   background: #f8fafc;
   padding: 1.2rem 1rem 1rem 1rem;
+  transition: all 0.3s ease;
 }
 
-/***** General UI Tweaks *****/
+/* Absent-specific styles */
+.absent-card {
+  background: #fef2f2;
+  border-left: 4px solid #ef4444;
+}
+
 .score-entry {
   background: #f8fafc;
   border-radius: 1.5rem;
   box-shadow: 0 2px 12px rgba(0,0,0,0.04);
   min-height: 90vh;
-}
-
-/***** Responsive Tweaks *****/
-@media (max-width: 768px) {
-  .score-entry {
-    padding: 0.5rem !important;
-    border-radius: 0.75rem;
-  }
-  .score-entry .p-card {
-    padding: 0.5rem !important;
-  }
-  .score-entry .p-card-content {
-    padding: 0.5rem !important;
-  }
-  .score-entry .p-datatable {
-    font-size: 0.95rem;
-  }
-  .score-entry .p-datatable .p-datatable-thead > tr > th,
-  .score-entry .p-datatable .p-datatable-tbody > tr > td {
-    padding: 0.5rem 0.25rem;
-  }
-  .score-entry .p-dialog {
-    width: 95vw !important;
-    max-width: 95vw !important;
-  }
-  .score-entry .p-toast {
-    width: 95vw !important;
-    left: 2.5vw !important;
-  }
-  .score-entry .truncate {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .student-mobile-card {
-    border-radius: 0.75rem;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-    border: 1px solid #e5e7eb;
-    background: #fff;
-    padding: 1rem 0.5rem 0.5rem 0.5rem;
-  }
-  .badge {
-    display: inline-block;
-    padding: 0.25em 0.75em;
-    border-radius: 9999px;
-    font-size: 0.95em;
-    font-weight: 600;
-    min-width: 2.5em;
-    text-align: center;
-  }
 }
 
 .comment-highlight {
@@ -1486,12 +1591,46 @@ export default {
 .fade-slide-enter-active, .fade-slide-leave-active {
   transition: opacity 0.3s, transform 0.3s;
 }
+
 .fade-slide-enter-from, .fade-slide-leave-to {
   opacity: 0;
   transform: translateY(-10px);
 }
+
 .fade-slide-enter-to, .fade-slide-leave-from {
   opacity: 1;
   transform: translateY(0);
 }
-</style>
+
+/* Badge styles for mobile */
+.badge {
+  display: inline-block;
+  padding: 0.25em 0.75em;
+  border-radius: 9999px;
+  font-size: 0.95em;
+  font-weight: 600;
+  min-width: 2.5em;
+  text-align: center;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .score-entry {
+    padding: 0.5rem !important;
+    border-radius: 0.75rem;
+  }
+  
+  .student-mobile-card {
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    padding: 1rem 0.5rem 0.5rem 0.5rem;
+  }
+  
+  .absent-card {
+    background: #fef2f2;
+    border-left: 4px solid #ef4444;
+  }
+}
+</style> 

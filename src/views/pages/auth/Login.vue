@@ -23,16 +23,16 @@ const loginSuccess = ref(false); // New variable for possible future use, but no
 
 const login = async () => {
   if (!username.value || !password.value) {
-    toast.add({ 
-      severity: 'error', 
-      summary: 'Error', 
-      detail: 'Please enter username and password', 
-      closable: true, 
-      sticky: false 
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Please enter username and password',
+      closable: true,
+      sticky: false
     });
     return;
   }
-  
+
   loading.value = true;
   lastLoginFailed.value = false;
 
@@ -83,7 +83,7 @@ const login = async () => {
       closable: true,
       sticky: false
     });
-    
+
     router.push(redirectPath); // Immediate redirect
     password.value = '';
 

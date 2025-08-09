@@ -71,7 +71,20 @@ async function loadRecentAssignments() {
 }
 
 async function onAssignmentCreated() {
-  await loadRecentAssignments()
+  console.log('🔄 Assignment created event received, refreshing data...')
+  try {
+    await loadRecentAssignments()
+    console.log('✅ Recent assignments refreshed')
+    
+    // Also refresh the teacher assignments data if needed
+    // This ensures the form shows updated data when reopened
+    if (teachers.value.length > 0) {
+      console.log('🔄 Refreshing teacher data...')
+      // You might need to refresh teacher-specific data here
+    }
+  } catch (error) {
+    console.error('❌ Failed to refresh assignments after creation:', error)
+  }
 }
 
 async function onDeleteAssignment(assignmentId) {

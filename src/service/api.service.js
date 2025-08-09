@@ -768,6 +768,46 @@ debugScoreDataFlow(change, context) {
     return response.data;
   },
 
+// ===== ABSENCE MANAGEMENT ENDPOINTS =====
+
+// Toggle absent status for a single score
+async toggleAbsentStatus(scoreId, currentIsAbsent = false) {
+  // Since the toggle-absent endpoint consistently returns 404, 
+  // we'll use the working UpdateScore endpoint instead
+  try {
+    console.log(`🔄 Attempting to toggle absent status for score ID: ${scoreId}, currentIsAbsent: ${currentIsAbsent}`);
+    
+    const response = await apiClient.put(`/exams/scores/${scoreId}`, {
+      isAbsent: !currentIsAbsent,
+      score: currentIsAbsent ? null : 0 // Set score when marking present, 0 when marking absent
+    });
+    
+    console.log(`✅ Toggle successful for score ID: ${scoreId}`, response.data);
+    return response.data;
+  } catch (error) {
+    console.log(`❌ Toggle failed for score ID: ${scoreId}`, error);
+    
+    // Check if it's a 404 error that was converted by the interceptor
+    if (error.message === 'An error occurred' || error.message.includes('404')) {
+      // Create a proper 404 error for the fallback logic
+      const notFoundError = new Error('Score not found');
+      notFoundError.response = { status: 404 };
+      throw notFoundError;
+    }
+    
+    // For other errors, re-throw as is
+    throw error;
+  }
+},
+
+// Bulk mark students as absent/present
+async bulkMarkAbsent(data) {
+  const response = await apiClient.post('/exams/scores/bulk-absent', data);
+  return response.data;
+},
+
+
+
   // ===== STUDENT ENDPOINTS =====
   
   // Get students by grade - CORRECTED ENDPOINT PATH
@@ -1130,6 +1170,10 @@ Object.keys(examService).forEach(key => {
       try {
         return await originalMethod.apply(this, args);
       } catch (error) {
+        // For toggleAbsentStatus, preserve the original error for custom handling
+        if (key === 'toggleAbsentStatus') {
+          throw error;
+        }
         this.handleApiError(error);
         
       }
