@@ -3,14 +3,19 @@ import { ensureNumber } from '@/service/numberUtils.js';
 import axios from 'axios';
 
 
-// Create axios instance
-const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json'
-  },
-  timeout: 10000 // 10 second timeout
-});
+  // Create axios instance
+  const apiClient = axios.create({
+    baseURL: import.meta.env.VITE_API_BASE_URL,
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    timeout: 10000 // 10 second timeout
+  });
+
+// Log the base URL for debugging
+console.log('🔍 API Base URL:', apiClient.defaults.baseURL);
+console.log('🔍 VITE_API_BASE_URL env var:', import.meta.env.VITE_API_BASE_URL);
+console.log('🔍 All env vars:', import.meta.env);
 
 
 // Add request interceptor to attach token
@@ -24,6 +29,13 @@ apiClient.interceptors.request.use(
     // Optional: Log requests in development
     if (import.meta.env.DEV) {
       console.log(`🚀 ${config.method.toUpperCase()} ${config.url}`, config.data);
+      console.log('🔍 Request config:', {
+        baseURL: config.baseURL,
+        url: config.url,
+        params: config.params,
+        headers: config.headers,
+        hasAuthToken: !!config.headers.Authorization
+      });
     }
     
     return config;
@@ -575,7 +587,13 @@ export const subjectService = {
       console.error(`Error fetching assignments for teacher ${teacherId}:`, error);
       throw error;
     }
-  }
+  },
+    // In api.service.js
+ async getOptionalSubjectsForGrade (gradeId) {
+  const response = await api.get(`/subjects/optional/${gradeId}`);
+  return response.data;
+},
+
 
 };
 
@@ -1183,8 +1201,27 @@ Object.keys(examService).forEach(key => {
 
 // In your api.service.js
 export const markScheduleService = {
+  async testBackendConnection() {
+    try {
+      console.log('🔍 Testing backend connection...');
+      const response = await apiClient.get('/students', { timeout: 5000 });
+      console.log('✅ Backend connection successful:', response.status);
+      return true;
+    } catch (error) {
+      console.error('❌ Backend connection failed:', error);
+      return false;
+    }
+  },
+
   async getMarkSchedulePdfForGrade(gradeId, academicYearId, term, examTypeName) {
-    const response = await apiClient.get(`/markschedule/pdf/grade/${gradeId}`, {
+    // Validate parameters
+    if (!gradeId || !academicYearId || !term || !examTypeName) {
+      throw new Error(`Missing required parameters: gradeId=${gradeId}, academicYearId=${academicYearId}, term=${term}, examTypeName=${examTypeName}`);
+    }
+    
+    console.log('🔍 getMarkSchedulePdfForGrade called with:', { gradeId, academicYearId, term, examTypeName });
+    
+    const response = await apiClient.get(`/MarkSchedule/pdf/grade/${gradeId}`, {
       params: { academicYearId, term, examTypeName },
       responseType: 'blob'
     });
@@ -1192,11 +1229,73 @@ export const markScheduleService = {
   },
 
   async getMarkSchedulePdfForAllGrades(academicYearId, term, examTypeName) {
-    const response = await apiClient.get('/markschedule/pdf', {
-      params: { academicYearId, term, examTypeName },
-      responseType: 'blob'
-    });
-    return response.data;
+    // Validate parameters
+    if (!academicYearId || !term || !examTypeName) {
+      throw new Error(`Missing required parameters: academicYearId=${academicYearId}, term=${term}, examTypeName=${examTypeName}`);
+    }
+    
+    console.log('🔍 getMarkSchedulePdfForAllGrades called with:', { academicYearId, term, examTypeName });
+    console.log('🔍 Full URL will be:', `${apiClient.defaults.baseURL}/MarkSchedule/pdf?academicYearId=${academicYearId}&term=${term}&examTypeName=${examTypeName}`);
+    
+    try {
+      console.log('🔍 Making API request to:', `${apiClient.defaults.baseURL}/MarkSchedule/pdf`);
+      console.log('🔍 With params:', { academicYearId, term, examTypeName });
+      
+      // Try the exact URL format from your working curl
+      const url = `/MarkSchedule/pdf?academicYearId=${academicYearId}&term=${term}&examTypeName=${examTypeName}`;
+      console.log('🔍 Using exact URL format:', url);
+      
+      console.log('🔍 Starting PDF generation request...');
+      const response = await apiClient.get(url, {
+        responseType: 'blob',
+        timeout: 60000, // Increase timeout to 60 seconds for PDF generation
+        headers: {
+          'Accept': '*/*'
+        }
+      });
+      console.log('🔍 PDF generation completed successfully');
+      
+      console.log('✅ API response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        contentType: response.headers['content-type'],
+        dataSize: response.data?.size || 'unknown'
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('❌ getMarkSchedulePdfForAllGrades error:', error);
+      
+      // If we got a response with JSON error, try to read it
+      if (error.response && error.response.data && error.response.data.type === 'application/json') {
+        try {
+          const errorText = await error.response.data.text();
+          console.error('❌ Backend error response:', errorText);
+          
+          // Try to parse as JSON
+          try {
+            const errorJson = JSON.parse(errorText);
+            console.error('❌ Parsed error JSON:', errorJson);
+            throw new Error(`Backend error: ${errorJson.message || errorJson.title || errorText}`);
+          } catch (parseError) {
+            throw new Error(`Backend error: ${errorText}`);
+          }
+        } catch (textError) {
+          console.error('❌ Could not read error response:', textError);
+        }
+      }
+      
+      console.error('❌ Error details:', {
+        message: error.message,
+        response: error.response,
+        request: error.request,
+        config: error.config,
+        isNetworkError: !error.response && !error.request,
+        isRequestError: !!error.request,
+        isResponseError: !!error.response
+      });
+      throw error;
+    }
   }
 };
 

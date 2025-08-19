@@ -61,8 +61,37 @@
                 :class="{ 'p-invalid': errors.gradeId }"
                 placeholder="Select grade"
                 :loading="loadingGrades"
+                @change="onGradeChange"
               />
               <small v-if="errors.gradeId" class="p-error">{{ errors.gradeId }}</small>
+            </div>
+          </div>
+
+          <!-- Optional Subjects Section (Only for Secondary Students) -->
+          <div v-if="isSecondaryStudent" class="optional-subjects-section">
+            <h3 class="text-lg font-medium text-900 mb-3">Optional Subjects</h3>
+            <div class="flex flex-col gap-4">
+              <div class="text-sm text-gray-600 mb-2">
+                <i class="pi pi-info-circle mr-2"></i>
+                {{ optionalSubjectsInfo }}
+              </div>
+              
+              <div class="flex-auto">
+                <label class="block font-semibold mb-2">Select Optional Subjects</label>
+                <MultiSelect
+                  v-model="form.optionalSubjectIds"
+                  :options="availableOptionalSubjects"
+                  optionLabel="name"
+                  optionValue="id"
+                  :maxSelectedLabels="3"
+                  placeholder="Choose optional subjects"
+                  :loading="loadingOptionalSubjects"
+                  :disabled="!form.gradeId"
+                />
+                <small class="text-gray-500">
+                  Maximum {{ maxOptionalSubjects }} optional subject{{ maxOptionalSubjects > 1 ? 's' : '' }} allowed
+                </small>
+              </div>
             </div>
           </div>
 
@@ -100,9 +129,9 @@
 
 <script setup>
 import { useToast } from 'primevue/usetoast';
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { gradeService, studentService } from '../../service/api.service'; // Adjust path as needed
+import { gradeService, studentService, subjectService } from '../../service/api.service';
 
 // Emits
 const emit = defineEmits(['back', 'studentAdded', 'studentUpdated'])
@@ -115,7 +144,7 @@ const isEditMode = computed(() => !!route.params.id)
 const studentId = computed(() => route.params.id)
 
 function goToStudentPage() {
-  router.push('/app/students'); // This navigates to the /student route
+  router.push('/app/students');
 }
 
 // Toast for notifications
@@ -125,7 +154,8 @@ const toast = useToast()
 const form = reactive({
   firstName: '',
   lastName: '',
-  gradeId: null
+  gradeId: null,
+  optionalSubjectIds: []
 })
 
 // Form validation errors
@@ -135,8 +165,28 @@ const errors = reactive({})
 const loading = ref(false)
 const loadingGrades = ref(false)
 const loadingStudent = ref(false)
+const loadingOptionalSubjects = ref(false)
 
 const gradeOptions = ref([])
+const availableOptionalSubjects = ref([])
+const selectedGrade = ref(null)
+
+// Computed properties
+const isSecondaryStudent = computed(() => {
+  if (!selectedGrade.value) return false;
+  return selectedGrade.value.section === 'SecondaryJunior' || 
+         selectedGrade.value.section === 'SecondarySenior';
+})
+
+const maxOptionalSubjects = computed(() => {
+  if (!selectedGrade.value) return 0;
+  return selectedGrade.value.section === 'SecondaryJunior' ? 1 : 2;
+})
+
+const optionalSubjectsInfo = computed(() => {
+  if (!isSecondaryStudent.value) return '';
+  return `Secondary students can select up to ${maxOptionalSubjects.value} optional subject${maxOptionalSubjects.value > 1 ? 's' : ''}.`;
+})
 
 // Validation rules
 const validateForm = () => {
@@ -152,6 +202,11 @@ const validateForm = () => {
 
   if (!form.gradeId) {
     newErrors.gradeId = 'Grade is required'
+  }
+
+  // Validate optional subjects
+  if (isSecondaryStudent.value && form.optionalSubjectIds.length > maxOptionalSubjects.value) {
+    newErrors.optionalSubjects = `Maximum ${maxOptionalSubjects.value} optional subject${maxOptionalSubjects.value > 1 ? 's' : ''} allowed`
   }
 
   // Clear previous errors
@@ -172,6 +227,11 @@ const loadStudent = async () => {
     form.firstName = student.firstName || ''
     form.lastName = student.lastName || ''
     form.gradeId = student.gradeId || null
+    
+    // Load optional subjects if they exist
+    if (student.optionalSubjects && student.optionalSubjects.length > 0) {
+      form.optionalSubjectIds = student.optionalSubjects.map(subject => subject.id)
+    }
   } catch (error) {
     console.error('Error loading student:', error)
     toast.add({
@@ -205,6 +265,44 @@ const loadGrades = async () => {
   }
 }
 
+// Load optional subjects for selected grade
+const loadOptionalSubjects = async (gradeId) => {
+  if (!gradeId) {
+    availableOptionalSubjects.value = []
+    return
+  }
+
+  loadingOptionalSubjects.value = true
+  try {
+    // This would be a new API endpoint to get optional subjects for a grade
+    const optionalSubjects = await subjectService.getOptionalSubjectsForGrade(gradeId)
+    availableOptionalSubjects.value = optionalSubjects
+  } catch (error) {
+    console.error('Error loading optional subjects:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to load optional subjects',
+      life: 3000
+    })
+  } finally {
+    loadingOptionalSubjects.value = false
+  }
+}
+
+// Handle grade change
+const onGradeChange = () => {
+  selectedGrade.value = gradeOptions.value.find(g => g.id === form.gradeId)
+  
+  // Reset optional subjects when grade changes
+  form.optionalSubjectIds = []
+  
+  // Load optional subjects for the selected grade
+  if (isSecondaryStudent.value) {
+    loadOptionalSubjects(form.gradeId)
+  }
+}
+
 // Handle form submission
 const handleSubmit = async () => {
   if (!validateForm()) {
@@ -221,7 +319,7 @@ const handleSubmit = async () => {
   try {
     let result;
     if (isEditMode.value) {
-      // Update existing student (minimal)
+      // Update existing student
       const studentData = {
         firstName: form.firstName?.trim() || '',
         lastName: form.lastName?.trim() || '',
@@ -229,6 +327,14 @@ const handleSubmit = async () => {
         isActive: true
       }
       result = await studentService.updateMinimal(studentId.value, studentData)
+      
+      // Handle optional subjects separately
+      if (isSecondaryStudent.value) {
+        await studentService.assignOptionalSubjects(studentId.value, {
+          subjectIds: form.optionalSubjectIds
+        })
+      }
+      
       toast.add({
         severity: 'success',
         summary: 'Success',
@@ -237,13 +343,21 @@ const handleSubmit = async () => {
       })
       emit('studentUpdated', result)
     } else {
-      // Create new student (minimal)
+      // Create new student
       const studentData = {
         firstName: form.firstName?.trim() || '',
         lastName: form.lastName?.trim() || '',
         gradeId: form.gradeId || null
       }
       result = await studentService.createMinimal(studentData)
+      
+      // Handle optional subjects separately
+      if (isSecondaryStudent.value && form.optionalSubjectIds.length > 0) {
+        await studentService.assignOptionalSubjects(result.id, {
+          subjectIds: form.optionalSubjectIds
+        })
+      }
+      
       toast.add({
         severity: 'success',
         summary: 'Success',
@@ -281,6 +395,7 @@ const resetForm = () => {
     form.firstName = ''
     form.lastName = ''
     form.gradeId = null
+    form.optionalSubjectIds = []
   }
   Object.keys(errors).forEach(key => delete errors[key])
 }
@@ -289,6 +404,13 @@ const resetForm = () => {
 const handleCancel = () => {
   router.push('/students')
 }
+
+// Watch for grade changes
+watch(() => form.gradeId, (newGradeId) => {
+  if (newGradeId) {
+    onGradeChange()
+  }
+})
 
 // Load data on component mount
 onMounted(async () => {
@@ -326,6 +448,13 @@ h3 {
   color: #1f2937;
   border-bottom: 2px solid #e5e7eb;
   padding-bottom: 0.5rem;
+}
+
+.optional-subjects-section {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  background-color: #f9fafb;
 }
 
 :deep(.p-invalid) {

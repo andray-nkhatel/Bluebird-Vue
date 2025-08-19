@@ -63,16 +63,47 @@
                             :loading="loadingExamTypes"
                         />
                     </div>
+                    
+                    <div class="flex flex-col gap-2">
+                        <label class="text-sm font-medium">Grade/Class (Optional)</label>
+                        <Dropdown
+                            v-model="reportFilters.gradeId"
+                            :options="grades"
+                            optionLabel="fullName"
+                            optionValue="id"
+                            placeholder="All Grades"
+                            class="w-full"
+                            :loading="loadingGrades"
+                            :showClear="true"
+                        />
+                    </div>
                 </div>
 
-                <div class="mt-4">
+                <div class="mt-4 space-y-2">
                     <Button
-                        label="Generate All Mark Schedules"
+                        label="Generate All Grades Mark Schedule"
                         icon="pi pi-file-pdf"
                         class="w-full"
                         :disabled="!canGenerateAllMarkSchedules"
                         @click="generateAllMarkSchedules"
                         :loading="generatingAllMarkSchedules"
+                    />
+                    <Button
+                        v-if="reportFilters.gradeId"
+                        label="Generate Single Grade Mark Schedule"
+                        icon="pi pi-file-pdf"
+                        class="w-full p-button-secondary"
+                        :disabled="!canGenerateSingleGradeMarkSchedule"
+                        @click="generateSingleGradeMarkSchedule"
+                        :loading="generatingSingleGradeMarkSchedule"
+                        severity="secondary"
+                    />
+                    <Button
+                        label="Debug: Show Exam Types"
+                        icon="pi pi-info-circle"
+                        class="w-full p-button-outlined"
+                        @click="debugExamTypes"
+                        severity="info"
                     />
                 </div>
             </div>
@@ -228,6 +259,7 @@ const loadingAcademicYears = ref(false)
 const loadingExamTypes = ref(false)
 const loadingGrades = ref(false)
 const generatingAllMarkSchedules = ref(false)
+const generatingSingleGradeMarkSchedule = ref(false)
 const generatingClassReports = ref(false)
 const generatingExamAnalysis = ref(false)
 const generatingGradeExamAnalysis = ref(false)
@@ -281,9 +313,25 @@ const isAcademicYearLoaded = computed(() => {
 })
 
 const canGenerateAllMarkSchedules = computed(() => {
-    return reportFilters.value.academicYearId && 
+    const canGenerate = reportFilters.value.academicYearId && 
            reportFilters.value.term && 
            reportFilters.value.examTypeId
+    
+    console.log('🔍 canGenerateAllMarkSchedules check:', {
+        academicYearId: reportFilters.value.academicYearId,
+        term: reportFilters.value.term,
+        examTypeId: reportFilters.value.examTypeId,
+        canGenerate: canGenerate
+    })
+    
+    return canGenerate
+})
+
+const canGenerateSingleGradeMarkSchedule = computed(() => {
+    return reportFilters.value.academicYearId && 
+           reportFilters.value.term && 
+           reportFilters.value.examTypeId &&
+           reportFilters.value.gradeId
 })
 
 const canGenerateExamAnalysis = computed(() => {
@@ -326,9 +374,12 @@ const loadAcademicYears = async () => {
     loadingAcademicYears.value = true
     try {
         const years = await examService.getAcademicYears()
+        console.log('🔍 Loaded academic years:', years)
         academicYears.value = years
         if (years.length > 0) {
-            reportFilters.value.academicYearId = years.find(y => y.isActive)?.id || years[0].id
+            const selectedYear = years.find(y => y.isActive)?.id || years[0].id
+            reportFilters.value.academicYearId = selectedYear
+            console.log('🔍 Selected academic year ID:', selectedYear)
         }
     } catch (error) {
         console.error('Error loading academic years:', error)
@@ -346,7 +397,9 @@ const loadAcademicYears = async () => {
 const loadExamTypes = async () => {
     loadingExamTypes.value = true
     try {
+        console.log('🔍 Loading exam types...')
         const types = await examService.getExamTypes()
+        console.log('🔍 Exam types loaded:', types)
         examTypes.value = types
     } catch (error) {
         console.error('Error loading exam types:', error)
@@ -392,9 +445,43 @@ const generateAllMarkSchedules = async () => {
 
     generatingAllMarkSchedules.value = true
     try {
+        // Validate that all required values are present
+        if (!reportFilters.value.academicYearId || !reportFilters.value.term || !reportFilters.value.examTypeId) {
+            throw new Error('Missing required parameters: academicYearId, term, or examTypeId');
+        }
+
         const academicYearName = academicYears.value.find(y => y.id === reportFilters.value.academicYearId)?.name || ''
         const termName = terms.value.find(t => t.id === reportFilters.value.term)?.name || ''
-        const examTypeName = examTypes.value.find(e => e.id === reportFilters.value.examTypeId)?.name || ''
+        const examTypeObj = examTypes.value.find(e => e.id === reportFilters.value.examTypeId)
+        
+        if (!examTypeObj || !examTypeObj.name) {
+            throw new Error('Selected exam type not found or has no name');
+        }
+        
+        const examTypeName = examTypeObj.name
+
+        console.log('🔍 Debug - Parameters being sent:', {
+            academicYearId: reportFilters.value.academicYearId,
+            term: reportFilters.value.term,
+            examTypeName: examTypeName
+        });
+        
+        // Note: Your working curl uses academicYearId=2, but we're sending academicYearId=1
+        // You might need to select the correct academic year in the dropdown
+        // Try selecting Academic Year ID 2 in the dropdown to match your working curl example
+
+        // Test backend connection first
+        const isBackendConnected = await markScheduleService.testBackendConnection();
+        if (!isBackendConnected) {
+            throw new Error('Cannot connect to backend server. Please check if the server is running.');
+        }
+
+        toast.add({
+            severity: 'info',
+            summary: 'Processing',
+            detail: 'Generating PDF mark schedules. This may take up to 60 seconds...',
+            life: 3000
+        });
 
         const pdfBlob = await markScheduleService.getMarkSchedulePdfForAllGrades(
             reportFilters.value.academicYearId,
@@ -415,19 +502,138 @@ const generateAllMarkSchedules = async () => {
         toast.add({
             severity: 'success',
             summary: 'Success',
-            detail: 'All mark schedules generated successfully!',
+            detail: 'All mark schedules generated successfully! PDF generation can take up to 60 seconds for large datasets.',
             life: 5000
         })
     } catch (error) {
         console.error('Error generating all mark schedules:', error)
+        
+        let errorMessage = 'Failed to generate mark schedules. Please try again.'
+        
+        if (error.message.includes('Missing required parameters')) {
+            errorMessage = error.message
+        } else if (error.message.includes('Network error')) {
+            errorMessage = 'Network error. Please check your connection and try again.'
+        } else if (error.message.includes('Selected exam type not found')) {
+            errorMessage = 'Selected exam type not found. Please refresh the page and try again.'
+        } else if (error.message.includes('Backend server is not responding')) {
+            errorMessage = 'Backend server is not responding. Please ensure the backend is running on http://localhost:5287'
+        }
+        
         toast.add({
             severity: 'error',
             summary: 'Error',
-            detail: 'Failed to generate mark schedules. Please try again.',
+            detail: errorMessage,
             life: 5000
         })
     } finally {
         generatingAllMarkSchedules.value = false
+    }
+}
+
+const generateSingleGradeMarkSchedule = async () => {
+    if (!canGenerateSingleGradeMarkSchedule.value) {
+        toast.add({
+            severity: 'warn',
+            summary: 'Warning',
+            detail: 'Please select all required fields including grade',
+            life: 3000
+        })
+        return
+    }
+
+    generatingSingleGradeMarkSchedule.value = true
+    try {
+        // Validate that all required values are present
+        if (!reportFilters.value.academicYearId || !reportFilters.value.term || !reportFilters.value.examTypeId || !reportFilters.value.gradeId) {
+            throw new Error('Missing required parameters: academicYearId, term, examTypeId, or gradeId');
+        }
+
+        const academicYearName = academicYears.value.find(y => y.id === reportFilters.value.academicYearId)?.name || ''
+        const termName = terms.value.find(t => t.id === reportFilters.value.term)?.name || ''
+        const examTypeObj = examTypes.value.find(e => e.id === reportFilters.value.examTypeId)
+        const gradeObj = grades.value.find(g => g.id === reportFilters.value.gradeId)
+        
+        if (!examTypeObj || !examTypeObj.name) {
+            throw new Error('Selected exam type not found or has no name');
+        }
+        
+        if (!gradeObj || !gradeObj.fullName) {
+            throw new Error('Selected grade not found or has no name');
+        }
+        
+        const examTypeName = examTypeObj.name
+        const gradeName = gradeObj.fullName
+
+        console.log('🔍 Debug - Single Grade Parameters being sent:', {
+            academicYearId: reportFilters.value.academicYearId,
+            term: reportFilters.value.term,
+            examTypeName: examTypeName,
+            gradeId: reportFilters.value.gradeId,
+            gradeName: gradeName
+        });
+
+        // Test backend connection first
+        const isBackendConnected = await markScheduleService.testBackendConnection();
+        if (!isBackendConnected) {
+            throw new Error('Cannot connect to backend server. Please check if the server is running.');
+        }
+
+        toast.add({
+            severity: 'info',
+            summary: 'Processing',
+            detail: `Generating PDF mark schedule for ${gradeName}. This may take up to 30 seconds...`,
+            life: 3000
+        });
+
+        const pdfBlob = await markScheduleService.getMarkSchedulePdfForGrade(
+            reportFilters.value.gradeId,
+            reportFilters.value.academicYearId,
+            reportFilters.value.term,
+            examTypeName
+        )
+
+        // Create download link
+        const url = window.URL.createObjectURL(pdfBlob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `MarkSchedule_${gradeName}_Year${reportFilters.value.academicYearId}_Term${reportFilters.value.term}_${examTypeName}.pdf`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+
+        toast.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: `Mark schedule for ${gradeName} generated successfully!`,
+            life: 5000
+        })
+    } catch (error) {
+        console.error('Error generating single grade mark schedule:', error)
+        
+        let errorMessage = 'Failed to generate mark schedule. Please try again.'
+        
+        if (error.message.includes('Missing required parameters')) {
+            errorMessage = error.message
+        } else if (error.message.includes('Network error')) {
+            errorMessage = 'Network error. Please check your connection and try again.'
+        } else if (error.message.includes('Selected exam type not found')) {
+            errorMessage = 'Selected exam type not found. Please refresh the page and try again.'
+        } else if (error.message.includes('Selected grade not found')) {
+            errorMessage = 'Selected grade not found. Please refresh the page and try again.'
+        } else if (error.message.includes('Backend server is not responding')) {
+            errorMessage = 'Backend server is not responding. Please ensure the backend is running on http://localhost:5287'
+        }
+        
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: errorMessage,
+            life: 5000
+        })
+    } finally {
+        generatingSingleGradeMarkSchedule.value = false
     }
 }
 
@@ -697,14 +903,43 @@ const createNewAcademicYear = () => {
     emit('create-new-year')
 }
 
+const debugExamTypes = () => {
+    console.log('🔍 Debug Exam Types:', JSON.parse(JSON.stringify(examTypes.value)));
+    console.log('🔍 Selected Exam Type ID:', reportFilters.value.examTypeId);
+    console.log('🔍 Selected Exam Type Object:', JSON.parse(JSON.stringify(examTypes.value.find(e => e.id === reportFilters.value.examTypeId))));
+    console.log('🔍 All Academic Years:', JSON.parse(JSON.stringify(academicYears.value)));
+    console.log('🔍 Selected Academic Year ID:', reportFilters.value.academicYearId);
+    
+    // Show the actual exam type name being sent
+    const selectedExamType = examTypes.value.find(e => e.id === reportFilters.value.examTypeId);
+    console.log('🔍 Exam Type Name being sent:', selectedExamType?.name);
+    
+    toast.add({
+        severity: 'info',
+        summary: 'Debug Info',
+        detail: `Exam Types: ${examTypes.value.length}, Selected: ${reportFilters.value.examTypeId}, Name: ${selectedExamType?.name}`,
+        life: 5000
+    });
+}
+
 // Load data on component mount
 onMounted(async () => {
-    await Promise.all([
-        loadActiveAcademicYear(),
-        loadAcademicYears(),
-        loadExamTypes(),
-        loadGrades(),
-        refreshStatistics()
-    ])
+    try {
+        await Promise.all([
+            loadActiveAcademicYear(),
+            loadAcademicYears(),
+            loadExamTypes(),
+            loadGrades(),
+            refreshStatistics()
+        ]);
+    } catch (error) {
+        console.error('Error during component initialization:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to initialize component. Please refresh the page.',
+            life: 5000
+        });
+    }
 })
 </script>
