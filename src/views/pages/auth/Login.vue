@@ -22,163 +22,145 @@ const lastLoginFailed = ref(false);
 const loginSuccess = ref(false); // New variable for possible future use, but not needed for immediate redirect
 
 const login = async () => {
-  if (!username.value || !password.value) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Please enter username and password',
-      closable: true,
-      sticky: false
-    });
-    return;
-  }
-
-  loading.value = true;
-  lastLoginFailed.value = false;
-
-  try {
-    // Dispatch login and get the response (which should have { token, user })
-    const response = await store.dispatch('auth/login', {
-      username: username.value,
-      password: password.value
-    });
-
-    // Extract user object from store (should be set by the store action)
-    const user = store.getters['auth/user'];
-    // Fallback: if not in store, try from response
-    const userObj = user || response?.data?.user || {};
-
-    // Use roles from user object for redirect logic (handle both array and single role)
-    let userRoles = [];
-    if (userObj.roles && Array.isArray(userObj.roles)) {
-      userRoles = userObj.roles;
-    } else if (userObj.role) {
-      userRoles = [userObj.role];
+    if (!username.value || !password.value) {
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Please enter username and password',
+            closable: true,
+            sticky: false
+        });
+        return;
     }
 
-    let redirectPath = '/';
+    loading.value = true;
+    lastLoginFailed.value = false;
 
-    // Check for Admin role first
-    if (userRoles.includes('Admin')) {
-      redirectPath = '/app/profile';
-    } else if (userRoles.includes('Teacher')) {
-      redirectPath = '/app/scores/entry';
-    } else if (userRoles.includes('Staff')) {
-      redirectPath = '/app/overview';
-    } else {
-      redirectPath = '/app/overview';
-    }
+    try {
+        // Dispatch login and get the response (which should have { token, user })
+        const response = await store.dispatch('auth/login', {
+            username: username.value,
+            password: password.value
+        });
 
-    // If a redirect query param is present, honor it (optional)
-    const queryRedirect = router.currentRoute.value.query.redirect;
-    if (queryRedirect) {
-      redirectPath = queryRedirect;
-    }
+        // Extract user object from store (should be set by the store action)
+        const user = store.getters['auth/user'];
+        // Fallback: if not in store, try from response
+        const userObj = user || response?.data?.user || {};
 
-    toast.add({
-      severity: 'success',
-      summary: 'Login Successful',
-      detail: 'You have been logged in successfully.',
-      life: 1500,
-      closable: true,
-      sticky: false
-    });
-
-    router.push(redirectPath); // Immediate redirect
-    password.value = '';
-
-  } catch (error) {
-    lastLoginFailed.value = true;
-    console.error('Login error:', error);
-    if (error.response && error.response.status === 401) {
-      toast.add({
-        severity: 'error',
-        summary: 'Login Failed',
-        detail: 'Invalid user. Please check your credentials.',
-        life: 1000,
-        closable: true,
-        sticky: true,
-        id: new Date().getTime().toString()
-      });
-    } else {
-      let errorMessage = 'Invalid credentials';
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message) {
-        if (error.message.includes('No refresh token available')) {
-          errorMessage = 'Authentication failed. Please try again.';
-        } else {
-          errorMessage = error.message;
+        // Use roles from user object for redirect logic (handle both array and single role)
+        let userRoles = [];
+        if (userObj.roles && Array.isArray(userObj.roles)) {
+            userRoles = userObj.roles;
+        } else if (userObj.role) {
+            userRoles = [userObj.role];
         }
-      }
-      toast.add({
-        severity: 'error',
-        summary: 'Login Failed',
-        detail: errorMessage,
-        life: 3000,
-        closable: true,
-        sticky: false
-      });
+
+        let redirectPath = '/';
+
+        // Check for Admin role first
+        if (userRoles.includes('Admin')) {
+            redirectPath = '/app/profile';
+        } else if (userRoles.includes('Teacher')) {
+            redirectPath = '/app/scores/entry';
+        } else if (userRoles.includes('Staff')) {
+            redirectPath = '/app/overview';
+        } else {
+            redirectPath = '/app/overview';
+        }
+
+        // If a redirect query param is present, honor it (optional)
+        const queryRedirect = router.currentRoute.value.query.redirect;
+        if (queryRedirect) {
+            redirectPath = queryRedirect;
+        }
+
+        toast.add({
+            severity: 'success',
+            summary: 'Login Successful',
+            detail: 'You have been logged in successfully.',
+            life: 1500,
+            closable: true,
+            sticky: false
+        });
+
+        router.push(redirectPath); // Immediate redirect
+        password.value = '';
+    } catch (error) {
+        lastLoginFailed.value = true;
+        console.error('Login error:', error);
+        if (error.response && error.response.status === 401) {
+            toast.add({
+                severity: 'error',
+                summary: 'Login Failed',
+                detail: 'Invalid user. Please check your credentials.',
+                life: 1000,
+                closable: true,
+                sticky: true,
+                id: new Date().getTime().toString()
+            });
+        } else {
+            let errorMessage = 'Invalid credentials';
+            if (error.response?.data?.message) {
+                errorMessage = error.response.data.message;
+            } else if (error.message) {
+                if (error.message.includes('No refresh token available')) {
+                    errorMessage = 'Authentication failed. Please try again.';
+                } else {
+                    errorMessage = error.message;
+                }
+            }
+            toast.add({
+                severity: 'error',
+                summary: 'Login Failed',
+                detail: errorMessage,
+                life: 3000,
+                closable: true,
+                sticky: false
+            });
+        }
+        password.value = '';
+    } finally {
+        setTimeout(() => {
+            loading.value = false;
+        }, 300);
     }
-    password.value = '';
-  } finally {
-    setTimeout(() => {
-      loading.value = false;
-    }, 300);
-  }
 };
 
 const registerNavigation = () => {
-  router.push('/auth/register');
+    router.push('/auth/register');
 };
 </script>
 
 <template>
-  <Toast position="top-center" />
-  <FloatingConfigurator />
-  <div class="bg-surface-200 dark:bg-surface-950 flex items-center justify-center min-h-screen min-w-[100vw] overflow-hidden">
-    <div class="flex flex-col items-center justify-center w-full">
-      <!-- Responsive form container -->
-      <div
-        class="w-full max-w-lg py-20 px-4 sm:px-8"
-        style="border-radius: 53px"
-      >
-        <Message v-if="isEnabled" class="mb-6" severity="success" size="large">Login successful!</Message>
-        <div class="text-center mb-8">
-          <div class="text-surface-900 dark:text-surface-0 text-3xl font-medium mb-4 bluebird-brand">Bluebird 2.0</div>
-          <span class="text-muted-color font-medium">Sign in to continue</span>
-        </div>
-        <form @submit.prevent="login">
-          <div>
-            <label for="User1" class="block text-surface-900 dark:text-surface-0 text-xl font-medium mb-2">Username</label>
-            <InputText
-              id="username"
-              type="text"
-              placeholder="Username"
-              class="w-full mb-8"
-              v-model="username"
-            />
-            <label for="password1" class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2">Password</label>
-            <Password
-              id="password1"
-              v-model="password"
-              placeholder="Password"
-              :toggleMask="true"
-              class="w-full mb-4"
-              fluid
-              :feedback="false"
-            ></Password>
-            <div class="flex items-center justify-end mt-2 mb-8 gap-8">
-              <!-- <div class="flex items-center">
+    <Toast position="top-center" />
+    <FloatingConfigurator />
+    <div class="bg-surface-200 dark:bg-surface-950 flex items-center justify-center min-h-screen min-w-[100vw] overflow-hidden">
+        <div class="flex flex-col items-center justify-center w-full">
+            <!-- Responsive form container -->
+            <div class="w-full max-w-lg py-20 px-4 sm:px-8" style="border-radius: 53px">
+                <Message v-if="isEnabled" class="mb-6" severity="success" size="large">Login successful!</Message>
+                <div class="text-center mb-8">
+                    <div class="text-surface-900 dark:text-surface-0 text-3xl font-medium mb-4 bluebird-brand">BLUEBIRD</div>
+                    <span class="text-muted-color font-medium">Sign in to continue</span>
+                </div>
+                <form @submit.prevent="login">
+                    <div>
+                        <label for="User1" class="block text-surface-900 dark:text-surface-0 text-xl font-medium mb-2">Username</label>
+                        <InputText id="username" type="text" placeholder="Username" class="w-full mb-8" v-model="username" />
+                        <label for="password1" class="block text-surface-900 dark:text-surface-0 font-medium text-xl mb-2">Password</label>
+                        <Password id="password1" v-model="password" placeholder="Password" :toggleMask="true" class="w-full mb-4" fluid :feedback="false"></Password>
+                        <div class="flex items-center justify-end mt-2 mb-8 gap-8">
+                            <!-- <div class="flex items-center">
                 <Checkbox v-model="checked" id="rememberme1" binary class="mr-2"></Checkbox>
                 <label for="rememberme1">Remember me</label>
               </div> -->
-              <!-- <span @click="registerNavigation" class="font-medium no-underline ml-2 text-right cursor-pointer text-primary">Register</span> -->
+                            <!-- <span @click="registerNavigation" class="font-medium no-underline ml-2 text-right cursor-pointer text-primary">Register</span> -->
+                        </div>
+                        <Button type="submit" label="Sign In" class="w-full" :loading="loading"></Button>
+                    </div>
+                </form>
             </div>
-            <Button type="submit" label="Sign In" class="w-full" :loading="loading"></Button>
-          </div>
-        </form>
-      </div>
+        </div>
     </div>
-  </div>
 </template>

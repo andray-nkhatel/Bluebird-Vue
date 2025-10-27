@@ -59,9 +59,11 @@ apiClient.interceptors.request.use(
      // Handle different error scenarios
      if (error.response) {
        const { status, data } = error.response;    
-       // Log error in development
-       if (import.meta.env.DEV) {
-         console.error(`❌ ${status} ${error.config.url}`, data);
+       const url = error.config?.url || '';
+       const isHomeroomInfo = url.includes('/homeroom/grade-info');
+       // Log error in development (suppress noisy homeroom 403 logs)
+       if (import.meta.env.DEV && !(isHomeroomInfo && status === 403)) {
+         console.error(`❌ ${status} ${url}`, data);
        }    
        // Handle unauthorized - redirect to login
        if (status === 401) {
@@ -70,10 +72,11 @@ apiClient.interceptors.request.use(
          window.location.href = '/auth/login';
          return Promise.reject(new Error('Session expired. Please log in again.'));
        }    
-       // Handle forbidden
-       if (status === 403) {
-         return Promise.reject(new Error('Access denied. Insufficient permissions.'));
-       }    
+      // Handle forbidden - preserve backend message if available
+      if (status === 403) {
+        const backendMessage = (typeof data === 'string') ? data : (data?.message || data?.title);
+        return Promise.reject(new Error(backendMessage || 'Access denied. Insufficient permissions.'));
+      }    
        // Handle server errors
        if (status >= 500) {
          return Promise.reject(new Error('Server error. Please try again later.'));
@@ -231,8 +234,70 @@ export const studentService = {
   },
 
   async assignOptionalSubjects(studentId, subjectIds) {
+    // If subjectIds contains strings (subject names), convert them to IDs
+    let processedSubjectIds = subjectIds;
+    
+    if (subjectIds.length > 0 && typeof subjectIds[0] === 'string') {
+      try {
+        // Get all subjects to map names to IDs
+        const allSubjects = await subjectService.getAll();
+        const subjectMap = new Map();
+        
+        // Create a map of subject names to IDs
+        allSubjects.forEach(subject => {
+          subjectMap.set(subject.name, subject.id);
+        });
+        
+        console.log('Available subjects in database:', allSubjects.map(s => s.name));
+        console.log('Subject names to convert:', subjectIds);
+        
+        // Convert subject names to IDs with fuzzy matching
+        processedSubjectIds = subjectIds.map(subjectName => {
+          let subjectId = subjectMap.get(subjectName);
+          
+          // If exact match not found, try fuzzy matching
+          if (!subjectId) {
+            const availableSubjects = Array.from(subjectMap.keys());
+            console.log(`Exact match not found for "${subjectName}". Available subjects:`, availableSubjects);
+            
+            // Try case-insensitive matching
+            const lowerSubjectName = subjectName.toLowerCase();
+            const matchingSubject = availableSubjects.find(available => 
+              available.toLowerCase() === lowerSubjectName
+            );
+            
+            if (matchingSubject) {
+              subjectId = subjectMap.get(matchingSubject);
+              console.log(`Found case-insensitive match: "${subjectName}" -> "${matchingSubject}"`);
+            } else {
+              // Try partial matching
+              const partialMatch = availableSubjects.find(available => 
+                available.toLowerCase().includes(lowerSubjectName) || 
+                lowerSubjectName.includes(available.toLowerCase())
+              );
+              
+              if (partialMatch) {
+                subjectId = subjectMap.get(partialMatch);
+                console.log(`Found partial match: "${subjectName}" -> "${partialMatch}"`);
+              } else {
+                console.error(`Subject "${subjectName}" not found. Available subjects:`, availableSubjects);
+                throw new Error(`Subject "${subjectName}" not found. Available subjects: ${availableSubjects.join(', ')}`);
+              }
+            }
+          }
+          
+          return subjectId;
+        });
+        
+        console.log('Converted subject names to IDs:', processedSubjectIds);
+      } catch (error) {
+        console.error('Error converting subject names to IDs:', error);
+        throw new Error(`Failed to convert subject names to IDs: ${error.message}`);
+      }
+    }
+    
     const response = await apiClient.post(`/students/${studentId}/assign-optional-subjects`, {
-      subjectIds: subjectIds
+      SubjectIds: processedSubjectIds
     });
     return response.data;
   },
@@ -606,6 +671,38 @@ export const examService = {
     return response.data;
   },
 
+  // Get per-subject Test1, Mid(Test2), EndTerm for a student in a term (backend summary endpoint)
+  async getStudentTermSummary(studentId, academicYear, term) {
+    const response = await apiClient.get(`/exams/student/${studentId}/term-summary`, {
+      params: { academicYear, term }
+    });
+    return response.data;
+  },
+
+  // Get per-subject Test1, Mid(Test2), EndTerm for each student in a grade for a term
+  async getGradeTermSummary(gradeId, academicYear, term) {
+    const response = await apiClient.get(`/exams/grade/${gradeId}/term-summary`, {
+      params: { academicYear, term }
+    });
+    return response.data;
+  },
+
+  // Get teacher-specific subject summary for secondary subject teachers
+  async getTeacherSubjectSummary(subjectId, gradeId, academicYear, term) {
+    const response = await apiClient.get('/exams/teacher/subject-summary', {
+      params: { subjectId, gradeId, academicYear, term }
+    });
+    return response.data;
+  },
+
+  // Admin: Get subject summary for a grade/year/term, optional teacher filter
+  async getAdminSubjectSummary(subjectId, gradeId, academicYear, term, teacherId = null) {
+    const response = await apiClient.get('/exams/admin/subject-summary', {
+      params: { subjectId, gradeId, academicYear, term, ...(teacherId ? { teacherId } : {}) }
+    });
+    return response.data;
+  },
+
   // Get exam scores for a grade/class
   async getGradeScores(gradeId, academicYear, term) {
     const response = await apiClient.get(`/exams/grade/${gradeId}/scores?academicYear=${academicYear}&term=${term}`);
@@ -614,7 +711,7 @@ export const examService = {
 
 
 
- // Replace your submitScore method with this enhanced debug version
+// Replace your submitScore method with this enhanced debug version
 async submitScore(scoreData) {
   try {
     console.log('📤 examService.submitScore called with:', scoreData)
@@ -627,13 +724,20 @@ async submitScore(scoreData) {
     }
     
     // 2. Build payload with explicit type conversion and validation
+    const isAbsentFlag = scoreData.isAbsent === true;
+    const academicYearValue = scoreData.academicYear ?? scoreData.academicYearId;
+
     const payload = {
       studentId: ensureNumber(scoreData.studentId, 'studentId'),
       subjectId: ensureNumber(scoreData.subjectId, 'subjectId'), 
       examTypeId: ensureNumber(scoreData.examTypeId, 'examTypeId'),
-      score: ensureNumber(scoreData.score, 'score'),
-      academicYear: ensureNumber(scoreData.academicYear, 'academicYear'),
-      term: ensureNumber(scoreData.term, 'term')
+      score: isAbsentFlag ? null : ensureNumber(scoreData.score, 'score'),
+      academicYear: ensureNumber(academicYearValue, 'academicYear'),
+      term: ensureNumber(scoreData.term, 'term'),
+      // Include gradeId for backend authorization checks (subject+grade+student)
+      gradeId: scoreData.gradeId !== undefined ? ensureNumber(scoreData.gradeId, 'gradeId') : undefined,
+      // Pass isAbsent explicitly if provided
+      isAbsent: scoreData.isAbsent != null ? Boolean(scoreData.isAbsent) : undefined
     }
     
     // Only include comments if they exist and are not empty
@@ -653,8 +757,42 @@ async submitScore(scoreData) {
       score: typeof payload.score,
       academicYear: typeof payload.academicYear,
       term: typeof payload.term,
+      gradeId: typeof payload.gradeId,
+      isAbsent: typeof payload.isAbsent,
       comments: typeof payload.comments
     });
+
+    // 3a. Optional pre-check: verify teacher assignment to subject+grade
+    try {
+      const currentUser = getCurrentUser();
+      if (currentUser?.id && payload.subjectId && payload.gradeId) {
+        const canEnter = await this.canTeacherEnterScore(currentUser.id, payload.subjectId, payload.gradeId);
+        if (canEnter === false) {
+          const message = 'You are not assigned to enter scores for this subject and grade.';
+          console.warn('⛔ Pre-check failed:', { teacherId: currentUser.id, subjectId: payload.subjectId, gradeId: payload.gradeId });
+          throw new Error(message);
+        }
+      }
+    } catch (precheckError) {
+      // If the pre-check endpoint itself errors, log and proceed to actual submit so backend remains source of truth
+      console.warn('⚠️ Pre-check error (continuing to submit anyway):', precheckError?.message || precheckError);
+    }
+
+    // 3b. Optional pre-check: verify the student belongs to the selected grade (helps avoid 403s)
+    try {
+      if (payload.studentId && payload.gradeId) {
+        const student = await studentService.getById(payload.studentId);
+        const studentGradeId = student?.gradeId ?? student?.grade?.id;
+        if (studentGradeId && Number(studentGradeId) !== Number(payload.gradeId)) {
+          const message = `Selected student is not in grade ${payload.gradeId} (student gradeId: ${studentGradeId}).`;
+          console.warn('⛔ Student-grade mismatch:', { studentId: payload.studentId, studentGradeId, selectedGradeId: payload.gradeId });
+          throw new Error(message);
+        }
+      }
+    } catch (studentCheckError) {
+      console.warn('⚠️ Student-grade pre-check warning:', studentCheckError?.message || studentCheckError);
+      // Continue to submit; backend remains the final authority
+    }
 
     const response = await apiClient.post('/exams/scores', payload)
     console.log('✅ API Response received:', response.data)
@@ -831,7 +969,9 @@ async bulkMarkAbsent(data) {
   // Get students by grade - CORRECTED ENDPOINT PATH
   async getStudentsByGrade(gradeId) {
     const response = await apiClient.get(`/students/grade/${gradeId}`);
-    return response.data;
+    // Some endpoints return ApiResponse { data: [...] }, others return raw arrays
+    const payload = response.data;
+    return Array.isArray(payload) ? payload : (payload?.data ?? []);
   },
 
   // ===== EXAM TYPE ENDPOINTS =====
@@ -1125,10 +1265,15 @@ async createAcademicYear(formData){
     if (!scoreData.studentId) errors.push('Student ID is required');
     if (!scoreData.subjectId) errors.push('Subject ID is required');
     if (!scoreData.examTypeId) errors.push('Exam Type ID is required');
-    if (scoreData.score === null || scoreData.score === undefined) {
-      errors.push('Score is required');
-    } else if (scoreData.score < 0 || scoreData.score > 150) {
-      errors.push('Score must be between 0 and 150');
+    if (!scoreData.gradeId) errors.push('Grade ID is required');
+    // Allow score to be null/undefined if explicitly marked absent
+    const isAbsent = scoreData.isAbsent === true;
+    if (!isAbsent) {
+      if (scoreData.score === null || scoreData.score === undefined) {
+        errors.push('Score is required');
+      } else if (scoreData.score < 0 || scoreData.score > 150) {
+        errors.push('Score must be between 0 and 150');
+      }
     }
     if (!scoreData.academicYear) errors.push('Academic Year is required');
     if (!scoreData.term || scoreData.term < 1 || scoreData.term > 3) {
@@ -1176,6 +1321,78 @@ async createAcademicYear(formData){
       };
     } catch (error) {
       this.handleApiError(error);
+    }
+  },
+
+  // ===== GENERAL COMMENT ENDPOINTS =====
+  
+  // Get general comment for a report card
+  async getGeneralComment(reportCardId) {
+    try {
+      const response = await apiClient.get(`/reportcards/${reportCardId}/general-comment`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching general comment:', error);
+      throw error;
+    }
+  },
+
+  // Update general comment for a report card
+  async updateGeneralComment(reportCardId, comment) {
+    try {
+      const response = await apiClient.put(`/reportcards/${reportCardId}/general-comment`, {
+        comment: comment
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating general comment:', error);
+      throw error;
+    }
+  },
+
+  // Check if user can edit general comment
+  async canEditGeneralComment(reportCardId) {
+    try {
+      const response = await apiClient.get(`/reportcards/${reportCardId}/general-comment/can-edit`);
+      return response.data;
+    } catch (error) {
+      console.error('Error checking general comment edit permissions:', error);
+      throw error;
+    }
+  },
+
+  // Generate report card for a student
+  async generateReportCard(studentId, academicYear, term) {
+    try {
+      const response = await apiClient.post(`/reportcards/generate/student/${studentId}`, null, {
+        params: { academicYear, term }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error generating report card:', error);
+      throw error;
+    }
+  },
+
+  // Get student report cards
+  async getStudentReportCards(studentId) {
+    try {
+      const response = await apiClient.get(`/reportcards/student/${studentId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching student report cards:', error);
+      throw error;
+    }
+  },
+
+  // Get report card details/scoreboard data
+  async getReportCardDetails(reportCardId) {
+    try {
+      const response = await apiClient.get(`/reportcards/${reportCardId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching report card details:', error);
+      throw error;
     }
   }
 };
@@ -1676,6 +1893,160 @@ export const examAnalysisService = {
       params: { academicYearId, term, examTypeName },
       responseType: 'blob'
     });
+    return response.data;
+  }
+};
+
+// Secondary Subject Assignment Service
+export const secondarySubjectService = {
+  async getSecondaryStudents(search = null) {
+    try {
+      const params = search ? `?search=${encodeURIComponent(search)}` : '';
+      const response = await apiClient.get(`/secondarysubjectassignment/students${params}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching secondary students:', error);
+      throw error;
+    }
+  },
+
+  async getStudentSubjects(studentId) {
+    try {
+      const response = await apiClient.get(`/secondarysubjectassignment/students/${studentId}/subjects`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching subjects for student ${studentId}:`, error);
+      throw error;
+    }
+  },
+
+  async getAllSubjects() {
+    try {
+      const response = await apiClient.get('/secondarysubjectassignment/subjects');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching subjects:', error);
+      throw error;
+    }
+  },
+
+  async assignSubject(studentId, subjectData) {
+    try {
+      const response = await apiClient.post(`/secondarysubjectassignment/students/${studentId}/subjects`, subjectData);
+      return response.data;
+    } catch (error) {
+      console.error(`Error assigning subject to student ${studentId}:`, error);
+      throw error;
+    }
+  },
+
+  async removeSubject(studentId, subjectId) {
+    try {
+      const response = await apiClient.delete(`/secondarysubjectassignment/students/${studentId}/subjects/${subjectId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error removing subject ${subjectId} from student ${studentId}:`, error);
+      throw error;
+    }
+  },
+
+  async bulkAssignSubjects(bulkData) {
+    try {
+      const response = await apiClient.post('/secondarysubjectassignment/bulk-assign', bulkData);
+      return response.data;
+    } catch (error) {
+      console.error('Error performing bulk assignment:', error);
+      throw error;
+    }
+  }
+};
+
+// Homeroom Teacher Service
+export const homeroomService = {
+  async getHomeroomStudents() {
+    try {
+      const response = await apiClient.get('/homeroom/students');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching homeroom students:', error);
+      throw error;
+    }
+  },
+
+  async getHomeroomGradeInfo() {
+    try {
+      const response = await apiClient.get('/homeroom/grade-info');
+      return response.data;
+    } catch (error) {
+      const msg = (error && error.message ? String(error.message) : '').toLowerCase();
+      // Suppress 403s for non-homeroom users to avoid noisy logs
+      if (msg.includes('access denied') || msg.includes('403')) {
+        return null;
+      }
+      // For other errors, rethrow
+      throw error;
+    }
+  },
+
+  async getAvailableSubjects() {
+    try {
+      const response = await apiClient.get('/homeroom/available-subjects');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching available subjects:', error);
+      throw error;
+    }
+  },
+
+  async assignSubjectToStudent(studentId, subjectData) {
+    try {
+      const response = await apiClient.post(`/homeroom/students/${studentId}/subjects`, subjectData);
+      return response.data;
+    } catch (error) {
+      console.error(`Error assigning subject to student ${studentId}:`, error);
+      throw error;
+    }
+  },
+
+  async removeSubjectFromStudent(studentId, subjectId, reason = null) {
+    try {
+      const response = await apiClient.delete(`/homeroom/students/${studentId}/subjects/${subjectId}`, {
+        data: reason ? { reason } : {}
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Error removing subject ${subjectId} from student ${studentId}:`, error);
+      throw error;
+    }
+  },
+
+  async bulkAssignSubjects(bulkData) {
+    try {
+      const response = await apiClient.post('/homeroom/bulk-assign-subjects', bulkData);
+      return response.data;
+    } catch (error) {
+      console.error('Error performing bulk assignment:', error);
+      throw error;
+    }
+  },
+
+  async getHomeroomStatus() {
+    try {
+      const response = await apiClient.get('/homeroom/debug/status');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching homeroom status:', error);
+      throw error;
+    }
+  },
+
+  async updateStudentName(studentId, { firstName, middleName, lastName }) {
+    const payload = {
+      firstName: String(firstName || '').trim(),
+      middleName: middleName != null ? String(middleName).trim() : null,
+      lastName: String(lastName || '').trim()
+    };
+    const response = await apiClient.patch(`/homeroom/students/${studentId}/name`, payload);
     return response.data;
   }
 };

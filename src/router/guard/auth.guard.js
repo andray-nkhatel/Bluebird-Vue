@@ -68,6 +68,26 @@ export const authGuard = async (to, from, next) => {
     }
   }
   
+  // Optional: require being an assigned homeroom teacher
+  const requiresHomeroom = to.matched.some(record => record.meta?.requiresHomeroom === true);
+  if (requiresHomeroom) {
+    // Ensure we have up-to-date status
+    const isHomeroomTeacher = store.getters['auth/isHomeroomTeacher'];
+    if (isHomeroomTeacher !== true) {
+      try {
+        const result = await store.dispatch('auth/checkHomeroomStatus');
+        if (!result) {
+          return next({ path: '/unauthorized' });
+        }
+      } catch (e) {
+        return next({ path: '/unauthorized' });
+      }
+    }
+  }
+  
+  // Note: Homeroom teacher validation is handled at component level
+  // This allows for better error handling and user feedback
+  
   // All checks passed, proceed to route
   next();
 };

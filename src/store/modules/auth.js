@@ -20,6 +20,8 @@ const state = {
   user: JSON.parse(localStorage.getItem('user')) || null,
   roles: JSON.parse(localStorage.getItem('roles')) || [],
   permissions: JSON.parse(localStorage.getItem('permissions')) || [],
+  // Homeroom teacher status is cached to avoid repeated server calls
+  isHomeroomTeacher: JSON.parse(localStorage.getItem('isHomeroomTeacher') || 'null'),
   isRefreshing: false,
   refreshSubscribers: [],
   requestInterceptor: null, 
@@ -43,6 +45,7 @@ const getters = {
     return state.roles.length ? state.roles : [];
   },
   userPermissions: state => state.permissions,
+  isHomeroomTeacher: state => state.isHomeroomTeacher === true,
   hasRole: state => role => {
     // Check roles array first
     if (state.user?.roles && Array.isArray(state.user.roles)) {
@@ -127,6 +130,9 @@ const actions = {
 
       // Setup interceptors only after successful login
       dispatch('setupInterceptors');
+
+      // Reset cached homeroom status on new login
+      commit('SET_HOMEROOM_STATUS', null);
 
       console.log('Login successful');
       return response;
@@ -257,6 +263,32 @@ const actions = {
     );
   },
 
+  // Check and cache whether current user is an assigned homeroom teacher
+  async checkHomeroomStatus({ commit, getters }) {
+    try {
+      // Only teachers can be homeroom teachers; short-circuit for others
+      const isTeacher = getters.hasRole('Teacher');
+      if (!isTeacher) {
+        commit('SET_HOMEROOM_STATUS', false);
+        return false;
+      }
+
+      // Call backend debug/status endpoint which should 200 for assigned homeroom teachers
+      const { homeroomService } = await import('@/service/api.service');
+      const status = await homeroomService.getHomeroomStatus();
+      // Accept boolean or object shapes
+      const value = (typeof status === 'boolean')
+        ? status
+        : !!(status?.isHomeroomTeacher || status?.assigned === true || status?.hasHomeroom === true);
+      commit('SET_HOMEROOM_STATUS', value);
+      return value;
+    } catch (error) {
+      // If server returns 403/denied, treat as not homeroom
+      commit('SET_HOMEROOM_STATUS', false);
+      return false;
+    }
+  },
+
   // Fetch user profile (with fresh data from API)
   async fetchUserProfile({ commit, state }) {
     if (!state.token) throw new Error('Not authenticated');
@@ -313,6 +345,7 @@ const mutations = {
     localStorage.removeItem('user');
     localStorage.removeItem('roles');
     localStorage.removeItem('permissions');
+    localStorage.removeItem('isHomeroomTeacher');
   },
 
   SET_REFRESHING(state, isRefreshing) {
@@ -325,6 +358,15 @@ const mutations = {
 
   CLEAR_SUBSCRIBERS(state) {
     state.refreshSubscribers = [];
+  }
+  ,
+  SET_HOMEROOM_STATUS(state, value) {
+    state.isHomeroomTeacher = value;
+    if (value === null) {
+      localStorage.removeItem('isHomeroomTeacher');
+    } else {
+      localStorage.setItem('isHomeroomTeacher', JSON.stringify(!!value));
+    }
   }
 };
 

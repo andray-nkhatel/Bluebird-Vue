@@ -471,8 +471,10 @@ const loadStudents = async () => {
     studentsLoading.value = true;
     try {
         const response = await studentService.getAll();
+        // Extract the actual data from the response
+        const studentsData = response?.data || [];
         // Filter to only active students and sort by name
-        students.value = response
+        students.value = studentsData
             .filter((student) => student.isActive !== false) // Include students where isActive is true or undefined
             .sort((a, b) => a.fullName.localeCompare(b.fullName))
             .map((student) => ({

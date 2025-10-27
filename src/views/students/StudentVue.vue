@@ -200,6 +200,7 @@ function navigateToAddStudent() {
   router.push({ name: 'AddStudent' }) // Adjust the route name as needed
 }
 
+
 // Load students data
 const loadStudents = async () => {
   loading.value = true

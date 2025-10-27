@@ -1,4 +1,5 @@
 <script setup>
+import { examService } from '@/service/api.service';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useStore } from 'vuex';
@@ -43,11 +44,11 @@ const allMenuItems = [
                 to: '/app/profile',
                 roles: ['Admin', 'Teacher', 'Staff']
             },
-             { 
-                label: 'Check Report Cards', 
-                icon: 'pi pi-fw pi-file', 
-                to: '/app/teacher-reportcard',
-                roles: ['Teacher']
+            {
+            label: 'My Entered Marks', 
+            icon: 'pi pi-fw pi-chart-bar', 
+            to: '/app/scores/entry?openTeacherSummary=1',
+            roles: ['Teacher']
             }
         ]
     },
@@ -89,6 +90,32 @@ const allMenuItems = [
                 to: '/app/students/promotion',
                 roles: ['Admin','Staff']
             },
+            { 
+                label: 'Secondary Subject Assignment', 
+                icon: 'pi pi-fw pi-graduation-cap', 
+                to: '/app/students/secondary-subjects',
+                roles: ['Admin','Staff']
+            },
+        ]
+    },
+    {
+        // label: 'Teachers',
+        items: [
+            { 
+                label: 'My Homeroom Subjects', 
+                icon: 'pi pi-fw pi-home', 
+                to: '/app/teachers/homeroom-subjects',
+                roles: ['Teacher'],
+                requiresHomeroom: true,
+                requiresSecondaryTeacher: true
+            },
+            { 
+                label: 'Homeroom General Comments', 
+                icon: 'pi pi-fw pi-comments', 
+                to: '/app/teachers/homeroom-general-comments',
+                roles: ['Teacher'],
+                requiresHomeroom: true
+            },
         ]
     },
     {
@@ -122,6 +149,12 @@ const allMenuItems = [
                 icon: 'pi pi-fw pi-pencil', 
                 to: '/app/scores/entry',
                 roles: ['Teacher']
+            },
+            { 
+                label: 'Teacher Entered Marks Review', 
+                icon: 'pi pi-fw pi-search', 
+                to: '/app/scores/entry?openAdminSubjectReview=1',
+                roles: ['Admin','Staff']
             },
             { 
                 label: 'Exam Types', 
@@ -168,6 +201,8 @@ const isAuthenticated = computed(() => store.getters['auth/isAuthenticated']);
 // Get current user info
 const currentUser = computed(() => store.getters['auth/user']);
 const userRoles = computed(() => store.getters['auth/userRoles']);
+const isHomeroomTeacher = computed(() => store.getters['auth/isHomeroomTeacher']);
+const isSecondaryTeacher = ref(false);
 
 // Helper function to check if user has any of the required roles
 const hasAnyRole = (requiredRoles) => {
@@ -199,7 +234,20 @@ const model = computed(() => {
 
       // Filter items within the section
       const filteredItems = section.items.filter(item => {
-        return hasAnyRole(item.roles);
+        if (!hasAnyRole(item.roles)) return false;
+        // If item is the homeroom page, also require homeroom assignment
+        if (item.to === '/app/teachers/homeroom-subjects') {
+          const needsSecondary = item.requiresSecondaryTeacher === true;
+          return isHomeroomTeacher.value === true && (!needsSecondary || isSecondaryTeacher.value === true);
+        }
+        if (item.requiresHomeroom === true) {
+          return isHomeroomTeacher.value === true;
+        }
+        // Only show for secondary teachers if flag is set
+        if (item.requiresSecondaryTeacher === true) {
+          if (!isSecondaryTeacher.value) return false;
+        }
+        return true;
       });
 
       // Only return section if it has visible items
@@ -249,6 +297,31 @@ onMounted(() => {
   setTimeout(() => {
     highlightCheckReportCard.value = false;
   }, 5000);
+  // Warm the homeroom status for teachers so menu can react
+  const isTeacher = hasAnyRole(['Teacher']);
+  if (isTeacher) {
+    store.dispatch('auth/checkHomeroomStatus');
+    // Try determine if secondary teacher using assignments
+    examService.getTeacherAssignments().then(list => {
+      const arr = Array.isArray(list?.data) ? list.data : (Array.isArray(list) ? list : []);
+      isSecondaryTeacher.value = arr.some(a => {
+        const section = (a.gradeSection || a.GradeSection || '').toString().toLowerCase();
+        if (section === 'secondary') return true;
+        const g = (a.gradeName || a.GradeName || '').toString().toLowerCase();
+        if (g.includes('secondary')) return true;
+        if (/\bform\s*\d*/i.test(g)) return true;
+        if (/\bjss?\s*\d+/i.test(g)) return true;
+        if (/\bss\s*\d+/i.test(g)) return true;
+        const m = g.match(/\b(grade|g)\s*(\d{1,2})\b/);
+        if (m) { const num = parseInt(m[2], 10); if (!isNaN(num) && num >= 8) return true; }
+        const nOnly = g.match(/\b(\d{1,2})\b/);
+        if (nOnly) { const n = parseInt(nOnly[1], 10); if (!isNaN(n) && n >= 8) return true; }
+        return false;
+      });
+    }).catch(() => {
+      isSecondaryTeacher.value = false;
+    });
+  }
 });
 </script>
 

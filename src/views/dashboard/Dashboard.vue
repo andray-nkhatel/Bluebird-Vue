@@ -457,8 +457,9 @@ onMounted(() => {
 
   studentService.getAll()
     .then(response => {
-      students.value = response.length;
-      learners.value = response;
+      const studentsData = response?.data || [];
+      students.value = studentsData.length;
+      learners.value = studentsData;
     })
     .catch(error => {
       toast.add({ severity: 'error', summary: 'Error fetching students', detail: error.message || String(error) });

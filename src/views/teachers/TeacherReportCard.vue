@@ -297,10 +297,14 @@ const loadAssignmentsData = async () => {
   gradesLoading.value = true;
   try {
     // Fetch all students and grades
-    const [allStudents, allGrades] = await Promise.all([
+    const [allStudentsResponse, allGrades] = await Promise.all([
       studentService.getAll(),
       gradeService.getAll()
     ]);
+    
+    // Extract the actual data from the response
+    const allStudents = allStudentsResponse?.data || [];
+    
     // Filter students and grades by assignments
     const assignedStudentIds = new Set();
     const assignedGradeIds = new Set();

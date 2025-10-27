@@ -100,6 +100,34 @@ const router = createRouter({
                     component: () => import('@/views/students/PromoteStudents.vue')
                 },
                 {
+                    path: 'students/secondary-subjects',
+                    name: 'SecondarySubjectAssignment',
+                    meta: {
+                        requiresAuth: true,
+                    },
+                    component: () => import('@/views/students/SecondarySubjectAssignment.vue')
+                },
+                {
+                    path: 'teachers/homeroom-subjects',
+                    name: 'HomeroomSubjectAssignment',
+                    meta: {
+                        requiresAuth: true,
+                        roles: ['Teacher'],
+                        requiresHomeroom: true
+                    },
+                    component: () => import('@/views/teachers/HomeroomSubjectAssignment.vue')
+                },
+                {
+                    path: 'teachers/homeroom-general-comments',
+                    name: 'HomeroomGeneralComments',
+                    meta: {
+                        requiresAuth: true,
+                        roles: ['Teacher'],
+                        requiresHomeroom: true
+                    },
+                    component: () => import('@/views/teachers/HomeroomGeneralComments.vue')
+                },
+                {
                     path: 'grades',
                     name: 'GradeList',
                     meta: {
