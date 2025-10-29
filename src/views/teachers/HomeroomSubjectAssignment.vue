@@ -81,6 +81,12 @@
                   class="p-button-outlined p-button-sm"
                 />
                 <Button 
+                  label="View Subjects" 
+                  icon="pi pi-book" 
+                  @click="subjectsDialog = true"
+                  class="p-button-outlined p-button-sm"
+                />
+                <Button 
                   label="Assign to All" 
                   icon="pi pi-users" 
                   @click="showClassWideDialog = true"
@@ -268,6 +274,28 @@
       </div>
     </Dialog>
 
+    <!-- Available Subjects Dialog -->
+    <Dialog 
+      v-model:visible="subjectsDialog" 
+      header="Available Subjects"
+      :style="{ width: '40vw', maxWidth: '500px' }"
+      :modal="true"
+    >
+      <div class="mb-2 text-500 text-sm">{{ availableSubjects.length }} subjects</div>
+      <DataTable 
+        :value="availableSubjects" 
+        paginator 
+        :rows="10"
+        :rowsPerPageOptions="[5,10,20]"
+        responsiveLayout="scroll"
+        :emptyMessage="'No subjects available'"
+        class="p-datatable-sm"
+      >
+        <Column field="name" header="Name" sortable />
+        <Column field="id" header="ID" sortable />
+      </DataTable>
+    </Dialog>
+
     <!-- Class-wide Assignment Dialog -->
     <Dialog 
       v-model:visible="showClassWideDialog" 
@@ -372,7 +400,7 @@
 </template>
 
 <script setup>
-import { homeroomService } from '@/service/api.service'
+import { homeroomService, subjectService } from '@/service/api.service'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
 import Column from 'primevue/column'
@@ -398,6 +426,7 @@ const studentDialog = ref(false)
 const viewDialog = ref(false)
 const showClassWideDialog = ref(false)
 const showRemoveClassWideDialog = ref(false)
+const subjectsDialog = ref(false)
 const selectedStudent = ref(null)
 const selectedSubjectIds = ref([])
 const saveLoading = ref(false)
@@ -453,8 +482,12 @@ const loadHomeroomStudents = async () => {
 
 const loadSubjects = async () => {
   try {
-    const response = await homeroomService.getAvailableSubjects()
-    availableSubjects.value = response.data || response || []
+    const all = await subjectService.getAll()
+    const arr = Array.isArray(all?.data) ? all.data : (Array.isArray(all) ? all : [])
+    availableSubjects.value = arr.map(s => ({
+      id: s.id ?? s.Id ?? s.subjectId,
+      name: s.name ?? s.Name ?? s.subjectName
+    }))
   } catch (error) {
     console.error('Error loading subjects:', error)
     availableSubjects.value = [] // Ensure we always have an array
