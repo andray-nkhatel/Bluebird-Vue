@@ -42,20 +42,31 @@
         class="p-datatable-sm"
       >
         <template #header>
-          <div class="flex justify-content-between align-items-center" style="align-items: center;">
+          <div class="flex justify-content-between align-items-center flex-wrap gap-3">
             <span class="text-xl font-semibold">
               {{ filteredStudents.length }} student{{ filteredStudents.length !== 1 ? 's' : '' }} found
             </span>
-            <span class="p-input-icon-left">
-             
-              <InputText 
-                v-model="globalFilter" 
-                placeholder="Search students..." 
-                class="w-20rem ml-3"
+            <div class="flex gap-2 align-items-center">
+              <Dropdown
+                v-model="selectedGradeId"
+                :options="gradeOptions"
+                optionLabel="fullName"
+                optionValue="id"
+                placeholder="Filter by Grade"
+                class="w-15rem"
+                :showClear="true"
+                :loading="loadingGrades"
+                @change="onGradeFilterChange"
               />
-
-              <i class="pi pi-search ml-3" />
-            </span>
+              <span class="p-input-icon-left">
+                <InputText 
+                  v-model="globalFilter" 
+                  placeholder="Search students..." 
+                  class="w-20rem"
+                />
+                <i class="pi pi-search" />
+              </span>
+            </div>
           </div>
         </template>
 
@@ -150,7 +161,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { studentService } from '../../service/api.service';
+import { gradeService, studentService } from '../../service/api.service';
 
 const router = useRouter();
 
@@ -159,42 +170,83 @@ const students = ref([])
 const loading = ref(false)
 const includeArchived = ref(false)
 const globalFilter = ref('')
+const selectedGradeId = ref(null)
 const sortField = ref('fullName')
 const sortOrder = ref(1)
+
+// Grade filter state
+const grades = ref([])
+const loadingGrades = ref(false)
 
 // Delete dialog state
 const deleteDialog = ref(false)
 const selectedStudent = ref(null)
 const deleting = ref(false)
 
+// Computed property for grade options
+const gradeOptions = computed(() => {
+  // Get unique grades from students, sorted by name
+  const gradeMap = new Map();
+  students.value.forEach(student => {
+    if (student.gradeId && student.gradeName) {
+      if (!gradeMap.has(student.gradeId)) {
+        gradeMap.set(student.gradeId, {
+          id: student.gradeId,
+          fullName: student.gradeName,
+          name: student.gradeName
+        });
+      }
+    }
+  });
+  return Array.from(gradeMap.values()).sort((a, b) => 
+    a.fullName.localeCompare(b.fullName)
+  );
+});
+
 // Computed property for filtered students
 const filteredStudents = computed(() => {
-  if (!globalFilter.value) {
-    return students.value;
+  let filtered = students.value;
+
+  // Filter by grade if selected
+  if (selectedGradeId.value) {
+    filtered = filtered.filter(student => 
+      Number(student.gradeId) === Number(selectedGradeId.value)
+    );
   }
 
-  const searchTerm = globalFilter.value.toLowerCase().trim();
-  
-  return students.value.filter(student => {
-    // Check all searchable fields
-    const searchableFields = [
-      student.firstName || '',
-      student.lastName || '',
-      student.fullName || '',
-      student.studentNumber || '',
-      student.gradeName || '',
-      student.guardianName || '',
-      student.guardianPhone || '',
-      student.gender || '',
-      // Also search in optional subjects
-      ...(student.optionalSubjects || []).map(subject => subject.name || '')
-    ];
+  // Apply global text search filter
+  if (globalFilter.value) {
+    const searchTerm = globalFilter.value.toLowerCase().trim();
     
-    return searchableFields.some(field => 
-      field.toString().toLowerCase().includes(searchTerm)
-    );
-  });
+    filtered = filtered.filter(student => {
+      // Check all searchable fields
+      const searchableFields = [
+        student.firstName || '',
+        student.lastName || '',
+        student.fullName || '',
+        student.studentNumber || '',
+        student.gradeName || '',
+        student.guardianName || '',
+        student.guardianPhone || '',
+        student.gender || '',
+        // Also search in optional subjects
+        ...(student.optionalSubjects || []).map(subject => subject.name || '')
+      ];
+      
+      return searchableFields.some(field => 
+        field.toString().toLowerCase().includes(searchTerm)
+      );
+    });
+  }
+
+  return filtered;
 });
+
+// Handle grade filter change
+const onGradeFilterChange = () => {
+  // Filter is applied automatically via computed property
+  // This handler can be used for additional logic if needed
+}
 
 function navigateToAddStudent() {
   router.push({ name: 'AddStudent' }) // Adjust the route name as needed
@@ -214,6 +266,8 @@ const loadStudents = async () => {
       fullName: String(s.fullName || `${s.firstName || ''} ${s.lastName || ''}`.trim()),
       studentNumber: String(s.studentNumber || ''),
       gradeName: String(s.gradeName || ''),
+      // Preserve gradeId (might be gradeId or grade?.id)
+      gradeId: s.gradeId || s.grade?.id || null,
       guardianPhone: String(s.guardianPhone || s.phoneNumber || ''),
       guardianName: String(s.guardianName || ''),
       gender: String(s.gender || ''),
@@ -293,9 +347,27 @@ const formatDate = (dateString) => {
   }
 }
 
+// Load grades (optional - for better UX, but we'll use grades from students)
+const loadGrades = async () => {
+  loadingGrades.value = true
+  try {
+    const data = await gradeService.getAll(false)
+    // Handle ApiResponse wrapper if present
+    const payload = Array.isArray(data) ? data : (data?.data ?? [])
+    grades.value = payload
+  } catch (error) {
+    console.error('Error loading grades:', error)
+    grades.value = []
+  } finally {
+    loadingGrades.value = false
+  }
+}
+
 // Load data on component mount
 onMounted(() => {
   loadStudents()
+  // Optionally load grades separately, but we can also derive from students
+  // loadGrades()
 })
 </script>
 

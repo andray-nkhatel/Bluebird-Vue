@@ -89,7 +89,18 @@ const login = async () => {
     } catch (error) {
         lastLoginFailed.value = true;
         console.error('Login error:', error);
-        if (error.response && error.response.status === 401) {
+        
+        // Check for CORS errors specifically
+        if (error.isCorsError || error.message?.includes('CORS') || error.message?.includes('cross-origin')) {
+            toast.add({
+                severity: 'error',
+                summary: 'Connection Error',
+                detail: 'Cannot connect to the server. This appears to be a CORS configuration issue. The backend server needs to be configured to allow requests from this domain. Please contact your administrator.',
+                life: 5000,
+                closable: true,
+                sticky: true
+            });
+        } else if (error.response && error.response.status === 401) {
             toast.add({
                 severity: 'error',
                 summary: 'Login Failed',
@@ -106,6 +117,8 @@ const login = async () => {
             } else if (error.message) {
                 if (error.message.includes('No refresh token available')) {
                     errorMessage = 'Authentication failed. Please try again.';
+                } else if (error.message.includes('Network error')) {
+                    errorMessage = 'Network error. Please check your internet connection and try again.';
                 } else {
                     errorMessage = error.message;
                 }

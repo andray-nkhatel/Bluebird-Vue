@@ -284,6 +284,7 @@ const students = ref([]);
 const grades = ref([]);
 const academicYears = ref([]);
 const activeAcademicYear = ref(null);
+const pollingInterval = ref(null); // Fix: Define pollingInterval ref
 const terms = ref([
     { label: 'Term 1', value: 1 },
     { label: 'Term 2', value: 2 },
@@ -343,18 +344,39 @@ const filteredStudentReportCards = computed(() => {
 });
 
 async function openPdfModal(reportCardId, studentName) {
+    // Show loading toast
+    const loadingToast = toast.add({
+        severity: 'info',
+        summary: 'Loading PDF',
+        detail: `Loading report card for ${studentName || 'student'}...`,
+        life: 30000 // 30 seconds
+    });
+
     if (isMobile.value) {
         // On mobile, open PDF in new tab
         try {
             const blob = await reportService.fetchReportCardBlob(reportCardId);
             const url = window.URL.createObjectURL(blob);
             window.open(url, '_blank');
+            
+            // Clear loading toast
+            toast.remove(loadingToast);
+            toast.add({
+                severity: 'success',
+                summary: 'Success',
+                detail: 'PDF opened in new tab',
+                life: 3000
+            });
         } catch (error) {
+            // Clear loading toast
+            toast.remove(loadingToast);
+            
+            console.error('PDF loading error:', error);
             toast.add({
                 severity: 'error',
-                summary: 'Error',
-                detail: error.message || 'Failed to load PDF',
-                life: 5000
+                summary: 'Error Loading PDF',
+                detail: error.message || 'Failed to load PDF. Please check your connection and try again.',
+                life: 8000
             });
         }
     } else {
@@ -365,12 +387,19 @@ async function openPdfModal(reportCardId, studentName) {
             const url = window.URL.createObjectURL(blob);
             pdfUrl.value = url;
             showPdfModal.value = true;
+            
+            // Clear loading toast
+            toast.remove(loadingToast);
         } catch (error) {
+            // Clear loading toast
+            toast.remove(loadingToast);
+            
+            console.error('PDF loading error:', error);
             toast.add({
                 severity: 'error',
-                summary: 'Error',
-                detail: error.message || 'Failed to load PDF',
-                life: 5000
+                summary: 'Error Loading PDF',
+                detail: error.message || 'Failed to load PDF. Please check your connection and try again.',
+                life: 8000
             });
         }
     }

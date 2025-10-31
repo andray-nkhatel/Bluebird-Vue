@@ -9,7 +9,31 @@ import axios from 'axios';
     headers: {
       'Content-Type': 'application/json'
     },
-    timeout: 10000 // 10 second timeout
+    timeout: 10000, // 10 second timeout
+    // Transform response to handle non-JSON responses gracefully
+    transformResponse: [
+      function (data, headers) {
+        const contentType = headers?.['content-type'] || headers?.['Content-Type'] || '';
+        
+        // If it's not JSON, return as string
+        if (contentType.includes('application/json') || contentType.includes('text/json')) {
+          try {
+            // Try to parse as JSON
+            if (typeof data === 'string') {
+              return JSON.parse(data);
+            }
+            return data;
+          } catch (e) {
+            // If JSON parsing fails, return as string for error handling
+            console.warn('Failed to parse JSON response:', e);
+            return data;
+          }
+        }
+        
+        // For non-JSON responses (HTML, XML, etc.), return as string
+        return data;
+      }
+    ]
   });
 
 // Log the base URL for debugging
@@ -58,13 +82,25 @@ apiClient.interceptors.request.use(
    error => {
      // Handle different error scenarios
      if (error.response) {
-       const { status, data } = error.response;    
+       const { status, data, headers } = error.response;    
        const url = error.config?.url || '';
        const isHomeroomInfo = url.includes('/homeroom/grade-info');
+       
+       // Check if response is HTML/XML (non-JSON) - common for server error pages
+       const contentType = headers?.['content-type'] || headers?.['Content-Type'] || '';
+       const isNonJsonResponse = typeof data === 'string' || 
+                                 contentType.includes('text/html') || 
+                                 contentType.includes('text/xml') ||
+                                 contentType.includes('application/xml');
+       
        // Log error in development (suppress noisy homeroom 403 logs)
        if (import.meta.env.DEV && !(isHomeroomInfo && status === 403)) {
-         console.error(`❌ ${status} ${url}`, data);
+         console.error(`❌ ${status} ${url}`, isNonJsonResponse ? `[Non-JSON response: ${contentType}]` : data);
+         if (isNonJsonResponse && typeof data === 'string') {
+           console.error('Response preview:', data.substring(0, 200));
+         }
        }    
+       
        // Handle unauthorized - redirect to login
        if (status === 401) {
          localStorage.removeItem('token');
@@ -72,23 +108,89 @@ apiClient.interceptors.request.use(
          window.location.href = '/auth/login';
          return Promise.reject(new Error('Session expired. Please log in again.'));
        }    
-      // Handle forbidden - preserve backend message if available
-      if (status === 403) {
-        const backendMessage = (typeof data === 'string') ? data : (data?.message || data?.title);
-        return Promise.reject(new Error(backendMessage || 'Access denied. Insufficient permissions.'));
-      }    
-       // Handle server errors
-       if (status >= 500) {
-         return Promise.reject(new Error('Server error. Please try again later.'));
+       
+       // Handle forbidden - preserve backend message if available
+       if (status === 403) {
+         const backendMessage = (typeof data === 'string') ? data : (data?.message || data?.title);
+         return Promise.reject(new Error(backendMessage || 'Access denied. Insufficient permissions.'));
        }    
+       
+       // Handle server errors (500+) with better messaging
+       if (status >= 500) {
+         let errorMessage = `Server error (${status}).`;
+         if (isNonJsonResponse) {
+           errorMessage += ' The server returned an error page. Please check server logs or try again later.';
+           // Attach original response to error for debugging
+           error.isNonJsonResponse = true;
+           error.rawResponse = data;
+         } else if (data?.message) {
+           errorMessage = data.message;
+         } else if (data?.title) {
+           errorMessage = data.title;
+         } else if (data?.error) {
+           errorMessage = data.error;
+         }
+         // Preserve the original error structure so components can access error.response
+         error.userMessage = errorMessage;
+         return Promise.reject(error);
+       }    
+       
        // Handle other errors with API message
-       const message = data?.message || data?.title || 'An error occurred';
-       return Promise.reject(new Error(message));
+       const message = data?.message || data?.title || data?.error || 'An error occurred';
+       error.userMessage = message;
+       return Promise.reject(error);
      }   
-     // Network errors
-     if (error.request) {
-       return Promise.reject(new Error('Network error. Please check your connection.'));
-     }  
+     
+    // Network errors (including CORS)
+    if (error.request) {
+      // Check if this is a CORS error
+      const isCorsError = !error.response && 
+                         (error.message?.includes('CORS') || 
+                          error.message?.includes('cross-origin') ||
+                          error.message?.includes('Same Origin Policy') ||
+                          error.code === 'ERR_NETWORK' ||
+                          error.code === 'ERR_CONNECTION_REFUSED');
+      
+      if (isCorsError) {
+        const frontendOrigin = window.location.origin;
+        const backendUrl = apiClient.defaults.baseURL;
+        
+        // Enhanced CORS error message
+        let errorMessage = `CORS Configuration Error: The backend API at ${backendUrl} is not properly configured to allow requests from ${frontendOrigin}.`;
+        
+        // Check if we're in development mode and suggest using proxy
+        if (import.meta.env.DEV) {
+          errorMessage += ` For local development, ensure VITE_API_BASE_URL is set to use the Vite proxy (/api) instead of the direct backend URL.`;
+        } else {
+          errorMessage += ` The backend must be configured with proper CORS headers. The error suggests the backend is sending an invalid CORS header value (possibly '*, *' instead of '*' or a specific origin).`;
+        }
+        
+        errorMessage += ` Please contact the backend administrator to fix the CORS configuration.`;
+        
+        console.error('🚫 CORS Error Details:', {
+          frontendOrigin,
+          backendUrl,
+          message: errorMessage,
+          error: error.message,
+          code: error.code,
+          env: {
+            mode: import.meta.env.MODE,
+            isDev: import.meta.env.DEV,
+            apiBaseUrl: import.meta.env.VITE_API_BASE_URL
+          }
+        });
+        
+        // Create a more descriptive error object
+        const corsError = new Error(errorMessage);
+        corsError.isCorsError = true;
+        corsError.frontendOrigin = frontendOrigin;
+        corsError.backendUrl = backendUrl;
+        return Promise.reject(corsError);
+      }
+      
+      return Promise.reject(new Error('Network error. Please check your connection.'));
+    }
+     
      // Other errors
      return Promise.reject(new Error(error.message || 'An unexpected error occurred'));
    }
@@ -202,7 +304,9 @@ export const authService = {
 export const studentService = {
   async getAll(includeArchived = false) {
     const response = await apiClient.get(`/students?includeArchived=${includeArchived}`);
-    return response.data;
+    // Handle ApiResponse wrapper: { success, message, data: [...], errors }
+    const payload = response.data;
+    return Array.isArray(payload) ? payload : (payload?.data ?? []);
   },
 
   async getById(id) {
@@ -330,8 +434,21 @@ export const studentService = {
 
   async createMinimal(student) {
     // Expects: { firstName, lastName, gradeId }
-    const response = await apiClient.post('/students/minimal', student);
-    return response.data;
+    try {
+      const response = await apiClient.post('/students/minimal', student);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating student (minimal):', error);
+      // Re-throw with better context
+      if (error.response) {
+        const { status, data } = error.response;
+        // If we got XML/HTML error page (500 error), provide clearer message
+        if (status === 500 && typeof data === 'string') {
+          error.userMessage = 'Server error occurred while creating student. Please check server logs or contact support.';
+        }
+      }
+      throw error;
+    }
   },
 
   async updateMinimal(id, student) {
@@ -653,11 +770,16 @@ export const subjectService = {
       throw error;
     }
   },
-    // In api.service.js
- async getOptionalSubjectsForGrade (gradeId) {
-  const response = await api.get(`/subjects/optional/${gradeId}`);
-  return response.data;
-},
+
+  async getOptionalSubjectsForGrade(gradeId) {
+    try {
+      const response = await apiClient.get(`/subjects/optional/${gradeId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching optional subjects for grade ${gradeId}:`, error);
+      throw error;
+    }
+  },
 
 
 };
@@ -1694,11 +1816,19 @@ export const reportService = {
 
     // Fetch the PDF as a blob (for viewing, not download)
     async fetchReportCardBlob(reportCardId) {
-        const response = await apiClient.get(
-            `/reportcards/${reportCardId}/download`,
-            { responseType: 'blob' }
-        );
-        return response.data; // Just return the blob, no download
+        try {
+            const response = await apiClient.get(
+                `/reportcards/${reportCardId}/download`,
+                { 
+                    responseType: 'blob',
+                    timeout: 90000 // 90 seconds - backend can take 70+ seconds for large PDFs
+                }
+            );
+            return response.data; // Just return the blob, no download
+        } catch (error) {
+            console.error(`Failed to fetch report card blob ${reportCardId}:`, error);
+            throw new Error(`Failed to load report card PDF: ${error.message}`);
+        }
     },
 
     async getClassReportCardIds(gradeId, academicYear, term) {

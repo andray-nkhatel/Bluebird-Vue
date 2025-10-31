@@ -222,6 +222,14 @@
               <span class="text-red-600">Absent: {{ absentCount }}</span>
               <span class="text-blue-600">Total: {{ students.length }}</span>
             </div>
+            <Button
+              label="Add Students"
+              icon="pi pi-user-plus"
+              class="p-button-primary p-button-sm ml-auto"
+              @click="openAddStudentsDialog"
+              :disabled="!selectedAssignment || loadingScores"
+              v-tooltip.top="'Add students to this exam entry'"
+            />
           </div>
           <div class="overflow-x-auto">
             <DataTable
@@ -369,10 +377,19 @@
             placeholder="Search student by name..."
             class="p-2 border border-gray-300 rounded w-full"
           />
-          <div class="flex justify-center gap-4 text-sm">
-            <span class="text-green-600">Present: {{ presentCount }}</span>
-            <span class="text-red-600">Absent: {{ absentCount }}</span>
-            <span class="text-blue-600">Total: {{ students.length }}</span>
+          <div class="flex justify-between items-center gap-2">
+            <div class="flex justify-center gap-4 text-sm">
+              <span class="text-green-600">Present: {{ presentCount }}</span>
+              <span class="text-red-600">Absent: {{ absentCount }}</span>
+              <span class="text-blue-600">Total: {{ students.length }}</span>
+            </div>
+            <Button
+              label="Add Students"
+              icon="pi pi-user-plus"
+              class="p-button-primary p-button-sm"
+              @click="openAddStudentsDialog"
+              :disabled="!selectedAssignment || loadingScores"
+            />
           </div>
         </div>
         
@@ -1091,6 +1108,104 @@
         </div>
       </template>
     </Dialog>
+
+    <!-- Add Students Dialog -->
+    <Dialog
+      v-model:visible="addStudentsDialog.visible"
+      header="Add Students to Exam Entry"
+      :style="{ width: '90vw', maxWidth: '700px' }"
+      modal
+      class="rounded-xl shadow-lg"
+    >
+      <div v-if="addStudentsDialog.loading" class="text-center py-6 text-600">
+        <i class="pi pi-spin pi-spinner text-2xl"></i>
+        <div class="mt-2">Loading available students…</div>
+      </div>
+      <div v-else>
+        <div class="mb-4">
+          <div class="mb-3">
+            <label class="block font-semibold mb-2 text-900">Search Students</label>
+            <InputText
+              v-model="addStudentsDialog.searchQuery"
+              placeholder="Search by name or student number..."
+              class="w-full"
+            />
+          </div>
+          <div class="text-sm text-600 mb-3">
+            <span class="font-semibold">{{ addStudentsDialog.availableStudents.length }}</span> student(s) available to add
+          </div>
+        </div>
+
+        <div class="border rounded-lg" style="max-height: 400px; overflow-y: auto;">
+          <div v-if="addStudentsDialog.filteredAvailableStudents.length === 0" class="text-center py-6 text-600">
+            <i class="pi pi-info-circle text-2xl mb-2"></i>
+            <div>No students available to add</div>
+            <div class="text-sm mt-2" v-if="addStudentsDialog.searchQuery">
+              Try adjusting your search criteria
+            </div>
+          </div>
+          <div v-else class="p-2">
+            <div
+              v-for="student in addStudentsDialog.filteredAvailableStudents"
+              :key="student.id"
+              class="flex items-center justify-between p-3 border rounded-lg mb-2 hover:bg-surface-50 cursor-pointer"
+              :class="{ 'bg-blue-50 border-blue-300': addStudentsDialog.selectedStudentIds.includes(student.id) }"
+              @click="toggleStudentSelection(student.id)"
+            >
+              <div class="flex items-center gap-3">
+                <Checkbox
+                  :modelValue="addStudentsDialog.selectedStudentIds.includes(student.id)"
+                  @change="toggleStudentSelection(student.id)"
+                  :binary="true"
+                />
+                <div>
+                  <div class="font-semibold text-900">{{ student.fullName }}</div>
+                  <div class="text-sm text-600" v-if="student.studentNumber">
+                    Student #: {{ student.studentNumber }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="isSecondaryClass && addStudentsDialog.selectedStudentIds.length > 0" class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div class="flex items-start gap-2">
+            <i class="pi pi-exclamation-triangle text-yellow-600 mt-1"></i>
+            <div class="text-sm text-yellow-800">
+              <strong>Note:</strong> For secondary classes, selected students will be enrolled in the subject
+              <strong>{{ selectedAssignment?.subjectName }}</strong> if they are not already enrolled.
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <div class="flex justify-between items-center w-full">
+          <div class="text-sm text-600">
+            <span v-if="addStudentsDialog.selectedStudentIds.length > 0">
+              {{ addStudentsDialog.selectedStudentIds.length }} student(s) selected
+            </span>
+          </div>
+          <div class="flex gap-2">
+            <Button
+              label="Cancel"
+              icon="pi pi-times"
+              class="p-button-secondary"
+              @click="closeAddStudentsDialog"
+              :disabled="addStudentsDialog.saving"
+            />
+            <Button
+              label="Add Students"
+              icon="pi pi-check"
+              class="p-button-primary"
+              @click="addSelectedStudents"
+              :loading="addStudentsDialog.saving"
+              :disabled="addStudentsDialog.selectedStudentIds.length === 0"
+            />
+          </div>
+        </div>
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -1182,6 +1297,16 @@ export default {
       dialogSubjects: [],
       dialogStudentScores: {}, // { [subjectId]: { score, comments, scoreId, isAbsent } }
       dialogOriginalScores: {},
+
+      // Add Students dialog state
+      addStudentsDialog: {
+        visible: false,
+        loading: false,
+        saving: false,
+        availableStudents: [],
+        selectedStudentIds: [],
+        searchQuery: ''
+      },
 
       // Mobile detection
       isMobile: false,
@@ -1408,6 +1533,17 @@ export default {
       return this.students.filter(s =>
         s.studentName && s.studentName.toLowerCase().includes(this.studentSearch.toLowerCase())
       );
+    },
+
+    filteredAvailableStudents() {
+      const query = (this.addStudentsDialog.searchQuery || '').toLowerCase().trim();
+      if (!query) return this.addStudentsDialog.availableStudents;
+      
+      return this.addStudentsDialog.availableStudents.filter(student => {
+        const name = (student.fullName || '').toLowerCase();
+        const number = (student.studentNumber || '').toLowerCase();
+        return name.includes(query) || number.includes(query);
+      });
     },
 
     presentCount() {
@@ -3792,6 +3928,198 @@ export default {
         // swallow debug errors
       }
     },
+
+    // Add Students Dialog Methods
+    async openAddStudentsDialog() {
+      if (!this.selectedAssignment) {
+        this.showError('Please select a subject and grade first')
+        return
+      }
+
+      this.addStudentsDialog.visible = true
+      this.addStudentsDialog.loading = true
+      this.addStudentsDialog.selectedStudentIds = []
+      this.addStudentsDialog.searchQuery = ''
+      
+      try {
+        const gradeId = this.selectedAssignment.gradeId
+        if (!gradeId) {
+          this.showError('Could not determine grade. Please try again.')
+          this.addStudentsDialog.visible = false
+          return
+        }
+
+        // Get all students in the grade
+        const gradeStudents = await examService.getStudentsByGrade(gradeId)
+        
+        // Get current student IDs that are already in the list
+        const currentStudentIds = new Set(this.students.map(s => s.studentId))
+        
+        // For secondary classes, also check enrollment
+        let enrolledIdSet = null
+        if (this.isSecondaryClass) {
+          try {
+            const checks = await Promise.all(
+              gradeStudents.map(async s => {
+                try {
+                  const subs = await secondarySubjectService.getStudentSubjects(s.id)
+                  const list = Array.isArray(subs) ? subs : (subs?.data ?? [])
+                  const enrolled = list.some(sub => (sub.subjectId ?? sub.id) === this.selectedAssignment.subjectId)
+                  return { id: s.id, enrolled }
+                } catch (_) {
+                  return { id: s.id, enrolled: false }
+                }
+              })
+            )
+            enrolledIdSet = new Set(checks.filter(c => c.enrolled).map(c => c.id))
+          } catch (e) {
+            console.warn('Error checking enrollment:', e)
+            enrolledIdSet = null
+          }
+        }
+
+        // Filter to only show students not already in the list
+        // For secondary, also include unenrolled students (they'll be enrolled when added)
+        this.addStudentsDialog.availableStudents = gradeStudents.filter(student => {
+          // Exclude if already in the list
+          if (currentStudentIds.has(student.id)) return false
+          
+          // For secondary, include all students (even if not enrolled - they'll be enrolled)
+          return true
+        })
+        
+        this.addStudentsDialog.availableStudents.sort((a, b) => 
+          (a.fullName || '').localeCompare(b.fullName || '')
+        )
+
+      } catch (error) {
+        console.error('Error loading available students:', error)
+        this.showError('Failed to load available students')
+        this.addStudentsDialog.visible = false
+      } finally {
+        this.addStudentsDialog.loading = false
+      }
+    },
+
+    closeAddStudentsDialog() {
+      this.addStudentsDialog.visible = false
+      this.addStudentsDialog.selectedStudentIds = []
+      this.addStudentsDialog.searchQuery = ''
+    },
+
+    toggleStudentSelection(studentId) {
+      const index = this.addStudentsDialog.selectedStudentIds.indexOf(studentId)
+      if (index > -1) {
+        this.addStudentsDialog.selectedStudentIds.splice(index, 1)
+      } else {
+        this.addStudentsDialog.selectedStudentIds.push(studentId)
+      }
+    },
+
+    async addSelectedStudents() {
+      if (this.addStudentsDialog.selectedStudentIds.length === 0) {
+        return
+      }
+
+      this.addStudentsDialog.saving = true
+      
+      try {
+        const gradeId = this.selectedAssignment.gradeId
+        const subjectId = this.selectedAssignment.subjectId
+        const examTypeId = this.selectedExamType
+        const academicYear = this.selectedAcademicYear
+        const term = this.selectedTerm
+
+        // For secondary classes, enroll students in the subject if not already enrolled
+        if (this.isSecondaryClass) {
+          for (const studentId of this.addStudentsDialog.selectedStudentIds) {
+            try {
+              // Check if already enrolled
+              const subs = await secondarySubjectService.getStudentSubjects(studentId)
+              const list = Array.isArray(subs) ? subs : (subs?.data ?? [])
+              const alreadyEnrolled = list.some(sub => (sub.subjectId ?? sub.id) === subjectId)
+              
+              if (!alreadyEnrolled) {
+                // Enroll the student in the subject
+                await secondarySubjectService.assignSubject(studentId, {
+                  subjectId: subjectId,
+                  assignedBy: 'System' // Could get from user context
+                })
+                console.log(`Enrolled student ${studentId} in subject ${subjectId}`)
+              }
+            } catch (error) {
+              console.warn(`Error enrolling student ${studentId}:`, error)
+              // Continue with adding even if enrollment fails
+            }
+          }
+        }
+
+        // Get the full student details for the selected students
+        const selectedStudentsData = this.addStudentsDialog.availableStudents.filter(s =>
+          this.addStudentsDialog.selectedStudentIds.includes(s.id)
+        )
+
+        // Load existing scores to check if any of these students already have scores
+        let relevantScores = []
+        try {
+          const scores = await examService.getGradeScores(gradeId, academicYear, term)
+          relevantScores = scores.filter(score =>
+            score.subjectId === subjectId &&
+            score.examTypeId === examTypeId &&
+            this.addStudentsDialog.selectedStudentIds.includes(score.studentId)
+          )
+        } catch (_) {
+          // If loading scores fails, we'll just add students without existing scores
+        }
+
+        // Add students to the list
+        const newStudents = selectedStudentsData.map(student => {
+          const existingScore = relevantScores.find(score => score.studentId === student.id)
+          return {
+            studentId: student.id,
+            studentName: student.fullName,
+            studentNumber: student.studentNumber,
+            currentScore: existingScore ? existingScore.score : null,
+            scoreId: existingScore ? existingScore.id : null,
+            isAbsent: existingScore ? existingScore.isAbsent : false,
+            lastUpdated: existingScore ? existingScore.recordedAt : null,
+            recordedBy: existingScore ? existingScore.recordedByName : null,
+            comments: existingScore ? existingScore.comments : null,
+            commentsUpdatedAt: existingScore ? existingScore.commentsUpdatedAt : null,
+            commentsUpdatedBy: existingScore ? existingScore.commentsUpdatedByName : null,
+            toggleLoading: false
+          }
+        })
+
+        // Add to students array and sort
+        this.students.push(...newStudents)
+        this.students.sort((a, b) => a.studentName.localeCompare(b.studentName))
+        
+        // Update originalStudents for change tracking
+        this.originalStudents = JSON.parse(JSON.stringify(this.students))
+
+        // Load general comments if this is an End-of-Term exam
+        if (examTypeId === 4) {
+          await this.loadGeneralCommentsForStudents()
+        }
+
+        // For Baby Class, load skill assessments
+        if (this.isBabyMode) {
+          try {
+            await this.loadBabyClassAssessments(this.students, gradeId)
+          } catch (_) {}
+        }
+
+        this.showSuccess(`Added ${newStudents.length} student(s) to the exam entry`)
+        this.closeAddStudentsDialog()
+
+      } catch (error) {
+        console.error('Error adding students:', error)
+        this.showError('Failed to add students. Please try again.')
+      } finally {
+        this.addStudentsDialog.saving = false
+      }
+    }
   }
 }
 </script>

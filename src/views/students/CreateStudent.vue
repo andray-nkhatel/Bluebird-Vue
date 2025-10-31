@@ -47,7 +47,7 @@
             </div>
           </div>
 
-          <!-- Student Details Row -->
+          <!-- Grade Selection -->
           <div class="flex flex-col sm:flex-row sm:items-start gap-4">
             <div class="flex-auto">
               <label for="gradeId" class="block font-semibold mb-2">Grade *</label>
@@ -61,37 +61,8 @@
                 :class="{ 'p-invalid': errors.gradeId }"
                 placeholder="Select grade"
                 :loading="loadingGrades"
-                @change="onGradeChange"
               />
               <small v-if="errors.gradeId" class="p-error">{{ errors.gradeId }}</small>
-            </div>
-          </div>
-
-          <!-- Optional Subjects Section (Only for Secondary Students) -->
-          <div v-if="isSecondaryStudent" class="optional-subjects-section">
-            <h3 class="text-lg font-medium text-900 mb-3">Optional Subjects</h3>
-            <div class="flex flex-col gap-4">
-              <div class="text-sm text-gray-600 mb-2">
-                <i class="pi pi-info-circle mr-2"></i>
-                {{ optionalSubjectsInfo }}
-              </div>
-              
-              <div class="flex-auto">
-                <label class="block font-semibold mb-2">Select Optional Subjects</label>
-                <MultiSelect
-                  v-model="form.optionalSubjectIds"
-                  :options="availableOptionalSubjects"
-                  optionLabel="name"
-                  optionValue="id"
-                  :maxSelectedLabels="3"
-                  placeholder="Choose optional subjects"
-                  :loading="loadingOptionalSubjects"
-                  :disabled="!form.gradeId"
-                />
-                <small class="text-gray-500">
-                  Maximum {{ maxOptionalSubjects }} optional subject{{ maxOptionalSubjects > 1 ? 's' : '' }} allowed
-                </small>
-              </div>
             </div>
           </div>
 
@@ -129,9 +100,9 @@
 
 <script setup>
 import { useToast } from 'primevue/usetoast';
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { gradeService, studentService, subjectService } from '../../service/api.service';
+import { gradeService, studentService } from '../../service/api.service';
 
 // Emits
 const emit = defineEmits(['back', 'studentAdded', 'studentUpdated'])
@@ -154,8 +125,7 @@ const toast = useToast()
 const form = reactive({
   firstName: '',
   lastName: '',
-  gradeId: null,
-  optionalSubjectIds: []
+  gradeId: null
 })
 
 // Form validation errors
@@ -163,30 +133,10 @@ const errors = reactive({})
 
 // Loading states
 const loading = ref(false)
-const loadingGrades = ref(false)
 const loadingStudent = ref(false)
-const loadingOptionalSubjects = ref(false)
+const loadingGrades = ref(false)
 
 const gradeOptions = ref([])
-const availableOptionalSubjects = ref([])
-const selectedGrade = ref(null)
-
-// Computed properties
-const isSecondaryStudent = computed(() => {
-  if (!selectedGrade.value) return false;
-  return selectedGrade.value.section === 'SecondaryJunior' || 
-         selectedGrade.value.section === 'SecondarySenior';
-})
-
-const maxOptionalSubjects = computed(() => {
-  if (!selectedGrade.value) return 0;
-  return selectedGrade.value.section === 'SecondaryJunior' ? 1 : 2;
-})
-
-const optionalSubjectsInfo = computed(() => {
-  if (!isSecondaryStudent.value) return '';
-  return `Secondary students can select up to ${maxOptionalSubjects.value} optional subject${maxOptionalSubjects.value > 1 ? 's' : ''}.`;
-})
 
 // Validation rules
 const validateForm = () => {
@@ -204,46 +154,12 @@ const validateForm = () => {
     newErrors.gradeId = 'Grade is required'
   }
 
-  // Validate optional subjects
-  if (isSecondaryStudent.value && form.optionalSubjectIds.length > maxOptionalSubjects.value) {
-    newErrors.optionalSubjects = `Maximum ${maxOptionalSubjects.value} optional subject${maxOptionalSubjects.value > 1 ? 's' : ''} allowed`
-  }
-
   // Clear previous errors
   Object.keys(errors).forEach(key => delete errors[key])
   // Set new errors
   Object.assign(errors, newErrors)
 
   return Object.keys(newErrors).length === 0
-}
-
-// Load student data for editing
-const loadStudent = async () => {
-  if (!isEditMode.value) return
-
-  loadingStudent.value = true
-  try {
-    const student = await studentService.getById(studentId.value)
-    form.firstName = student.firstName || ''
-    form.lastName = student.lastName || ''
-    form.gradeId = student.gradeId || null
-    
-    // Load optional subjects if they exist
-    if (student.optionalSubjects && student.optionalSubjects.length > 0) {
-      form.optionalSubjectIds = student.optionalSubjects.map(subject => subject.id)
-    }
-  } catch (error) {
-    console.error('Error loading student:', error)
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to load student data',
-      life: 3000
-    })
-    router.push('/students')
-  } finally {
-    loadingStudent.value = false
-  }
 }
 
 // Load grades for dropdown
@@ -265,43 +181,30 @@ const loadGrades = async () => {
   }
 }
 
-// Load optional subjects for selected grade
-const loadOptionalSubjects = async (gradeId) => {
-  if (!gradeId) {
-    availableOptionalSubjects.value = []
-    return
-  }
+// Load student data for editing
+const loadStudent = async () => {
+  if (!isEditMode.value) return
 
-  loadingOptionalSubjects.value = true
+  loadingStudent.value = true
   try {
-    // This would be a new API endpoint to get optional subjects for a grade
-    const optionalSubjects = await subjectService.getOptionalSubjectsForGrade(gradeId)
-    availableOptionalSubjects.value = optionalSubjects
+    const student = await studentService.getById(studentId.value)
+    form.firstName = student.firstName || ''
+    form.lastName = student.lastName || ''
+    form.gradeId = student.gradeId || null
   } catch (error) {
-    console.error('Error loading optional subjects:', error)
+    console.error('Error loading student:', error)
     toast.add({
       severity: 'error',
       summary: 'Error',
-      detail: 'Failed to load optional subjects',
+      detail: 'Failed to load student data',
       life: 3000
     })
+    router.push('/students')
   } finally {
-    loadingOptionalSubjects.value = false
+    loadingStudent.value = false
   }
 }
 
-// Handle grade change
-const onGradeChange = () => {
-  selectedGrade.value = gradeOptions.value.find(g => g.id === form.gradeId)
-  
-  // Reset optional subjects when grade changes
-  form.optionalSubjectIds = []
-  
-  // Load optional subjects for the selected grade
-  if (isSecondaryStudent.value) {
-    loadOptionalSubjects(form.gradeId)
-  }
-}
 
 // Handle form submission
 const handleSubmit = async () => {
@@ -328,13 +231,6 @@ const handleSubmit = async () => {
       }
       result = await studentService.updateMinimal(studentId.value, studentData)
       
-      // Handle optional subjects separately
-      if (isSecondaryStudent.value) {
-        await studentService.assignOptionalSubjects(studentId.value, {
-          subjectIds: form.optionalSubjectIds
-        })
-      }
-      
       toast.add({
         severity: 'success',
         summary: 'Success',
@@ -351,13 +247,6 @@ const handleSubmit = async () => {
       }
       result = await studentService.createMinimal(studentData)
       
-      // Handle optional subjects separately
-      if (isSecondaryStudent.value && form.optionalSubjectIds.length > 0) {
-        await studentService.assignOptionalSubjects(result.id, {
-          subjectIds: form.optionalSubjectIds
-        })
-      }
-      
       toast.add({
         severity: 'success',
         summary: 'Success',
@@ -372,10 +261,41 @@ const handleSubmit = async () => {
     }, 1000)
   } catch (error) {
     console.error('Error saving student:', error)
+    console.error('Error details:', {
+      message: error.message,
+      userMessage: error.userMessage,
+      response: error.response,
+      responseData: error.response?.data,
+      status: error.response?.status,
+      isNonJsonResponse: error.isNonJsonResponse
+    })
+    
     let errorMessage = `Failed to ${isEditMode.value ? 'update' : 'add'} student`;
-    if (error.response?.data?.message) {
-      errorMessage = error.response.data.message;
+    
+    // Use the user-friendly message from the API interceptor if available
+    if (error.userMessage) {
+      errorMessage = error.userMessage;
+    } else if (error.message && error.message !== 'An error occurred') {
+      errorMessage = error.message;
+    } else if (error.response?.data) {
+      // Handle different response data formats
+      const data = error.response.data;
+      if (typeof data === 'string') {
+        // If response is a string (HTML/XML error page), try to extract meaningful info
+        errorMessage = `Server error (Status: ${error.response.status}). Please check the server logs or try again.`;
+      } else if (data.message) {
+        errorMessage = data.message;
+      } else if (data.title) {
+        errorMessage = data.title;
+      } else if (data.error) {
+        errorMessage = data.error;
+      } else {
+        errorMessage = `Server error (Status: ${error.response.status}). Please try again or contact support.`;
+      }
+    } else if (error.response?.status) {
+      errorMessage = `Server error (Status: ${error.response.status}). Please try again or contact support.`;
     }
+    
     toast.add({
       severity: 'error',
       summary: 'Error',
@@ -395,7 +315,6 @@ const resetForm = () => {
     form.firstName = ''
     form.lastName = ''
     form.gradeId = null
-    form.optionalSubjectIds = []
   }
   Object.keys(errors).forEach(key => delete errors[key])
 }
@@ -404,13 +323,6 @@ const resetForm = () => {
 const handleCancel = () => {
   router.push('/students')
 }
-
-// Watch for grade changes
-watch(() => form.gradeId, (newGradeId) => {
-  if (newGradeId) {
-    onGradeChange()
-  }
-})
 
 // Load data on component mount
 onMounted(async () => {
@@ -450,12 +362,6 @@ h3 {
   padding-bottom: 0.5rem;
 }
 
-.optional-subjects-section {
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  padding: 1rem;
-  background-color: #f9fafb;
-}
 
 :deep(.p-invalid) {
   border-color: #ef4444;
