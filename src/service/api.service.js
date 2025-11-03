@@ -1057,7 +1057,10 @@ async toggleAbsentStatus(scoreId, currentIsAbsent = false) {
     
     const response = await apiClient.put(`/exams/scores/${scoreId}`, {
       isAbsent: !currentIsAbsent,
-      score: currentIsAbsent ? null : 0 // Set score when marking present, 0 when marking absent
+      // Always set score to 0 when toggling absent status:
+      // - When toggling FROM absent TO present: need valid numeric score (0), not null
+      // - When toggling FROM present TO absent: set to 0
+      score: 0
     });
     
     console.log(`✅ Toggle successful for score ID: ${scoreId}`, response.data);

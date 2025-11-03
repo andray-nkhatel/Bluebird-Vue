@@ -257,6 +257,13 @@
                       {{ getInitials(slotProps.data.studentName) }}
                     </span>
                     <span class="font-medium text-900">{{ slotProps.data.studentName }}</span>
+                    <Button
+                      icon="pi pi-pencil"
+                      class="p-button-text p-button-sm p-button-rounded"
+                      @click.stop="openEditNameDialog(slotProps.data)"
+                      v-tooltip.top="'Edit student name'"
+                      size="small"
+                    />
                     <i v-if="slotProps.data.isAbsent" class="pi pi-minus-circle text-red-500 text-sm" 
                        v-tooltip="'Student marked as absent'"></i>
                   </div>
@@ -403,6 +410,13 @@
         >
           <template #icons>
             <div class="flex items-center gap-2">
+              <Button
+                icon="pi pi-pencil"
+                class="p-button-text p-button-sm p-button-rounded"
+                @click.stop="openEditNameDialog(student)"
+                v-tooltip.top="'Edit student name'"
+                size="small"
+              />
               <Button
                 :label="student.isAbsent ? 'Absent' : 'Present'"
                 :icon="student.isAbsent ? 'pi pi-times' : 'pi pi-check'"
@@ -881,6 +895,49 @@
       </template>
     </Dialog>
 
+    <!-- Edit Name Dialog -->
+    <Dialog 
+      v-model:visible="editName.visible" 
+      :header="`Edit Name: ${editName.student?.studentName || ''}`" 
+      :style="{ width: '90vw', maxWidth: '520px' }" 
+      modal
+      class="rounded-xl shadow-lg"
+    >
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div>
+          <label class="block text-900 font-semibold mb-1">First Name</label>
+          <InputText v-model="editName.firstName" class="w-full" />
+        </div>
+        <div>
+          <label class="block text-900 font-semibold mb-1">Middle Name</label>
+          <InputText v-model="editName.middleName" class="w-full" />
+        </div>
+        <div>
+          <label class="block text-900 font-semibold mb-1">Last Name</label>
+          <InputText v-model="editName.lastName" class="w-full" />
+        </div>
+      </div>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <Button 
+            label="Cancel" 
+            icon="pi pi-times" 
+            class="p-button-secondary" 
+            :disabled="editName.saving" 
+            @click="editName.visible = false" 
+          />
+          <Button 
+            label="Save" 
+            icon="pi pi-check" 
+            class="p-button-primary" 
+            :loading="editName.saving" 
+            :disabled="!isEditNameValid" 
+            @click="saveEditedName" 
+          />
+        </div>
+      </template>
+    </Dialog>
+
     <Toast ref="toast" />
     <ConfirmDialog />
 
@@ -1325,6 +1382,16 @@ export default {
       generalCommentLoading: false,
       isHomeroomForSelectedGrade: false,
 
+      // Edit name dialog
+      editName: {
+        visible: false,
+        student: null,
+        firstName: '',
+        middleName: '',
+        lastName: '',
+        saving: false
+      },
+
       // BabyClass skill assessment data
       babyClassSkills: [
         {
@@ -1470,6 +1537,13 @@ export default {
         return num === 7;
       }
       return false;
+    },
+
+    isEditNameValid() {
+      return !!(
+        this.editName.firstName?.trim() && 
+        this.editName.lastName?.trim()
+      );
     },
 
     // For teacher summary dialog, infer Grade 7 from current summary payload or selected assignment
@@ -2989,6 +3063,53 @@ export default {
 
     handleResize() {
       this.isMobile = window.innerWidth < 768
+    },
+
+    openEditNameDialog(student) {
+      this.editName.student = student;
+      const parts = (student.studentName || '').split(' ');
+      this.editName.firstName = parts[0] || '';
+      this.editName.lastName = parts.slice(1).join(' ') || '';
+      this.editName.middleName = '';
+      this.editName.visible = true;
+    },
+
+    async saveEditedName() {
+      if (!this.editName.student || !this.isEditNameValid) return;
+      this.editName.saving = true;
+      try {
+        const resp = await homeroomService.updateStudentName(this.editName.student.studentId, {
+          firstName: this.editName.firstName,
+          middleName: this.editName.middleName,
+          lastName: this.editName.lastName
+        });
+        // Normalize response wrapper { success, data }
+        const updated = resp?.data || resp;
+        const fullName = updated?.fullName || `${this.editName.firstName} ${this.editName.lastName}`.trim();
+        
+        // Update local student data
+        this.editName.student.studentName = fullName;
+        
+        // Update in students array
+        const studentIndex = this.students.findIndex(s => s.studentId === this.editName.student.studentId);
+        if (studentIndex !== -1) {
+          this.students[studentIndex].studentName = fullName;
+        }
+        
+        // Update in originalStudents array
+        const originalIndex = this.originalStudents.findIndex(s => s.studentId === this.editName.student.studentId);
+        if (originalIndex !== -1) {
+          this.originalStudents[originalIndex].studentName = fullName;
+        }
+        
+        this.showSuccess('Name updated successfully');
+        this.editName.visible = false;
+      } catch (e) {
+        console.error('Error updating student name:', e);
+        this.showError('Failed to update name. ' + (e.message || ''));
+      } finally {
+        this.editName.saving = false;
+      }
     },
 
     async saveSingleChange(change) {
