@@ -895,6 +895,77 @@
       </template>
     </Dialog>
 
+    <!-- Multi-Subject Student Scores Dialog -->
+    <Dialog
+      v-model:visible="showStudentDialog"
+      :header="selectedStudent ? selectedStudent.studentName + ' - All Subject Scores' : 'Student Scores'"
+      :modal="true"
+      :closable="true"
+      :style="{ width: '95vw', maxWidth: '600px' }"
+      class="rounded-xl shadow-lg"
+      @hide="onDialogCancel"
+    >
+      <div v-if="selectedStudent">
+        <div class="mb-4 bg-surface-100 p-3 rounded-lg">
+          <strong>Exam Type:</strong> {{ getExamTypeName(selectedExamType) }}<br />
+          <strong>Term:</strong> {{ getTermName(selectedTerm) }}
+        </div>
+        <div class="flex flex-col gap-4">
+          <div v-for="subject in dialogSubjects" :key="subject.id" class="mb-2">
+            <label class="block mb-1 font-semibold text-900">{{ subject.name }}</label>
+            <div class="flex items-center gap-2 mb-2">
+              <Button
+                :label="dialogStudentScores[subject.id]?.isAbsent ? 'Absent' : 'Present'"
+                :icon="dialogStudentScores[subject.id]?.isAbsent ? 'pi pi-times' : 'pi pi-check'"
+                :class="dialogStudentScores[subject.id]?.isAbsent ? 'p-button-danger p-button-sm' : 'p-button-success p-button-sm'"
+                @click="toggleDialogAbsent(subject.id)"
+                size="small"
+              />
+            </div>
+            <InputNumber
+              v-model="dialogStudentScores[subject.id].score"
+              :min="0"
+              :max="150"
+              :maxFractionDigits="1"
+              :disabled="dialogStudentScores[subject.id]?.isAbsent"
+              class="w-full"
+              :class="{ 'opacity-50': dialogStudentScores[subject.id]?.isAbsent }"
+              placeholder="Enter score"
+            />
+            <div v-if="selectedExamType === 4" class="mt-2">
+              <label class="block mb-1 font-semibold text-900 flex items-center gap-1">
+                Comments
+                <i class="pi pi-info-circle text-yellow-600" v-tooltip.top="'Comments are only required for End-of-Term exams.'"></i>
+              </label>
+              <transition name="fade-slide">
+                <div v-show="selectedExamType === 4">
+                  <Textarea
+                    v-model="dialogStudentScores[subject.id].comments"
+                    :maxlength="100"
+                    rows="2"
+                    :disabled="dialogStudentScores[subject.id]?.isAbsent"
+                    class="w-full comment-highlight"
+                    :class="{ 'opacity-50': dialogStudentScores[subject.id]?.isAbsent }"
+                    placeholder="Enter comment."
+                    :autoResize="true"
+                  />
+                  <div class="text-right text-xs text-gray-500 mt-1">
+                    {{ 100 - (dialogStudentScores[subject.id].comments?.length || 0) }} characters left
+                  </div>
+                </div>
+              </transition>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <Button label="Cancel" icon="pi pi-times" text @click="onDialogCancel" class="p-button-secondary" />
+          <Button label="Save" icon="pi pi-check" @click="onDialogSave" :disabled="!dialogHasChanges" class="p-button-primary" />
+        </div>
+      </template>
+    </Dialog>
+
     <!-- Edit Name Dialog -->
     <Dialog 
       v-model:visible="editName.visible" 

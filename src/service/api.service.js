@@ -2,44 +2,149 @@
 import { ensureNumber } from '@/service/numberUtils.js';
 import axios from 'axios';
 
-
-  // Create axios instance
-  const apiClient = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL,
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    timeout: 10000, // 10 second timeout
-    // Transform response to handle non-JSON responses gracefully
-    transformResponse: [
-      function (data, headers) {
-        const contentType = headers?.['content-type'] || headers?.['Content-Type'] || '';
-        
-        // If it's not JSON, return as string
-        if (contentType.includes('application/json') || contentType.includes('text/json')) {
-          try {
-            // Try to parse as JSON
-            if (typeof data === 'string') {
-              return JSON.parse(data);
-            }
-            return data;
-          } catch (e) {
-            // If JSON parsing fails, return as string for error handling
-            console.warn('Failed to parse JSON response:', e);
-            return data;
-          }
-        }
-        
-        // For non-JSON responses (HTML, XML, etc.), return as string
-        return data;
+// Helper function to normalize the API base URL with smart auto-detection
+// This function handles all scenarios from a single VITE_API_BASE_URL environment variable:
+// - Full URLs (http:// or https://) → use directly
+// - Relative paths (/api) → auto-construct based on environment
+// - Auto-detects localhost vs production contexts
+function getApiBaseUrl() {
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  const isDev = import.meta.env.DEV;
+  const mode = import.meta.env.MODE;
+  
+  if (!envUrl) {
+    console.error('❌ VITE_API_BASE_URL is not set in environment variables!');
+    console.warn('⚠️ Falling back to /api (relative path). This may not work in production.');
+    console.warn('💡 Create a .env file with: VITE_API_BASE_URL=https://bluebirdhub.somee.com/api');
+    return '/api';
+  }
+  
+  // Helper function to detect if a URL is localhost
+  const isLocalhost = (url) => {
+    return url.includes('localhost') || 
+           url.includes('127.0.0.1') || 
+           url.includes('0.0.0.0') ||
+           url.startsWith('http://localhost') ||
+           url.startsWith('https://localhost');
+  };
+  
+  // Helper function to get default backend host based on environment
+  const getDefaultBackendHost = () => {
+    if (isDev) {
+      return 'http://localhost:5287';
+    } else {
+      return 'https://bluebirdhub.somee.com';
+    }
+  };
+  
+  // CASE 1: Full URL (starts with http:// or https://)
+  if (envUrl.startsWith('http://') || envUrl.startsWith('https://')) {
+    const isLocal = isLocalhost(envUrl);
+    
+    console.log('✅ Using full backend URL from environment:', envUrl);
+    if (isLocal) {
+      console.log('📍 Detected localhost URL - treating as local development');
+    } else {
+      console.log('🌐 Detected production/remote URL');
+    }
+    
+    return envUrl;
+  }
+  
+  // CASE 2: Relative path (starts with /)
+  if (envUrl.startsWith('/')) {
+    // Check if VITE_BACKEND_HOST is explicitly set (for backward compatibility)
+    const explicitBackendHost = import.meta.env.VITE_BACKEND_HOST;
+    const backendHost = explicitBackendHost || getDefaultBackendHost();
+    const fullUrl = `${backendHost}${envUrl}`;
+    
+    // Determine if we should use Vite proxy or direct connection
+    // In development with relative paths, we can use proxy OR direct connection
+    // For better reliability (especially with large files), we'll use direct connection
+    // but log both options
+    
+    if (isDev) {
+      console.log('⚠️ Relative path detected:', envUrl);
+      console.log('🔧 Converting to full URL:', fullUrl);
+      console.log('💡 Using direct backend connection for better reliability');
+      console.log('💡 Alternative: Set VITE_API_BASE_URL to full URL to explicitly control connection');
+      
+      if (explicitBackendHost) {
+        console.log('💡 Using explicit VITE_BACKEND_HOST:', explicitBackendHost);
+      } else {
+        console.log('💡 Using default backend host for development:', backendHost);
       }
-    ]
-  });
+    } else {
+      // In production, suppress the warning if the conversion is working
+      // Only log if we're in development mode or if there's an actual issue
+      // The conversion is automatic and works correctly, so no need to warn
+    }
+    
+    return fullUrl;
+  }
+  
+  // CASE 3: Domain without protocol (e.g., "bluebirdhub.somee.com/api")
+  // Try to construct a valid URL
+  if (envUrl.includes('.') && !envUrl.includes('://')) {
+    const protocol = isDev ? 'http://' : 'https://';
+    const constructedUrl = `${protocol}${envUrl}`;
+    
+    console.warn('⚠️ URL missing protocol, constructing:', envUrl, '->', constructedUrl);
+    console.log('💡 Using', protocol === 'http://' ? 'HTTP' : 'HTTPS', 'protocol');
+    
+    return constructedUrl;
+  }
+  
+  // CASE 4: Unknown format - return as-is but warn
+  console.warn('⚠️ VITE_API_BASE_URL format unclear:', envUrl);
+  console.warn('💡 Expected formats:');
+  console.warn('   - Full URL: https://bluebirdhub.somee.com/api');
+  console.warn('   - Relative path: /api');
+  console.warn('   - Domain: bluebirdhub.somee.com/api');
+  return envUrl;
+}
 
-// Log the base URL for debugging
-console.log('🔍 API Base URL:', apiClient.defaults.baseURL);
-console.log('🔍 VITE_API_BASE_URL env var:', import.meta.env.VITE_API_BASE_URL);
-console.log('🔍 All env vars:', import.meta.env);
+// Create axios instance
+const apiClient = axios.create({
+  baseURL: getApiBaseUrl(),
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  timeout: 10000, // 10 second timeout
+  // Transform response to handle non-JSON responses gracefully
+  transformResponse: [
+    function (data, headers) {
+      const contentType = headers?.['content-type'] || headers?.['Content-Type'] || '';
+      
+      // If it's not JSON, return as string
+      if (contentType.includes('application/json') || contentType.includes('text/json')) {
+        try {
+          // Try to parse as JSON
+          if (typeof data === 'string') {
+            return JSON.parse(data);
+          }
+          return data;
+        } catch (e) {
+          // If JSON parsing fails, return as string for error handling
+          console.warn('Failed to parse JSON response:', e);
+          return data;
+        }
+      }
+      
+      // For non-JSON responses (HTML, XML, etc.), return as string
+      return data;
+    }
+  ]
+});
+
+// Log the base URL for debugging (only in development for cleaner production builds)
+if (import.meta.env.DEV) {
+  console.log('🔍 API Configuration:');
+  console.log('  Base URL:', apiClient.defaults.baseURL);
+  console.log('  VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL || '(not set)');
+  console.log('  Environment mode:', import.meta.env.MODE);
+  console.log('  Is development:', import.meta.env.DEV);
+}
 
 
 // Add request interceptor to attach token
@@ -156,16 +261,17 @@ apiClient.interceptors.request.use(
         const backendUrl = apiClient.defaults.baseURL;
         
         // Enhanced CORS error message
-        let errorMessage = `CORS Configuration Error: The backend API at ${backendUrl} is not properly configured to allow requests from ${frontendOrigin}.`;
+        let errorMessage = `CORS Configuration Error: The backend API at ${backendUrl} is not configured to allow requests from ${frontendOrigin}.`;
         
         // Check if we're in development mode and suggest using proxy
         if (import.meta.env.DEV) {
-          errorMessage += ` For local development, ensure VITE_API_BASE_URL is set to use the Vite proxy (/api) instead of the direct backend URL.`;
+          errorMessage += `\n\nFor local development, you can:\n1. Use the Vite proxy by setting VITE_API_BASE_URL=/api in your .env file\n2. Or configure the backend to allow requests from ${frontendOrigin}`;
         } else {
-          errorMessage += ` The backend must be configured with proper CORS headers. The error suggests the backend is sending an invalid CORS header value (possibly '*, *' instead of '*' or a specific origin).`;
+          errorMessage += `\n\nThe backend CORS configuration must include:\n- Allow-Origin header set to: ${frontendOrigin}\n- Or Allow-Origin: * (less secure, but works for all origins)\n- Proper Allow-Methods, Allow-Headers, and Allow-Credentials headers`;
+          errorMessage += `\n\nBackend fix needed: Add ${frontendOrigin} to the allowed origins in your CORS configuration.`;
         }
         
-        errorMessage += ` Please contact the backend administrator to fix the CORS configuration.`;
+        errorMessage += `\n\nPlease contact the backend administrator to fix the CORS configuration.`;
         
         console.error('🚫 CORS Error Details:', {
           frontendOrigin,
@@ -853,7 +959,8 @@ async submitScore(scoreData) {
       studentId: ensureNumber(scoreData.studentId, 'studentId'),
       subjectId: ensureNumber(scoreData.subjectId, 'subjectId'), 
       examTypeId: ensureNumber(scoreData.examTypeId, 'examTypeId'),
-      score: isAbsentFlag ? null : ensureNumber(scoreData.score, 'score'),
+      // Always use a number for score (0 when absent, not null) to avoid Decimal conversion errors
+      score: isAbsentFlag ? 0 : ensureNumber(scoreData.score, 'score'),
       academicYear: ensureNumber(academicYearValue, 'academicYear'),
       term: ensureNumber(scoreData.term, 'term'),
       // Include gradeId for backend authorization checks (subject+grade+student)
@@ -1827,10 +1934,100 @@ export const reportService = {
                     timeout: 90000 // 90 seconds - backend can take 70+ seconds for large PDFs
                 }
             );
+            
+            // Check if the blob is actually an error response (JSON error in blob format)
+            // This can happen if the server returns an error with content-type blob
+            if (response.data.type === 'application/json' || (response.data.size < 1000 && response.data.size > 0)) {
+                // Likely an error response, try to parse it
+                const text = await response.data.text();
+                let errorMessage = 'Failed to load report card PDF';
+                
+                try {
+                    const errorJson = JSON.parse(text);
+                    errorMessage = errorJson.message || errorJson.error || errorJson.title || errorMessage;
+                } catch {
+                    // If not JSON, use the text or default message
+                    if (text && text.length < 500) {
+                        errorMessage = text;
+                    }
+                }
+                
+                throw new Error(errorMessage);
+            }
+            
             return response.data; // Just return the blob, no download
         } catch (error) {
             console.error(`Failed to fetch report card blob ${reportCardId}:`, error);
-            throw new Error(`Failed to load report card PDF: ${error.message}`);
+            
+            // If error has response data, try to extract better error message
+            if (error.response?.data) {
+                const data = error.response.data;
+                
+                // If it's a blob (which happens with responseType: 'blob' even for errors), try to read it
+                if (data instanceof Blob) {
+                    try {
+                        const text = await data.text();
+                        console.log('📄 Error blob content:', text.substring(0, 500));
+                        
+                        // Check if it's JSON (error responses are often JSON)
+                        if (data.type === 'application/json' || text.trim().startsWith('{') || text.trim().startsWith('[')) {
+                            try {
+                                const errorJson = JSON.parse(text);
+                                const extractedMessage = errorJson.message || errorJson.error || errorJson.title;
+                                if (extractedMessage) {
+                                    // Create a new error with the extracted message, preserving the original error
+                                    const enhancedError = new Error(extractedMessage);
+                                    enhancedError.originalError = error;
+                                    enhancedError.status = error.response?.status;
+                                    throw enhancedError;
+                                }
+                            } catch (parseError) {
+                                // If parsing fails but we have a readable error message, use it
+                                if (parseError.message && parseError.message !== error.message) {
+                                    throw parseError; // Re-throw the enhanced error
+                                }
+                                // If text is short enough, use it directly
+                                if (text.length < 500 && text.trim().length > 0) {
+                                    const enhancedError = new Error(text.trim());
+                                    enhancedError.originalError = error;
+                                    enhancedError.status = error.response?.status;
+                                    throw enhancedError;
+                                }
+                            }
+                        } else if (text.length < 500 && text.trim().length > 0) {
+                            // Even if not JSON, if it's a short text, it might be an error message
+                            const enhancedError = new Error(text.trim());
+                            enhancedError.originalError = error;
+                            enhancedError.status = error.response?.status;
+                            throw enhancedError;
+                        }
+                    } catch (readError) {
+                        // If we successfully extracted a message, re-throw it
+                        if (readError.message && readError.message !== error.message && !readError.message.includes('Could not read')) {
+                            throw readError;
+                        }
+                        // Otherwise, log and continue with original error
+                        console.warn('Could not extract error message from blob:', readError);
+                    }
+                } else if (typeof data === 'string') {
+                    // If response data is a string, use it as error message
+                    if (data.length < 500) {
+                        throw new Error(data);
+                    }
+                } else if (data && typeof data === 'object') {
+                    // If response data is an object, extract message
+                    const extractedMessage = data.message || data.error || data.title;
+                    if (extractedMessage) {
+                        throw new Error(extractedMessage);
+                    }
+                }
+            }
+            
+            // Use the error message if available, otherwise create one
+            const errorMessage = error.message || 
+                (error.response?.status ? `Server error (${error.response.status}): Failed to load report card PDF` : 'Failed to load report card PDF');
+            
+            throw new Error(errorMessage);
         }
     },
 
