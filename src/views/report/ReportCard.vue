@@ -250,8 +250,31 @@
 
         <!-- PDF Modal -->
         <Dialog v-model:visible="showPdfModal" modal header="Report Card PDF" :style="{ width: '80vw' }" @hide="closePdfModal">
-            <iframe v-if="pdfUrl" :src="pdfUrl" width="100%" height="600px" style="border: none"></iframe>
-           <!-- <Button v-if="lastPdfBlob" @click="downloadDebugPdf" class="mt-2" severity="info">Download PDF (Debug)</Button> -->
+            <div v-if="pdfUrl" class="pdf-container">
+                <iframe 
+                    :src="pdfUrl" 
+                    width="100%" 
+                    height="600px" 
+                    style="border: none"
+                    @load="onIframeLoad"
+                    @error="onIframeError"
+                ></iframe>
+                <div v-if="pdfLoadError" class="pdf-error mt-4 p-4 bg-red-50 border border-red-200 rounded">
+                    <p class="text-red-700 mb-2">Failed to load PDF in iframe.</p>
+                    <Button 
+                        @click="downloadPdfFallback" 
+                        severity="danger" 
+                        outlined
+                        icon="pi pi-download"
+                    >
+                        Download PDF Instead
+                    </Button>
+                </div>
+            </div>
+            <div v-else class="text-center p-4">
+                <ProgressBar mode="indeterminate" />
+                <p class="mt-2">Loading PDF...</p>
+            </div>
         </Dialog>
 
         <!-- Toast for notifications -->
@@ -328,6 +351,7 @@ const loadingClassViewBlobs = ref(false);
 const lastPdfBlob = ref(null);
 const pdfUrl = ref('');
 const showPdfModal = ref(false);
+const pdfLoadError = ref(false);
 
 // Add search bar above report cards table
 const reportCardSearchQuery = ref("");
@@ -344,64 +368,136 @@ const filteredStudentReportCards = computed(() => {
 });
 
 async function openPdfModal(reportCardId, studentName) {
-    // Show loading toast
-    const loadingToast = toast.add({
-        severity: 'info',
-        summary: 'Loading PDF',
-        detail: `Loading report card for ${studentName || 'student'}...`,
-        life: 30000 // 30 seconds
-    });
+    console.log('📄 Opening PDF modal for report card ID:', reportCardId, 'Student:', studentName);
+    
+    // Reset error state
+    pdfLoadError.value = false;
+    
+    // Show loading toast (store toast message for removal)
+    let loadingToastMessage = null;
+    try {
+        loadingToastMessage = toast.add({
+            severity: 'info',
+            summary: 'Loading PDF',
+            detail: `Loading report card for ${studentName || 'student'}...`,
+            life: 30000 // 30 seconds
+        });
+    } catch (e) {
+        console.warn('Could not create loading toast:', e);
+    }
 
-    if (isMobile.value) {
-        // On mobile, open PDF in new tab
-        try {
-            const blob = await reportService.fetchReportCardBlob(reportCardId);
-            const url = window.URL.createObjectURL(blob);
+    try {
+        // Fetch the blob
+        console.log('📥 Fetching report card blob...');
+        const blob = await reportService.fetchReportCardBlob(reportCardId);
+        
+        // Validate blob
+        if (!blob || !(blob instanceof Blob)) {
+            throw new Error('Invalid blob response from server');
+        }
+        
+        console.log('✅ Blob received:', {
+            size: blob.size,
+            type: blob.type,
+            sizeInMB: (blob.size / 1024 / 1024).toFixed(2)
+        });
+        
+        // Check if blob is empty
+        if (blob.size === 0) {
+            throw new Error('Received empty PDF file');
+        }
+        
+        // Check if it's actually a PDF
+        if (blob.type && !blob.type.includes('pdf') && !blob.type.includes('application/pdf')) {
+            console.warn('⚠️ Blob type is not PDF:', blob.type);
+            // Still try to display it, might be a server issue with content-type
+        }
+        
+        // Create object URL
+        const url = window.URL.createObjectURL(blob);
+        console.log('🔗 Created object URL:', url);
+        
+        // Remove loading toast safely
+        if (loadingToastMessage !== null) {
+            try {
+                // PrimeVue toast.remove expects the message object, not an ID
+                if (typeof loadingToastMessage === 'object' && loadingToastMessage !== null) {
+                    toast.remove(loadingToastMessage);
+                } else if (typeof loadingToastMessage === 'number' || typeof loadingToastMessage === 'string') {
+                    // Some versions might use ID, try removing by message
+                    toast.remove(loadingToastMessage);
+                }
+            } catch (e) {
+                // If removal fails, just clear all toasts (fallback)
+                try {
+                    toast.clear();
+                } catch (clearError) {
+                    console.warn('Could not clear toasts:', clearError);
+                }
+            }
+        }
+        
+        if (isMobile.value) {
+            // On mobile, open PDF in new tab
+            console.log('📱 Mobile device - opening in new tab');
             window.open(url, '_blank');
             
-            // Clear loading toast
-            toast.remove(loadingToast);
             toast.add({
                 severity: 'success',
                 summary: 'Success',
                 detail: 'PDF opened in new tab',
                 life: 3000
             });
-        } catch (error) {
-            // Clear loading toast
-            toast.remove(loadingToast);
-            
-            console.error('PDF loading error:', error);
-            toast.add({
-                severity: 'error',
-                summary: 'Error Loading PDF',
-                detail: error.message || 'Failed to load PDF. Please check your connection and try again.',
-                life: 8000
-            });
-        }
-    } else {
-        // On desktop, show modal
-        try {
-            const blob = await reportService.fetchReportCardBlob(reportCardId);
+        } else {
+            // On desktop, show modal
+            console.log('🖥️ Desktop device - showing in modal');
             lastPdfBlob.value = blob; // Save for debug download
-            const url = window.URL.createObjectURL(blob);
             pdfUrl.value = url;
             showPdfModal.value = true;
+            console.log('✅ Modal should be visible now. showPdfModal:', showPdfModal.value, 'pdfUrl:', pdfUrl.value);
             
-            // Clear loading toast
-            toast.remove(loadingToast);
-        } catch (error) {
-            // Clear loading toast
-            toast.remove(loadingToast);
-            
-            console.error('PDF loading error:', error);
-            toast.add({
-                severity: 'error',
-                summary: 'Error Loading PDF',
-                detail: error.message || 'Failed to load PDF. Please check your connection and try again.',
-                life: 8000
-            });
+            // Verify modal state after a short delay
+            setTimeout(() => {
+                if (!showPdfModal.value) {
+                    console.error('❌ Modal state was reset unexpectedly');
+                }
+            }, 100);
         }
+    } catch (error) {
+        // Remove loading toast safely
+        if (loadingToastMessage !== null) {
+            try {
+                // PrimeVue toast.remove expects the message object, not an ID
+                if (typeof loadingToastMessage === 'object' && loadingToastMessage !== null) {
+                    toast.remove(loadingToastMessage);
+                } else if (typeof loadingToastMessage === 'number' || typeof loadingToastMessage === 'string') {
+                    // Some versions might use ID, try removing by message
+                    toast.remove(loadingToastMessage);
+                }
+            } catch (e) {
+                // If removal fails, just clear all toasts (fallback)
+                try {
+                    toast.clear();
+                } catch (clearError) {
+                    console.warn('Could not clear toasts:', clearError);
+                }
+            }
+        }
+        
+        console.error('❌ PDF loading error:', error);
+        console.error('Error details:', {
+            message: error.message,
+            stack: error.stack,
+            response: error.response,
+            reportCardId: reportCardId
+        });
+        
+        toast.add({
+            severity: 'error',
+            summary: 'Error Loading PDF',
+            detail: error.message || 'Failed to load PDF. Please check your connection and try again.',
+            life: 8000
+        });
     }
 }
 
@@ -410,6 +506,37 @@ function closePdfModal() {
     if (pdfUrl.value) {
         window.URL.revokeObjectURL(pdfUrl.value);
         pdfUrl.value = '';
+    }
+    pdfLoadError.value = false;
+}
+
+function onIframeLoad() {
+    console.log('✅ PDF iframe loaded successfully');
+    pdfLoadError.value = false;
+}
+
+function onIframeError() {
+    console.error('❌ PDF iframe failed to load');
+    pdfLoadError.value = true;
+}
+
+function downloadPdfFallback() {
+    if (lastPdfBlob.value) {
+        const url = window.URL.createObjectURL(lastPdfBlob.value);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `report-card-${Date.now()}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        toast.add({
+            severity: 'info',
+            summary: 'Download Started',
+            detail: 'PDF download started. Please check your downloads folder.',
+            life: 3000
+        });
     }
 }
 
@@ -750,7 +877,7 @@ const sendClassReportCardsEmail = async () => {
 };
 
 // Mobile detection (simple, can be improved)
-const isMobile = computed(() => window.innerWidth <= 768);
+const isMobile = ref(typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
 // Listen for resize to update isMobile
 if (typeof window !== 'undefined') {
   window.addEventListener('resize', () => {

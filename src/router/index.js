@@ -160,6 +160,15 @@ const router = createRouter({
                     component: () => import('@/views/subjects/AssignTeacherToSubject.vue')
                 },
                 {
+                    path: 'grade-subject/config',
+                    name: 'GradeSubjectConfig',
+                    meta: {
+                        requiresAuth: true,
+                        roles: ['Admin', 'Staff']
+                    },
+                    component: () => import('@/views/subjects/GradeSubjectManager.vue')
+                },
+                {
                     path: 'scores/entry',
                     name: 'ScoresEntry',
                     meta: {

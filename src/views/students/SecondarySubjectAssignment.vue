@@ -239,50 +239,131 @@
     <Dialog 
       v-model:visible="showBulkAssignDialog" 
       header="Bulk Subject Assignment"
-      :style="{ width: '60vw' }"
+      :style="{ width: '80vw', maxWidth: '1000px' }"
       :modal="true"
     >
-      <div class="row">
-        <div class="col-md-6">
-          <h6>Select Students</h6>
-          <div class="form-check" v-for="student in (students || [])" :key="student.id">
-            <input 
-              class="form-check-input" 
-              type="checkbox" 
-              :value="student.id"
-              v-model="bulkSelectedStudents"
-              :id="`student-${student.id}`"
-            >
-            <label class="form-check-label" :for="`student-${student.id}`">
-              {{ student.fullName }} ({{ student.gradeName }})
-            </label>
+      <!-- Info Banner -->
+      <Message severity="info" :closable="false" class="mb-3">
+        <i class="pi pi-info-circle mr-2"></i>
+        Assign optional subjects to multiple students at once. Students will be enrolled in selected subjects, enabling teachers to enter scores for them.
+      </Message>
+
+      <!-- Selection Summary -->
+      <div class="flex gap-3 mb-3">
+        <Tag :value="`${bulkSelectedStudents.length} students selected`" :severity="bulkSelectedStudents.length > 0 ? 'success' : 'secondary'" />
+        <Tag :value="`${bulkSelectedSubjects.length} subjects selected`" :severity="bulkSelectedSubjects.length > 0 ? 'success' : 'secondary'" />
+      </div>
+
+      <div class="grid">
+        <!-- Students Column -->
+        <div class="col-12 md:col-6">
+          <div class="surface-100 border-round p-3 h-full">
+            <div class="flex justify-content-between align-items-center mb-3">
+              <h6 class="m-0">Select Students</h6>
+              <div class="flex gap-2">
+                <Dropdown
+                  v-model="bulkGradeFilter"
+                  :options="uniqueGrades"
+                  placeholder="Filter by Grade"
+                  class="p-inputtext-sm"
+                  style="width: 150px"
+                  showClear
+                />
+                <Button 
+                  :label="allStudentsSelected ? 'Deselect All' : 'Select All'"
+                  size="small"
+                  :severity="allStudentsSelected ? 'secondary' : 'primary'"
+                  @click="toggleAllStudents"
+                  outlined
+                />
+              </div>
+            </div>
+            <div class="student-list" style="max-height: 350px; overflow-y: auto;">
+              <div 
+                v-for="student in bulkFilteredStudents" 
+                :key="student.id"
+                class="flex align-items-center gap-2 p-2 border-round hover:surface-200 cursor-pointer"
+                @click="toggleStudentSelection(student.id)"
+              >
+                <Checkbox 
+                  :modelValue="bulkSelectedStudents.includes(student.id)"
+                  @update:modelValue="toggleStudentSelection(student.id)"
+                  :binary="true"
+                />
+                <div class="flex-1">
+                  <div class="font-medium">{{ student.fullName }}</div>
+                  <div class="text-sm text-500">{{ student.gradeName }}</div>
+                </div>
+                <Tag 
+                  v-if="student.subjects && student.subjects.length > 0"
+                  :value="`${student.subjects.length} subjects`"
+                  severity="secondary"
+                  class="text-xs"
+                />
+              </div>
+              <div v-if="bulkFilteredStudents.length === 0" class="text-center p-4 text-500">
+                No students found
+              </div>
+            </div>
           </div>
         </div>
-        <div class="col-md-6">
-          <h6>Select Subjects</h6>
-          <div class="form-check" v-for="subject in (availableSubjects || [])" :key="subject.id">
-            <input 
-              class="form-check-input" 
-              type="checkbox" 
-              :value="subject.id"
-              v-model="bulkSelectedSubjects"
-              :id="`subject-${subject.id}`"
-            >
-            <label class="form-check-label" :for="`subject-${subject.id}`">
-              {{ subject.name }} ({{ subject.code }})
-            </label>
+
+        <!-- Subjects Column -->
+        <div class="col-12 md:col-6">
+          <div class="surface-100 border-round p-3 h-full">
+            <div class="flex justify-content-between align-items-center mb-3">
+              <h6 class="m-0">Select Subjects</h6>
+              <Button 
+                :label="allSubjectsSelected ? 'Deselect All' : 'Select All'"
+                size="small"
+                :severity="allSubjectsSelected ? 'secondary' : 'primary'"
+                @click="toggleAllSubjects"
+                outlined
+              />
+            </div>
+            <div class="subject-list" style="max-height: 350px; overflow-y: auto;">
+              <div 
+                v-for="subject in (availableSubjects || [])" 
+                :key="subject.id"
+                class="flex align-items-center gap-2 p-2 border-round hover:surface-200 cursor-pointer"
+                @click="toggleSubjectSelection(subject.id)"
+              >
+                <Checkbox 
+                  :modelValue="bulkSelectedSubjects.includes(subject.id)"
+                  @update:modelValue="toggleSubjectSelection(subject.id)"
+                  :binary="true"
+                />
+                <div class="flex-1">
+                  <div class="font-medium">{{ subject.name }}</div>
+                  <div class="text-sm text-500">{{ subject.code }}</div>
+                </div>
+              </div>
+              <div v-if="!availableSubjects || availableSubjects.length === 0" class="text-center p-4 text-500">
+                No subjects available
+              </div>
+            </div>
           </div>
         </div>
       </div>
       
       <template #footer>
-        <Button label="Cancel" @click="showBulkAssignDialog = false" outlined />
-        <Button 
-          label="Assign Subjects" 
-          @click="performBulkAssignment"
-          :loading="bulkAssignLoading"
-          severity="success"
-        />
+        <div class="flex justify-content-between w-full">
+          <div class="text-500 text-sm flex align-items-center">
+            <i class="pi pi-info-circle mr-2"></i>
+            {{ bulkSelectedStudents.length * bulkSelectedSubjects.length }} total assignments will be created
+          </div>
+          <div class="flex gap-2">
+            <Button label="Cancel" @click="closeBulkDialog" severity="secondary" outlined />
+            <Button 
+              label="Assign Subjects" 
+              icon="pi pi-check"
+              @click="performBulkAssignment"
+              :loading="bulkAssignLoading"
+              :disabled="bulkSelectedStudents.length === 0 || bulkSelectedSubjects.length === 0"
+              severity="success"
+            />
+          </div>
+        </div>
       </template>
     </Dialog>
 
@@ -339,7 +420,9 @@ import Column from 'primevue/column'
 import ConfirmDialog from 'primevue/confirmdialog'
 import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
+import Dropdown from 'primevue/dropdown'
 import InputText from 'primevue/inputtext'
+import Message from 'primevue/message'
 import Tag from 'primevue/tag'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
@@ -363,6 +446,7 @@ const loading = ref(false)
 const dataTableRef = ref(null)
 const selectedSubjectIds = ref([])
 const saveLoading = ref(false)
+const bulkGradeFilter = ref(null)
 
 // Computed
 const filteredStudents = computed(() => {
@@ -376,6 +460,29 @@ const filteredStudents = computed(() => {
     (student.gradeName && student.gradeName.toLowerCase().includes(query)) ||
     (student.section && student.section.toLowerCase().includes(query))
   )
+})
+
+// Bulk assignment computed properties
+const uniqueGrades = computed(() => {
+  if (!students.value || !Array.isArray(students.value)) return []
+  const grades = [...new Set(students.value.map(s => s.gradeName))].filter(Boolean)
+  return grades.sort()
+})
+
+const bulkFilteredStudents = computed(() => {
+  if (!students.value || !Array.isArray(students.value)) return []
+  if (!bulkGradeFilter.value) return students.value
+  return students.value.filter(s => s.gradeName === bulkGradeFilter.value)
+})
+
+const allStudentsSelected = computed(() => {
+  if (bulkFilteredStudents.value.length === 0) return false
+  return bulkFilteredStudents.value.every(s => bulkSelectedStudents.value.includes(s.id))
+})
+
+const allSubjectsSelected = computed(() => {
+  if (!availableSubjects.value || availableSubjects.value.length === 0) return false
+  return availableSubjects.value.every(s => bulkSelectedSubjects.value.includes(s.id))
 })
 
 // Methods
@@ -638,13 +745,11 @@ const performBulkAssignment = async () => {
     toast.add({
       severity: 'success',
       summary: 'Success',
-      detail: 'Bulk assignment completed successfully',
-      life: 3000
+      detail: `Bulk assignment completed! ${bulkSelectedStudents.value.length} students enrolled in ${bulkSelectedSubjects.value.length} subjects.`,
+      life: 5000
     })
     
-    showBulkAssignDialog.value = false
-    bulkSelectedStudents.value = []
-    bulkSelectedSubjects.value = []
+    closeBulkDialog()
     await loadStudents() // Refresh the list
   } catch (error) {
     toast.add({
@@ -656,6 +761,53 @@ const performBulkAssignment = async () => {
   } finally {
     bulkAssignLoading.value = false
   }
+}
+
+// Bulk assignment helper methods
+const toggleStudentSelection = (studentId) => {
+  const index = bulkSelectedStudents.value.indexOf(studentId)
+  if (index > -1) {
+    bulkSelectedStudents.value.splice(index, 1)
+  } else {
+    bulkSelectedStudents.value.push(studentId)
+  }
+}
+
+const toggleSubjectSelection = (subjectId) => {
+  const index = bulkSelectedSubjects.value.indexOf(subjectId)
+  if (index > -1) {
+    bulkSelectedSubjects.value.splice(index, 1)
+  } else {
+    bulkSelectedSubjects.value.push(subjectId)
+  }
+}
+
+const toggleAllStudents = () => {
+  if (allStudentsSelected.value) {
+    // Deselect all filtered students
+    bulkSelectedStudents.value = bulkSelectedStudents.value.filter(
+      id => !bulkFilteredStudents.value.some(s => s.id === id)
+    )
+  } else {
+    // Select all filtered students
+    const newIds = bulkFilteredStudents.value.map(s => s.id)
+    bulkSelectedStudents.value = [...new Set([...bulkSelectedStudents.value, ...newIds])]
+  }
+}
+
+const toggleAllSubjects = () => {
+  if (allSubjectsSelected.value) {
+    bulkSelectedSubjects.value = []
+  } else {
+    bulkSelectedSubjects.value = availableSubjects.value.map(s => s.id)
+  }
+}
+
+const closeBulkDialog = () => {
+  showBulkAssignDialog.value = false
+  bulkSelectedStudents.value = []
+  bulkSelectedSubjects.value = []
+  bulkGradeFilter.value = null
 }
 
 const getSectionSeverity = (section) => {

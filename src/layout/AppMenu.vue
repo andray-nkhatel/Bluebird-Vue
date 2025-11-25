@@ -134,6 +134,12 @@ const allMenuItems = [
                 roles: ['Admin','Staff']
             },
             { 
+                label: 'Subject Configuration', 
+                icon: 'pi pi-fw pi-cog', 
+                to: '/app/grade-subject/config',
+                roles: ['Admin','Staff']
+            },
+            { 
                 label: 'Teacher Assignments', 
                 icon: 'pi pi-fw pi-user-edit', 
                 to: '/app/teacher-subject/assignments',

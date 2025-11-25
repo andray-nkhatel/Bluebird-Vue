@@ -2,106 +2,17 @@
 import { ensureNumber } from '@/service/numberUtils.js';
 import axios from 'axios';
 
-// Helper function to normalize the API base URL with smart auto-detection
-// This function handles all scenarios from a single VITE_API_BASE_URL environment variable:
-// - Full URLs (http:// or https://) → use directly
-// - Relative paths (/api) → auto-construct based on environment
-// - Auto-detects localhost vs production contexts
+// Get API base URL from environment variable
+// Set VITE_API_BASE_URL in your .env file (e.g., https://bluebirdhub.somee.com/api)
 function getApiBaseUrl() {
-  const envUrl = import.meta.env.VITE_API_BASE_URL;
-  const isDev = import.meta.env.DEV;
-  const mode = import.meta.env.MODE;
+  const baseUrl = import.meta.env.VITE_API_BASE_URL;
   
-  if (!envUrl) {
-    console.error('❌ VITE_API_BASE_URL is not set in environment variables!');
-    console.warn('⚠️ Falling back to /api (relative path). This may not work in production.');
-    console.warn('💡 Create a .env file with: VITE_API_BASE_URL=https://bluebirdhub.somee.com/api');
-    return '/api';
+  if (!baseUrl) {
+    console.error('❌ VITE_API_BASE_URL is not set! Add it to your .env file.');
+    return '/api'; // fallback
   }
   
-  // Helper function to detect if a URL is localhost
-  const isLocalhost = (url) => {
-    return url.includes('localhost') || 
-           url.includes('127.0.0.1') || 
-           url.includes('0.0.0.0') ||
-           url.startsWith('http://localhost') ||
-           url.startsWith('https://localhost');
-  };
-  
-  // Helper function to get default backend host based on environment
-  const getDefaultBackendHost = () => {
-    if (isDev) {
-      return 'http://localhost:5287';
-    } else {
-      return 'https://bluebirdhub.somee.com';
-    }
-  };
-  
-  // CASE 1: Full URL (starts with http:// or https://)
-  if (envUrl.startsWith('http://') || envUrl.startsWith('https://')) {
-    const isLocal = isLocalhost(envUrl);
-    
-    console.log('✅ Using full backend URL from environment:', envUrl);
-    if (isLocal) {
-      console.log('📍 Detected localhost URL - treating as local development');
-    } else {
-      console.log('🌐 Detected production/remote URL');
-    }
-    
-    return envUrl;
-  }
-  
-  // CASE 2: Relative path (starts with /)
-  if (envUrl.startsWith('/')) {
-    // Check if VITE_BACKEND_HOST is explicitly set (for backward compatibility)
-    const explicitBackendHost = import.meta.env.VITE_BACKEND_HOST;
-    const backendHost = explicitBackendHost || getDefaultBackendHost();
-    const fullUrl = `${backendHost}${envUrl}`;
-    
-    // Determine if we should use Vite proxy or direct connection
-    // In development with relative paths, we can use proxy OR direct connection
-    // For better reliability (especially with large files), we'll use direct connection
-    // but log both options
-    
-    if (isDev) {
-      console.log('⚠️ Relative path detected:', envUrl);
-      console.log('🔧 Converting to full URL:', fullUrl);
-      console.log('💡 Using direct backend connection for better reliability');
-      console.log('💡 Alternative: Set VITE_API_BASE_URL to full URL to explicitly control connection');
-      
-      if (explicitBackendHost) {
-        console.log('💡 Using explicit VITE_BACKEND_HOST:', explicitBackendHost);
-      } else {
-        console.log('💡 Using default backend host for development:', backendHost);
-      }
-    } else {
-      // In production, suppress the warning if the conversion is working
-      // Only log if we're in development mode or if there's an actual issue
-      // The conversion is automatic and works correctly, so no need to warn
-    }
-    
-    return fullUrl;
-  }
-  
-  // CASE 3: Domain without protocol (e.g., "bluebirdhub.somee.com/api")
-  // Try to construct a valid URL
-  if (envUrl.includes('.') && !envUrl.includes('://')) {
-    const protocol = isDev ? 'http://' : 'https://';
-    const constructedUrl = `${protocol}${envUrl}`;
-    
-    console.warn('⚠️ URL missing protocol, constructing:', envUrl, '->', constructedUrl);
-    console.log('💡 Using', protocol === 'http://' ? 'HTTP' : 'HTTPS', 'protocol');
-    
-    return constructedUrl;
-  }
-  
-  // CASE 4: Unknown format - return as-is but warn
-  console.warn('⚠️ VITE_API_BASE_URL format unclear:', envUrl);
-  console.warn('💡 Expected formats:');
-  console.warn('   - Full URL: https://bluebirdhub.somee.com/api');
-  console.warn('   - Relative path: /api');
-  console.warn('   - Domain: bluebirdhub.somee.com/api');
-  return envUrl;
+  return baseUrl;
 }
 
 // Create axios instance
@@ -137,13 +48,9 @@ const apiClient = axios.create({
   ]
 });
 
-// Log the base URL for debugging (only in development for cleaner production builds)
+// Log the base URL for debugging (only in development)
 if (import.meta.env.DEV) {
-  console.log('🔍 API Configuration:');
-  console.log('  Base URL:', apiClient.defaults.baseURL);
-  console.log('  VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL || '(not set)');
-  console.log('  Environment mode:', import.meta.env.MODE);
-  console.log('  Is development:', import.meta.env.DEV);
+  console.log('🔍 API Base URL:', apiClient.defaults.baseURL);
 }
 
 
@@ -260,37 +167,12 @@ apiClient.interceptors.request.use(
         const frontendOrigin = window.location.origin;
         const backendUrl = apiClient.defaults.baseURL;
         
-        // Enhanced CORS error message
-        let errorMessage = `CORS Configuration Error: The backend API at ${backendUrl} is not configured to allow requests from ${frontendOrigin}.`;
+        const errorMessage = `CORS Error: Backend at ${backendUrl} does not allow requests from ${frontendOrigin}. Please configure CORS on the backend.`;
         
-        // Check if we're in development mode and suggest using proxy
-        if (import.meta.env.DEV) {
-          errorMessage += `\n\nFor local development, you can:\n1. Use the Vite proxy by setting VITE_API_BASE_URL=/api in your .env file\n2. Or configure the backend to allow requests from ${frontendOrigin}`;
-        } else {
-          errorMessage += `\n\nThe backend CORS configuration must include:\n- Allow-Origin header set to: ${frontendOrigin}\n- Or Allow-Origin: * (less secure, but works for all origins)\n- Proper Allow-Methods, Allow-Headers, and Allow-Credentials headers`;
-          errorMessage += `\n\nBackend fix needed: Add ${frontendOrigin} to the allowed origins in your CORS configuration.`;
-        }
+        console.error('🚫 CORS Error:', { frontendOrigin, backendUrl });
         
-        errorMessage += `\n\nPlease contact the backend administrator to fix the CORS configuration.`;
-        
-        console.error('🚫 CORS Error Details:', {
-          frontendOrigin,
-          backendUrl,
-          message: errorMessage,
-          error: error.message,
-          code: error.code,
-          env: {
-            mode: import.meta.env.MODE,
-            isDev: import.meta.env.DEV,
-            apiBaseUrl: import.meta.env.VITE_API_BASE_URL
-          }
-        });
-        
-        // Create a more descriptive error object
         const corsError = new Error(errorMessage);
         corsError.isCorsError = true;
-        corsError.frontendOrigin = frontendOrigin;
-        corsError.backendUrl = backendUrl;
         return Promise.reject(corsError);
       }
       
@@ -887,6 +769,37 @@ export const subjectService = {
     }
   },
 
+  // Grade-Subject Management Methods
+  async getGradeSubjects(gradeId = null) {
+    try {
+      const params = gradeId ? `?gradeId=${gradeId}` : '';
+      const response = await apiClient.get(`/subjects/grade-subjects${params}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching grade-subject assignments:', error);
+      throw error;
+    }
+  },
+
+  async updateGradeSubject(gradeSubjectId, updateData) {
+    try {
+      const response = await apiClient.patch(`/subjects/grade-subjects/${gradeSubjectId}`, updateData);
+      return response.data;
+    } catch (error) {
+      console.error(`Error updating grade-subject ${gradeSubjectId}:`, error);
+      throw error;
+    }
+  },
+
+  async removeSubjectFromGrade(gradeSubjectId) {
+    try {
+      const response = await apiClient.delete(`/subjects/grade-subjects/${gradeSubjectId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error removing grade-subject ${gradeSubjectId}:`, error);
+      throw error;
+    }
+  },
 
 };
 
