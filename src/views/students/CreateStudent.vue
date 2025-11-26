@@ -187,7 +187,9 @@ const loadStudent = async () => {
 
   loadingStudent.value = true
   try {
-    const student = await studentService.getById(studentId.value)
+    const response = await studentService.getById(studentId.value)
+    // Handle ApiResponse wrapper: { success, data, message }
+    const student = response?.data || response
     form.firstName = student.firstName || ''
     form.lastName = student.lastName || ''
     form.gradeId = student.gradeId || null
@@ -199,7 +201,7 @@ const loadStudent = async () => {
       detail: 'Failed to load student data',
       life: 3000
     })
-    router.push('/students')
+    router.push('/app/students')
   } finally {
     loadingStudent.value = false
   }
@@ -243,7 +245,7 @@ const handleSubmit = async () => {
       const studentData = {
         firstName: form.firstName?.trim() || '',
         lastName: form.lastName?.trim() || '',
-        gradeId: form.gradeId || null
+        gradeId: form.gradeId
       }
       result = await studentService.createMinimal(studentData)
       

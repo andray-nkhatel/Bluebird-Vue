@@ -156,34 +156,6 @@
 
       
 
-      <!-- Statistics Cards -->
-      <div class="grid mb-4">
-        <div class="col-12 sm:col-6 md:col-3">
-          <div class="surface-100 border-round p-3 text-center">
-            <div class="text-2xl font-bold text-blue-600">{{ statistics.total }}</div>
-            <div class="text-sm text-600">Total Grades</div>
-          </div>
-        </div>
-        <div class="col-12 sm:col-6 md:col-3">
-          <div class="surface-100 border-round p-3 text-center">
-            <div class="text-2xl font-bold text-green-600">{{ statistics.active }}</div>
-            <div class="text-sm text-600">Active Grades</div>
-          </div>
-        </div>
-        <div class="col-12 sm:col-6 md:col-3">
-          <div class="surface-100 border-round p-3 text-center">
-            <div class="text-2xl font-bold text-orange-600">{{ statistics.totalStudents }}</div>
-            <div class="text-sm text-600">Total Students</div>
-          </div>
-        </div>
-        <div class="col-12 sm:col-6 md:col-3">
-          <div class="surface-100 border-round p-3 text-center">
-            <div class="text-2xl font-bold text-purple-600">{{ statistics.sections }}</div>
-            <div class="text-sm text-600">Sections</div>
-          </div>
-        </div>
-      </div>
-
       <!-- Section Filter -->
       <div class="mb-4">
         <div class="flex flex-wrap gap-2 align-items-center">
@@ -203,16 +175,6 @@
             size="small"
           />
         </div>
-      </div>
-
-      <div class="mb-4 flex align-items-center gap-2">
-        <label for="studentSearch" class="font-medium text-900">Search Student:</label>
-        <InputText
-          id="studentSearch"
-          v-model="studentSearch"
-          placeholder="Enter student name"
-          class="w-20rem"
-        />
       </div>
 
       <!-- Grades Table -->
@@ -660,14 +622,14 @@ const filteredGrades = computed(() => {
     filtered = filtered.filter(grade => grade.section === selectedSection.value)
   }
 
-  // Filter by student name
-  if (studentSearch.value.trim()) {
-    const search = studentSearch.value.trim().toLowerCase()
+  // Filter by global search (name, fullName, stream, section)
+  if (globalFilter.value?.trim()) {
+    const search = globalFilter.value.trim().toLowerCase()
     filtered = filtered.filter(grade =>
-      Array.isArray(grade.students) &&
-      grade.students.some(student =>
-        (student.fullName || '').toLowerCase().includes(search)
-      )
+      (grade.name || '').toLowerCase().includes(search) ||
+      (grade.fullName || '').toLowerCase().includes(search) ||
+      (grade.stream || '').toLowerCase().includes(search) ||
+      (grade.section || '').toLowerCase().includes(search)
     )
   }
 

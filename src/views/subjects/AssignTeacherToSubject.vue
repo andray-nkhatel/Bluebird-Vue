@@ -73,15 +73,13 @@ async function loadRecentAssignments() {
 async function onAssignmentCreated() {
   console.log('🔄 Assignment created event received, refreshing data...')
   try {
+    // Small delay to ensure backend has fully processed the changes
+    await new Promise(resolve => setTimeout(resolve, 300))
+    
+    // Force refresh subjects first to ensure we have latest data
+    await loadSubjects()
     await loadRecentAssignments()
     console.log('✅ Recent assignments refreshed')
-    
-    // Also refresh the teacher assignments data if needed
-    // This ensures the form shows updated data when reopened
-    if (teachers.value.length > 0) {
-      console.log('🔄 Refreshing teacher data...')
-      // You might need to refresh teacher-specific data here
-    }
   } catch (error) {
     console.error('❌ Failed to refresh assignments after creation:', error)
   }
