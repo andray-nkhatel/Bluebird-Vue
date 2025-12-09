@@ -1,4 +1,4 @@
 {
-  "enabled": false,
-  "message": "We're currently performing important scheduled maintenance. Please check back soon."
+  "enabled": true,
+  "message": "We're closed for printing purposes."
 }
