@@ -18,6 +18,13 @@
           />
 
           <Button 
+            label="Delete All Students" 
+            icon="pi pi-trash" 
+            severity="danger"
+            @click="confirmDeleteAll"
+            outlined
+          />
+          <Button 
             label="Add Student" 
             icon="pi pi-user" 
             @click="navigateToAddStudent"
@@ -155,15 +162,43 @@
         />
       </template>
     </Dialog>
+
+    <!-- Delete All Students Confirmation Dialog -->
+    <Dialog 
+      v-model:visible="deleteAllDialog" 
+      :style="{ width: '500px' }" 
+      header="Delete All Students" 
+      :modal="true"
+    >
+      <div class="flex align-items-start gap-3">
+        <i class="pi pi-trash" style="font-size: 2rem; color: var(--red-500)" />
+        <div>
+          <p class="m-0 mb-2"><strong>Permanently delete all students from the system?</strong></p>
+          <p class="text-sm text-500 m-0">
+            This will remove every student and all related data (exam scores, report cards, etc.). Use only when you have report card copies and want to re-enter students for a new year.
+          </p>
+          <p class="text-sm text-red-600 font-semibold mt-2 m-0">This action cannot be undone.</p>
+        </div>
+      </div>
+      <template #footer>
+        <Button label="Cancel" icon="pi pi-times" @click="deleteAllDialog = false" outlined />
+        <Button label="Delete All Students" icon="pi pi-trash" severity="danger" @click="deleteAllStudents" :loading="deletingAll" />
+      </template>
+    </Dialog>
+
+    <Toast />
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { gradeService, studentService } from '../../service/api.service';
+import { useToast } from 'primevue/usetoast';
+import Toast from 'primevue/toast';
+import { gradeService, studentService, examService } from '../../service/api.service';
 
 const router = useRouter();
+const toast = useToast();
 
 // Reactive state
 const students = ref([])
@@ -182,6 +217,8 @@ const loadingGrades = ref(false)
 const deleteDialog = ref(false)
 const selectedStudent = ref(null)
 const deleting = ref(false)
+const deleteAllDialog = ref(false)
+const deletingAll = ref(false)
 
 // Computed property for grade options
 const gradeOptions = computed(() => {
@@ -316,20 +353,41 @@ const deleteStudent = async () => {
   deleting.value = true
   try {
     await studentService.delete(selectedStudent.value.id)
-    // Show success message (you might want to use a toast notification)
-    console.log('Student deleted successfully')
-    
-    // Reload the students list
+    toast.add({ severity: 'success', summary: 'Deleted', detail: 'Student deleted', life: 3000 })
     await loadStudents()
-    
-    // Close the dialog
     deleteDialog.value = false
     selectedStudent.value = null
   } catch (error) {
     console.error('Error deleting student:', error)
-    // Show error message (you might want to use a toast notification)
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete student', life: 3000 })
   } finally {
     deleting.value = false
+  }
+}
+
+// Delete all students
+const confirmDeleteAll = () => {
+  deleteAllDialog.value = true
+}
+
+const deleteAllStudents = async () => {
+  deletingAll.value = true
+  try {
+    const activeYear = await examService.getActiveAcademicYear()
+    if (!activeYear?.id) {
+      toast.add({ severity: 'warn', summary: 'No active year', detail: 'Set an active academic year first', life: 4000 })
+      return
+    }
+    const result = await examService.deleteAllStudents(activeYear.id)
+    const count = result?.archivedCount ?? 0
+    toast.add({ severity: 'success', summary: 'Done', detail: count > 0 ? `Deleted ${count} student(s).` : 'No students to delete.', life: 4000 })
+    deleteAllDialog.value = false
+    await loadStudents()
+  } catch (error) {
+    console.error('Error deleting all students:', error)
+    toast.add({ severity: 'error', summary: 'Error', detail: error.message || 'Failed to delete all students', life: 4000 })
+  } finally {
+    deletingAll.value = false
   }
 }
 
