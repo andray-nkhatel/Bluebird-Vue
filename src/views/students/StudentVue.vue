@@ -195,7 +195,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
 import Toast from 'primevue/toast';
-import { gradeService, studentService, examService } from '../../service/api.service';
+import { gradeService, studentService } from '../../service/api.service';
 
 const router = useRouter();
 const toast = useToast();
@@ -373,19 +373,14 @@ const confirmDeleteAll = () => {
 const deleteAllStudents = async () => {
   deletingAll.value = true
   try {
-    const activeYear = await examService.getActiveAcademicYear()
-    if (!activeYear?.id) {
-      toast.add({ severity: 'warn', summary: 'No active year', detail: 'Set an active academic year first', life: 4000 })
-      return
-    }
-    const result = await examService.deleteAllStudents(activeYear.id)
+    const result = await studentService.deleteAll()
     const count = result?.archivedCount ?? 0
     toast.add({ severity: 'success', summary: 'Done', detail: count > 0 ? `Deleted ${count} student(s).` : 'No students to delete.', life: 4000 })
     deleteAllDialog.value = false
     await loadStudents()
   } catch (error) {
     console.error('Error deleting all students:', error)
-    toast.add({ severity: 'error', summary: 'Error', detail: error.message || 'Failed to delete all students', life: 4000 })
+    toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.message || error.message || 'Failed to delete all students', life: 4000 })
   } finally {
     deletingAll.value = false
   }

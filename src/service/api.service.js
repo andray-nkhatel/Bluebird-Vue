@@ -403,6 +403,11 @@ export const studentService = {
     return response.data;
   },
 
+  async deleteAll() {
+    const response = await apiClient.post('/students/delete-all');
+    return response.data;
+  },
+
   async importFromCsv(file) {
     const formData = new FormData();
     formData.append('file', file);
