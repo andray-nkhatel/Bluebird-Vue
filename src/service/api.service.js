@@ -1315,6 +1315,26 @@ async createAcademicYear(formData){
     }
   },
 
+  // Archive all students from all classes (Admin only) - for beginning new year
+  async archiveAllStudents(academicYearId) {
+    try {
+      const response = await apiClient.post(`/AcademicYears/${academicYearId}/archive-all-students`);
+      return response.data;
+    } catch (error) {
+      this.handleApiError(error);
+    }
+  },
+
+  // Delete all students permanently (Admin only) - for re-entry in new year when you have report card copies
+  async deleteAllStudents(academicYearId) {
+    try {
+      const response = await apiClient.post(`/AcademicYears/${academicYearId}/delete-all-students`);
+      return response.data;
+    } catch (error) {
+      this.handleApiError(error);
+    }
+  },
+
   // ===== UTILITY METHODS =====
   
   // Get gradebook data (combines grade scores with filtering)

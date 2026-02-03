@@ -58,6 +58,18 @@
                         v-tooltip.top="'Promote All Students'"
                     />
                     <Button 
+                        icon="pi pi-user-minus" 
+                        class="p-button-rounded p-button-text mr-2" 
+                        @click="confirmArchiveAllStudents(slotProps.data)"
+                        v-tooltip.top="'Archive All Students (clear classes for new year)'"
+                    />
+                    <Button 
+                        icon="pi pi-trash" 
+                        class="p-button-rounded p-button-text p-button-danger mr-2" 
+                        @click="confirmDeleteAllStudents(slotProps.data)"
+                        v-tooltip.top="'Delete All Students (permanent – for re-entry when you have report card copies)'"
+                    />
+                    <Button 
                         icon="pi pi-lock" 
                         class="p-button-rounded p-button-text p-button-secondary" 
                         @click="confirmCloseAcademicYear(slotProps.data)"
@@ -272,6 +284,81 @@
         </template>
     </Dialog>
 
+    <!-- Delete All Students Confirmation Dialog -->
+    <Dialog 
+        v-model:visible="deleteAllStudentsDialog" 
+        :style="{width: '500px'}" 
+        header="Delete All Students (Permanent)" 
+        :modal="true"
+    >
+        <div class="confirmation-content">
+            <i class="pi pi-trash mr-3" style="font-size: 2rem; color: #DC2626" />
+            <div>
+                <p><strong>Permanently delete all students from the database?</strong></p>
+                <p class="text-sm text-gray-600 mt-2">
+                    This will remove every student and all related data (exam scores, report cards, optional subjects, etc.) for the academic year 
+                    <strong>{{ selectedAcademicYear?.name }}</strong>. 
+                    Use this only when you have copies of report cards and want to re-enter students for a new year.
+                </p>
+                <div class="mt-3 p-3 bg-red-50 border-l-4 border-red-500">
+                    <p class="text-sm text-red-800 font-semibold">
+                        <i class="pi pi-exclamation-triangle mr-2"></i>
+                        This action cannot be undone. All student data will be permanently lost.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <template #footer>
+            <Button label="Cancel" icon="pi pi-times" class="p-button-text" @click="deleteAllStudentsDialog = false" />
+            <Button 
+                label="Delete All Students" 
+                icon="pi pi-trash" 
+                class="p-button-danger" 
+                @click="deleteAllStudents"
+                :loading="isProcessing"
+            />
+        </template>
+    </Dialog>
+
+    <!-- Archive All Students Confirmation Dialog -->
+    <Dialog 
+        v-model:visible="archiveAllStudentsDialog" 
+        :style="{width: '500px'}" 
+        header="Archive All Students" 
+        :modal="true"
+    >
+        <div class="confirmation-content">
+            <i class="pi pi-user-minus mr-3" style="font-size: 2rem; color: #EF4444" />
+            <div>
+                <p><strong>Archive all students from all classes?</strong></p>
+                <p class="text-sm text-gray-600 mt-2">
+                    This will archive every active student in every grade for the academic year 
+                    <strong>{{ selectedAcademicYear?.name }}</strong>. 
+                    All classes will be empty so you can begin the new year with a fresh roster.
+                </p>
+                <p class="text-sm text-gray-600 mt-2">
+                    Student records are preserved (archived), not deleted. You can still view archived students if needed.
+                </p>
+                <div class="mt-3 p-3 bg-red-50 border-l-4 border-red-400">
+                    <p class="text-sm text-red-800">
+                        <i class="pi pi-exclamation-triangle mr-2"></i>
+                        <strong>Warning:</strong> This affects all students in all grades and cannot be easily undone.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <template #footer>
+            <Button label="Cancel" icon="pi pi-times" class="p-button-text" @click="archiveAllStudentsDialog = false" />
+            <Button 
+                label="Archive All Students" 
+                icon="pi pi-check" 
+                class="p-button-danger" 
+                @click="archiveAllStudents"
+                :loading="isProcessing"
+            />
+        </template>
+    </Dialog>
+
     <!-- Close Academic Year Confirmation Dialog -->
     <Dialog 
         v-model:visible="closeAcademicYearDialog" 
@@ -330,6 +417,8 @@ const showEditDialog = ref(false);
 const deleteAcademicYearDialog = ref(false);
 const archiveGraduatesDialog = ref(false);
 const promoteStudentsDialog = ref(false);
+const archiveAllStudentsDialog = ref(false);
+const deleteAllStudentsDialog = ref(false);
 const closeAcademicYearDialog = ref(false);
 const submitted = ref(false);
 const selectedAcademicYear = ref(null);
@@ -546,6 +635,70 @@ const promoteAllStudents = async () => {
             severity: 'error',
             summary: 'Error',
             detail: 'Failed to promote students',
+            life: 5000
+        });
+    } finally {
+        isProcessing.value = false;
+        selectedAcademicYear.value = null;
+    }
+};
+
+const confirmArchiveAllStudents = (academicYear) => {
+    selectedAcademicYear.value = academicYear;
+    archiveAllStudentsDialog.value = true;
+};
+
+const archiveAllStudents = async () => {
+    isProcessing.value = true;
+    try {
+        const result = await examService.archiveAllStudents(selectedAcademicYear.value.id);
+        const count = result?.archivedCount ?? 0;
+        toast.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: count > 0 ? `Archived ${count} student(s). All classes are now empty.` : 'No active students to archive.',
+            life: 5000
+        });
+        archiveAllStudentsDialog.value = false;
+        loadAcademicYears();
+    } catch (error) {
+        console.error('Error archiving all students:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to archive all students',
+            life: 5000
+        });
+    } finally {
+        isProcessing.value = false;
+        selectedAcademicYear.value = null;
+    }
+};
+
+const confirmDeleteAllStudents = (academicYear) => {
+    selectedAcademicYear.value = academicYear;
+    deleteAllStudentsDialog.value = true;
+};
+
+const deleteAllStudents = async () => {
+    isProcessing.value = true;
+    try {
+        const result = await examService.deleteAllStudents(selectedAcademicYear.value.id);
+        const count = result?.archivedCount ?? 0;
+        toast.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: count > 0 ? `Deleted ${count} student(s). You can now re-enter students for the new year.` : 'No students to delete.',
+            life: 5000
+        });
+        deleteAllStudentsDialog.value = false;
+        loadAcademicYears();
+    } catch (error) {
+        console.error('Error deleting all students:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to delete all students',
             life: 5000
         });
     } finally {
