@@ -404,7 +404,8 @@ export const studentService = {
   },
 
   async deleteAll() {
-    const response = await apiClient.post('/students/delete-all');
+    // Long timeout: delete-all can take 30s+ with many students and related records
+    const response = await apiClient.post('/students/delete-all', null, { timeout: 120000 });
     return response.data;
   },
 

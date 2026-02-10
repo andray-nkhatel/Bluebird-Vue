@@ -184,7 +184,7 @@
         :paginator="true" 
         :rows="20"
         :rowsPerPageOptions="[5, 10, 20, 50]"
-        :globalFilterFields="['name', 'stream', 'fullName', 'section']"
+        :globalFilterFields="['id', 'name', 'stream', 'fullName', 'section']"
         :sortField="sortField"
         :sortOrder="sortOrder"
         showGridlines
@@ -223,6 +223,12 @@
             </div>
           </template>
         </Column> -->
+
+        <Column field="id" header="ID" sortable style="width: 80px">
+          <template #body="{ data }">
+            <span class="text-500 font-mono text-sm">{{ data.id }}</span>
+          </template>
+        </Column>
 
         <Column field="name" header="Grade Name" sortable style="min-width: 150px">
           <template #body="{ data }">
