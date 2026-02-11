@@ -670,16 +670,22 @@ const importStudents = async () => {
 
   } catch (error) {
     console.error('Error importing students:', error)
-    
-    // Handle error response
-    const errorMessage = error.response?.data?.message || 'Failed to import students'
-    const errors = error.response?.data?.errors || [errorMessage]
-    
+
+    const data = error.response?.data
+    const errorMessage =
+      (typeof data === 'object' && data?.message) ||
+      (typeof data === 'string' ? data : null) ||
+      error.message ||
+      'Failed to import students'
+    const errors = (typeof data === 'object' && Array.isArray(data?.errors))
+      ? data.errors
+      : [errorMessage]
+
     importResults.value = {
       successful: 0,
       failed: fileAnalysis.value?.totalRows || 0,
       total: fileAnalysis.value?.totalRows || 0,
-      errors: Array.isArray(errors) ? errors : [errors]
+      errors
     }
 
     toast.add({

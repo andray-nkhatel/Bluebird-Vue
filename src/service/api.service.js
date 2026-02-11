@@ -61,7 +61,12 @@ apiClient.interceptors.request.use(
     if (token && !config.url.includes('/auth/login')) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
+
+    // Let the browser set Content-Type with boundary for FormData (required for file uploads)
+    if (config.data && config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+
     // Optional: Log requests in development
     if (import.meta.env.DEV) {
       console.log(`🚀 ${config.method.toUpperCase()} ${config.url}`, config.data);
@@ -412,10 +417,8 @@ export const studentService = {
   async importFromCsv(file) {
     const formData = new FormData();
     formData.append('file', file);
-    
-    const response = await apiClient.post('/students/import/csv', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
+    // Content-Type is omitted by request interceptor for FormData so browser sets multipart boundary
+    const response = await apiClient.post('/students/import/csv', formData);
     return response.data;
   },
 
@@ -631,10 +634,7 @@ export const subjectService = {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      
-      const response = await apiClient.post('/subjects/import/csv', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const response = await apiClient.post('/subjects/import/csv', formData);
       return response.data;
     } catch (error) {
       console.error('Error importing subjects from CSV:', error);
