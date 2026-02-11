@@ -418,7 +418,7 @@ export const studentService = {
     const formData = new FormData();
     formData.append('file', file);
     // Content-Type is omitted by request interceptor for FormData so browser sets multipart boundary
-    const response = await apiClient.post('/students/import/csv', formData);
+    const response = await apiClient.post('/students/import-csv', formData);
     return response.data;
   },
 

@@ -671,10 +671,12 @@ const importStudents = async () => {
   } catch (error) {
     console.error('Error importing students:', error)
 
+    const status = error.response?.status
     const data = error.response?.data
     const errorMessage =
       (typeof data === 'object' && data?.message) ||
       (typeof data === 'string' ? data : null) ||
+      (status === 404 ? 'Import endpoint not found (404). Ensure the latest API is deployed and the app calls /api/students/import-csv' : null) ||
       error.message ||
       'Failed to import students'
     const errors = (typeof data === 'object' && Array.isArray(data?.errors))
